@@ -108,6 +108,8 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 .msg { min-height: 18px; font-size: 14px; color: var(--amber); }
 .top5 ol { margin: 6px 0 0; padding-left: 22px; display: grid; gap: 2px; font-family: var(--display); font-size: 14px; font-variant-numeric: tabular-nums; }
 .top5 li.new { color: var(--amber); }
+.install { padding: 10px 12px; border-radius: 4px; border: 1px solid rgba(92,225,255,.35); background: rgba(92,225,255,.08); font-size: 14px; line-height: 1.4; color: var(--paper); }
+.install b { color: var(--cell); }
 .banked { font-size: 15px; color: var(--cell); font-weight: 600; }
 .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .stat b { display: block; font-family: var(--display); font-weight: 400; font-size: 22px; font-variant-numeric: tabular-nums; }
@@ -174,6 +176,7 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
         <span><i class="dot" style="background:#9be15d">A</i>Shield</span>
         <span><i class="dot" style="background:#ffb84d">2×</i>Double</span>
       </div>
+      <div class="install" id="installHint" hidden>To save your colors and scores, tap Safari's <b>Share</b> button, then <b>Add to Home Screen</b>, and play from the icon.</div>
       <div class="row">
         <button class="btn" id="startBtn" type="button">Start driving</button>
         <button class="btn ghost" id="garageBtn" type="button">Garage</button>
@@ -617,6 +620,8 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
   }
   $('shareBtn').onclick = () => shareGame($('shareBtn'), 'Play Roadster Rush: fly the Tesla Roadster through Manhattan and dodge Zuck.');
   $('overShare').onclick = () => shareGame($('overShare'), `I scored ${Math.floor(score).toLocaleString()} in Roadster Rush. Beat that:`);
+  // in Safari on an iPhone (not the home-screen app), suggest installing so progress is kept
+  if (navigator.standalone === false && /github\.io$/.test(location.hostname)) $('installHint').hidden = false;
   let garageFrom = 'menu';
   function openGarage(from) { garageFrom = from; renderGarage(); show('garage'); }
   $('garageBtn').onclick = () => openGarage('menu');
