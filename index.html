@@ -134,7 +134,7 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 @keyframes tipIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (prefers-reduced-motion: reduce) { .tip { animation: none; } }
 @media (pointer: coarse) { .key-hint { display: none; } .touch-hint { display: contents; } }
-@media (max-width: 520px) { .card { padding: 18px; gap: 14px; } .screen { align-items: flex-start; } } /* on phones the menus sit at the top so the car stays in view */
+@media (max-width: 520px) { .card { padding: 18px; gap: 14px; } .screen { align-items: flex-start; } #menu { align-items: center; padding-bottom: 18vh; } } /* on phones the start box sits mid-screen, other menus at the top, so the car stays in view */
 </style>
 <style>
 /* home-screen app: the game fills the whole screen, under the status bar and home bar; only the HUD and menus keep clear of them */
