@@ -92,6 +92,23 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 .btn { justify-self: start; padding: 12px 22px; border: 0; border-radius: 3px; background: var(--red); color: #fff; font: 400 14px var(--display); letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; box-shadow: 0 3px 0 var(--red-deep); }
 .btn:hover { filter: brightness(1.08); }
 .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--red-deep); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn.ghost { background: transparent; border: 1px solid var(--line); box-shadow: none; color: var(--paper); }
+.card { max-height: 100%; overflow-y: auto; }
+.bank { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--muted); }
+.bank b { font-family: var(--display); font-weight: 400; font-size: 22px; color: var(--cell); font-variant-numeric: tabular-nums; }
+.paints { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.paint { display: grid; justify-items: center; gap: 6px; padding: 10px 6px; border-radius: 4px; border: 1px solid var(--line); background: rgba(255,255,255,.03); color: var(--paper); font: 600 13px var(--body); cursor: pointer; text-align: center; }
+.paint i { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); }
+.paint small { font-weight: 600; font-size: 12px; color: var(--muted); }
+.paint.on { border-color: var(--amber); }
+.paint.on small { color: var(--amber); }
+.paint.locked i { opacity: .45; }
+.paint:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.msg { min-height: 18px; font-size: 14px; color: var(--amber); }
+.top5 ol { margin: 6px 0 0; padding-left: 22px; display: grid; gap: 2px; font-family: var(--display); font-size: 14px; font-variant-numeric: tabular-nums; }
+.top5 li.new { color: var(--amber); }
+.banked { font-size: 15px; color: var(--cell); font-weight: 600; }
 .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .stat b { display: block; font-family: var(--display); font-weight: 400; font-size: 22px; font-variant-numeric: tabular-nums; }
 .stat.new b { color: var(--amber); }
@@ -157,7 +174,25 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
         <span><i class="dot" style="background:#9be15d">A</i>Shield</span>
         <span><i class="dot" style="background:#ffb84d">2×</i>Double</span>
       </div>
-      <button class="btn" id="startBtn" type="button">Start driving</button>
+      <div class="row">
+        <button class="btn" id="startBtn" type="button">Start driving</button>
+        <button class="btn ghost" id="garageBtn" type="button">Garage</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="garage" hidden>
+    <div class="card">
+      <div>
+        <div class="eyebrow">Garage</div>
+        <h2>Paint shop</h2>
+      </div>
+      <div class="bank"><span class="batt" aria-hidden="true"></span><b id="gBank">0</b>kWh to spend</div>
+      <div class="paints" id="paints"></div>
+      <div class="msg" id="gMsg" aria-live="polite"></div>
+      <div class="label">Your stats</div>
+      <div class="stats" id="gStats"></div>
+      <button class="btn ghost" id="garageBack" type="button">Back</button>
     </div>
   </div>
 
@@ -186,7 +221,12 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
         <div class="stat"><span class="label">Charge</span><b id="oCells">0 kWh</b></div>
         <div class="stat"><span class="label">Distance</span><b id="oDist">0.00 km</b></div>
       </div>
-      <button class="btn" id="againBtn" type="button">Drive again</button>
+      <div class="banked" id="oBanked"></div>
+      <div class="top5"><span class="label">Top scores</span><ol id="oTop"></ol></div>
+      <div class="row">
+        <button class="btn" id="againBtn" type="button">Drive again</button>
+        <button class="btn ghost" id="overGarage" type="button">Garage</button>
+      </div>
     </div>
   </div>
 </div>
@@ -329,13 +369,29 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
   let spawnZ = 0, stumble = 0, invuln = 0, shake = 0, deathT = 0, caught = false, shield = false, chaserZ = -12, combo = 0, comboT = 0, introT = 0;
   const pw = { lud: 0, magnet: 0, dbl: 0, fly: 0 };
   let tut = null, chaserX = -2.4, noShadow = false, introA = 0, zoom = 1;
-  let best = 0;
-  try { best = +localStorage.getItem('roadster-rush-best') || 0; } catch (e) {}
+  // progress saved on this device: banked battery cells, owned paints, lifetime stats, top 5 scores
+  const SAVE_KEY = 'roadster-rush-save';
+  const PAINTS = [
+    { id: 'pearl', name: 'Pearl White', col: '#e6e9ef', cost: 0 },
+    { id: 'red', name: 'Ultra Red', col: '#c8202e', cost: 100 },
+    { id: 'blue', name: 'Deep Blue', col: '#2a4fa8', cost: 250 },
+    { id: 'grey', name: 'Stealth Grey', col: '#5a5f69', cost: 400 },
+    { id: 'black', name: 'Solid Black', col: '#2a2c33', cost: 600 },
+    { id: 'silver', name: 'Quicksilver', col: '#b9bec7', cost: 800 },
+    { id: 'gold', name: 'Cybercab Gold', col: '#c9ab78', cost: 1200 },
+    { id: 'plaid', name: 'Plaid Pink', col: '#ff5fa2', cost: 2000 },
+  ];
+  const save = { bank: 0, owned: ['pearl'], paint: 'pearl', runs: 0, dist: 0, longest: 0, cellsTotal: 0, twistsBest: 0, top: [] };
+  try { Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch (e) {}
+  try { const old = +localStorage.getItem('roadster-rush-best') || 0; if (old && !save.top.length) save.top = [old]; } catch (e) {}
+  function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
+  const paintCol = () => (PAINTS.find((p) => p.id === save.paint) || PAINTS[0]).col;
+  let best = save.top[0] || 0, runTwists = 0;
 
   function reset() {
     objs = []; parts = [];
-    pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: '#e6e9ef', boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
-    t = 0; traveled = 0; score = 0; cells = 0; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
+    pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
+    t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
     caught = false; shield = false; chaserZ = -2.6; introT = 4; chaserX = -2.4; pw.lud = pw.magnet = pw.dbl = pw.fly = 0; combo = 0;
     cam.x = 0; cam.y = 3.6;
   }
@@ -440,6 +496,7 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
   const ROLL = 0.75, TWISTV = 15; // a twist launches you about 3.5 units higher: enough to clear construction walls
   // barrel roll with a corkscrew smoke trail, like the launch-event flip
   function twist() {
+    runTwists++;
     pl.rollT = ROLL;
     score += 50 * multiplier();
     tone(600, 0.45, 'triangle', 0.04, 1500);
@@ -497,7 +554,7 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
   }
 
   // ---------- flow ----------
-  function show(id) { ['menu', 'pause', 'over'].forEach((s) => { $(s).hidden = s !== id; }); }
+  function show(id) { ['menu', 'pause', 'over', 'garage'].forEach((s) => { $(s).hidden = s !== id; }); }
   function start() {
     initAudio();
     if (AC && AC.state === 'suspended') AC.resume();
@@ -510,17 +567,48 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
   }
   function gameOver() {
     mode = 'over'; $('tip').hidden = true;
-    const s = Math.floor(score), isBest = s > best;
-    if (isBest) { best = s; try { localStorage.setItem('roadster-rush-best', String(best)); } catch (e) {} }
+    const s = Math.floor(score), km = traveled / 1000 * 4, isBest = s > best;
+    save.runs++; save.dist += km; save.longest = Math.max(save.longest, km);
+    save.cellsTotal += cells; save.bank += cells; save.twistsBest = Math.max(save.twistsBest, runTwists);
+    save.top = [...save.top, s].sort((x, y) => y - x).slice(0, 5);
+    best = save.top[0]; persist();
     $('overReason').textContent = 'Arrested';
     $('overTitle').textContent = caught ? 'Highway patrol caught you' : 'Wrecked and cuffed';
     $('oScore').textContent = s.toLocaleString();
     $('oBest').textContent = best.toLocaleString() + (isBest ? ' · new' : '');
     $('bestStat').classList.toggle('new', isBest);
     $('oCells').textContent = cells + ' kWh';
-    $('oDist').textContent = (traveled / 1000 * 4).toFixed(2) + ' km';
+    $('oDist').textContent = km.toFixed(2) + ' km';
+    $('oBanked').textContent = cells ? `+${cells} kWh banked · ${save.bank.toLocaleString()} kWh to spend in the Garage` : `${save.bank.toLocaleString()} kWh to spend in the Garage`;
+    let marked = false;
+    $('oTop').innerHTML = save.top.map((v) => { const mine = !marked && v === s && s > 0; if (mine) marked = true; return `<li class="${mine ? 'new' : ''}">${v.toLocaleString()}</li>`; }).join('');
     show('over');
   }
+  function renderGarage(msg = '') {
+    $('gBank').textContent = save.bank.toLocaleString();
+    $('paints').innerHTML = PAINTS.map((p) => {
+      const own = save.owned.includes(p.id), on = save.paint === p.id;
+      const tag = on ? 'Equipped' : own ? 'Owned' : `${p.cost.toLocaleString()} kWh`;
+      return `<button type="button" class="paint${on ? ' on' : ''}${own ? '' : ' locked'}" data-id="${p.id}"><i style="background:${p.col}"></i>${p.name}<small>${tag}</small></button>`;
+    }).join('');
+    $('gMsg').textContent = msg;
+    const st = [['Runs', save.runs.toLocaleString()], ['Best score', (save.top[0] || 0).toLocaleString()], ['Total distance', save.dist.toFixed(1) + ' km'], ['Longest run', save.longest.toFixed(2) + ' km'], ['Cells collected', save.cellsTotal.toLocaleString()], ['Most twists', save.twistsBest]];
+    $('gStats').innerHTML = st.map(([k, v]) => `<div class="stat"><span class="label">${k}</span><b>${v}</b></div>`).join('');
+  }
+  $('paints').addEventListener('click', (e) => {
+    const b = e.target.closest('.paint'); if (!b) return;
+    const p = PAINTS.find((q) => q.id === b.dataset.id);
+    if (save.owned.includes(p.id)) { save.paint = p.id; persist(); renderGarage(`${p.name} equipped`); }
+    else if (save.bank >= p.cost) { save.bank -= p.cost; save.owned.push(p.id); save.paint = p.id; persist(); renderGarage(`Bought ${p.name}`); tone(660, 0.25, 'triangle', 0.05, 1320); }
+    else renderGarage(`You need ${(p.cost - save.bank).toLocaleString()} more kWh for ${p.name}`);
+    pl.col = paintCol();
+  });
+  let garageFrom = 'menu';
+  function openGarage(from) { garageFrom = from; renderGarage(); show('garage'); }
+  $('garageBtn').onclick = () => openGarage('menu');
+  $('overGarage').onclick = () => openGarage('over');
+  $('garageBack').onclick = () => show(garageFrom);
+
   $('startBtn').onclick = start;
   $('againBtn').onclick = start;
   $('resumeBtn').onclick = togglePause;
@@ -1399,5 +1487,6 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
   requestAnimationFrame(frame);
 })();
 </script>
+
 </body>
 </html>
