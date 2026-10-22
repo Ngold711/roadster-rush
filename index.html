@@ -177,6 +177,7 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
       <div class="row">
         <button class="btn" id="startBtn" type="button">Start driving</button>
         <button class="btn ghost" id="garageBtn" type="button">Garage</button>
+        <button class="btn ghost" id="shareBtn" type="button">Share</button>
       </div>
     </div>
   </div>
@@ -226,6 +227,7 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
       <div class="row">
         <button class="btn" id="againBtn" type="button">Drive again</button>
         <button class="btn ghost" id="overGarage" type="button">Garage</button>
+        <button class="btn ghost" id="overShare" type="button">Share score</button>
       </div>
     </div>
   </div>
@@ -603,6 +605,18 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
     else renderGarage(`You need ${(p.cost - save.bank).toLocaleString()} more kWh for ${p.name}`);
     pl.col = paintCol();
   });
+  // share sheet on phones; copies the link where sharing isn't available
+  const SHARE_URL = 'https://ngold711.github.io/roadster-rush/';
+  async function shareGame(btn, text) {
+    const label = btn.textContent;
+    const flash = (t) => { btn.textContent = t; setTimeout(() => { btn.textContent = label; }, 2200); };
+    try { if (navigator.share) { await navigator.share({ title: 'Roadster Rush', text, url: SHARE_URL }); return; } }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(`${text} ${SHARE_URL}`); flash('Link copied'); }
+    catch (e) { flash(SHARE_URL.replace('https://', '')); }
+  }
+  $('shareBtn').onclick = () => shareGame($('shareBtn'), 'Play Roadster Rush: fly the Tesla Roadster through Manhattan and dodge Zuck.');
+  $('overShare').onclick = () => shareGame($('overShare'), `I scored ${Math.floor(score).toLocaleString()} in Roadster Rush. Beat that:`);
   let garageFrom = 'menu';
   function openGarage(from) { garageFrom = from; renderGarage(); show('garage'); }
   $('garageBtn').onclick = () => openGarage('menu');
