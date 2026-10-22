@@ -63,6 +63,7 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .batt::after { content: ""; position: absolute; inset: 2px; background: var(--cell); opacity: .8; }
 .dist { font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--paper); }
 .tools { display: flex; gap: 6px; pointer-events: auto; }
+.icon-btn svg { display: block; margin: 0 auto; }
 .icon-btn { width: 36px; height: 36px; border-radius: 3px; border: 1px solid var(--line); background: var(--panel); color: var(--paper); font: 700 13px var(--body); cursor: pointer; }
 .icon-btn:focus-visible, .btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 
@@ -153,6 +154,7 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
     </div>
     <div class="right">
       <div class="tools">
+        <button class="icon-btn" id="hudShare" type="button" aria-label="Share the game"><svg width="16" height="18" viewBox="0 0 16 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 11V1.5M4.5 5 8 1.5 11.5 5"/><path d="M5 8H2.5v8.5h11V8H11"/></svg></button>
         <button class="icon-btn" id="muteBtn" type="button" aria-label="Mute sound">SND</button>
         <button class="icon-btn" id="pauseBtn" type="button" aria-label="Pause">II</button>
       </div>
@@ -611,14 +613,19 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
   // share sheet on phones; copies the link where sharing isn't available
   const SHARE_URL = 'https://ngold711.github.io/roadster-rush/';
   async function shareGame(btn, text) {
-    const label = btn.textContent;
-    const flash = (t) => { btn.textContent = t; setTimeout(() => { btn.textContent = label; }, 2200); };
+    const label = btn.innerHTML, small = btn.classList.contains('icon-btn');
+    const flash = (t) => { btn.textContent = small ? '✓' : t; setTimeout(() => { btn.innerHTML = label; }, 2200); };
     try { if (navigator.share) { await navigator.share({ title: 'Roadster Rush', text, url: SHARE_URL }); return; } }
     catch (e) { if (e && e.name === 'AbortError') return; }
     try { await navigator.clipboard.writeText(`${text} ${SHARE_URL}`); flash('Link copied'); }
     catch (e) { flash(SHARE_URL.replace('https://', '')); }
   }
   $('shareBtn').onclick = () => shareGame($('shareBtn'), 'Play Roadster Rush: fly the Tesla Roadster through Manhattan and dodge Zuck.');
+  // in-game share: pauses the run first so you don't crash while the share sheet is open
+  $('hudShare').onclick = () => {
+    if (mode === 'play') togglePause();
+    shareGame($('hudShare'), score > 0 ? `I'm at ${Math.floor(score).toLocaleString()} in Roadster Rush right now. Try it:` : 'Play Roadster Rush: fly the Tesla Roadster through Manhattan and dodge Zuck.');
+  };
   $('overShare').onclick = () => shareGame($('overShare'), `I scored ${Math.floor(score).toLocaleString()} in Roadster Rush. Beat that:`);
   // in Safari on an iPhone (not the home-screen app), suggest installing so progress is kept
   if (navigator.standalone === false && /github\.io$/.test(location.hostname)) $('installHint').hidden = false;
