@@ -367,7 +367,7 @@ html, body { background: #26222c !important; }
   // ---------- projection ----------
   function P(x, y, z) {
     const s = F * zoom / (z - cam.z);
-    return [W / 2 + (x - cam.x) * s, HY + (cam.y - y) * s, s];
+    return [W / 2 + (x - cam.x) * s, HY + hyOff + (cam.y - y) * s, s];
   }
   function poly(pts, fill) {
     ctx.beginPath();
@@ -400,7 +400,7 @@ html, body { background: #26222c !important; }
   let mode = 'menu', objs = [], parts = [], pl, T = 0, t = 0, speed = 14, traveled = 0, score = 0, cells = 0;
   let spawnZ = 0, stumble = 0, invuln = 0, shake = 0, deathT = 0, caught = false, shield = false, chaserZ = -12, combo = 0, comboT = 0, introT = 0;
   const pw = { lud: 0, magnet: 0, dbl: 0, fly: 0 };
-  let tut = null, chaserX = -2.4, noShadow = false, introA = 0, zoom = 1;
+  let tut = null, chaserX = -2.4, noShadow = false, introA = 0, zoom = 1, hyOff = 0;
   // progress saved on this device: banked battery cells, owned paints, lifetime stats, top 5 scores
   const SAVE_KEY = 'roadster-rush-save';
   const PAINTS = [
@@ -945,6 +945,8 @@ html, body { background: #26222c !important; }
     const close = (mode === 'intro' && introA < 2.1) || (mode === 'dying' && deathT > 0.6);
     const ty = close ? 2.4 : 3.6 + (mode === 'play' || mode === 'dying' ? pl.y * 0.75 : 0);
     zoom += ((close ? (mode === 'dying' ? 1.25 : 1.45) : 1) - zoom) * 0.08;
+    // when the camera zooms in, drop the whole view so the car stays near the bottom instead of floating over bare pavement
+    hyOff = (zoom - 1) * H * 0.24;
     cam.x += (tx - cam.x) * 0.12; cam.y += (ty - cam.y) * 0.1;
 
     ctx.save();
@@ -1058,10 +1060,11 @@ html, body { background: #26222c !important; }
   }
   function drawSky() {
     if (!bg) bakeBackdrop();
-    ctx.drawImage(bg, 0, 0, W, H);
+    if (hyOff > 0) { ctx.fillStyle = '#0b0d22'; ctx.fillRect(0, 0, W, hyOff + 1); }
+    ctx.drawImage(bg, 0, hyOff, W, H);
     if (Math.floor(T * 1.5) % 2) {
       const k = H / 800; ctx.fillStyle = '#ff3b3b';
-      for (const m of landmarks) { const top = m.type === 'wtc' ? 360 : m.type === 'esb' ? 290 : 295; ctx.fillRect(m.x - 1.5 * k, HY + 1 - top * k - 3, 3 * k, 3); }
+      for (const m of landmarks) { const top = m.type === 'wtc' ? 360 : m.type === 'esb' ? 290 : 295; ctx.fillRect(m.x - 1.5 * k, HY + hyOff + 1 - top * k - 3, 3 * k, 3); }
     }
   }
 
@@ -1094,7 +1097,7 @@ html, body { background: #26222c !important; }
       if (z1 <= ZN) continue;
       for (const lx of [-1.1, 1.1]) poly([[lx - 0.07, 0, z0], [lx + 0.07, 0, z0], [lx + 0.07, 0, z1], [lx - 0.07, 0, z1]], '#e9dfd2');
     }
-    ctx.fillStyle = hazeG; ctx.fillRect(0, HY - 6, W, H * 0.08 + 6);
+    ctx.save(); ctx.translate(0, hyOff); ctx.fillStyle = hazeG; ctx.fillRect(0, HY - 6, W, H * 0.08 + 6); ctx.restore();
   }
 
   function drawRoadside() {
