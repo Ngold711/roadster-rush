@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '17';
+window.BUILD = '18';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -132,6 +132,7 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 .top5 li.new { color: var(--amber); }
 .install { padding: 10px 12px; border-radius: 4px; border: 1px solid rgba(92,225,255,.35); background: rgba(92,225,255,.08); font-size: 14px; line-height: 1.4; color: var(--paper); }
 .install b { color: var(--cell); }
+.errbar { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); transform: translateX(-50%); max-width: calc(100% - 32px); padding: 6px 10px; border-radius: 4px; background: rgba(120, 10, 20, .9); color: #fff; font: 600 12px var(--body); pointer-events: none; z-index: 5; }
 .banked { font-size: 15px; color: var(--cell); font-weight: 600; }
 .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .stat b { display: block; font-family: var(--display); font-weight: 400; font-size: 22px; font-variant-numeric: tabular-nums; }
@@ -229,6 +230,8 @@ html, body { background: #26222c !important; }
       <button class="btn ghost" id="garageBack" type="button">Back</button>
     </div>
   </div>
+
+  <div class="errbar" id="errbar" hidden></div>
 
   <div class="tip" id="tip" hidden aria-live="polite">
     <div class="keys" id="tipKeys"></div>
@@ -1052,7 +1055,7 @@ html, body { background: #26222c !important; }
   // the sky, skyline and ground never move, so they're painted once per resize and reused every frame
   let bg = null, hazeG = null;
   function bakeBackdrop() {
-    bg = document.createElement('canvas'); bg.width = Math.round(W * DPR); bg.height = Math.round(H * DPR);
+    bg = document.createElement('canvas'); bg.width = Math.max(1, Math.round(W * DPR)); bg.height = Math.max(1, Math.round(H * DPR));
     const ctx = bg.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     const g = ctx.createLinearGradient(0, 0, 0, HY);
     g.addColorStop(0, '#0b0d22'); g.addColorStop(0.5, '#241a44'); g.addColorStop(0.85, '#6a2f5c'); g.addColorStop(1, '#d3664a');
@@ -1584,16 +1587,32 @@ html, body { background: #26222c !important; }
 
   // ---------- loop ----------
   let last = performance.now();
-  function frame(now) {
-    requestAnimationFrame(frame);
-    const dt = Math.min(0.05, (now - last) / 1000); last = now;
-    // never let one bad frame stop the loop: log it, reset the canvas state, and keep driving
-    try { update(dt); render(); hud(); }
-    catch (e) { console.error(e); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.globalAlpha = 1; }
+  // any error is shown in a small red bar (with the version) so a screenshot says what went wrong
+  let errShown = '';
+  function showErr(e) {
+    const msg = String(e && (e.message || e)).slice(0, 140);
+    if (msg === errShown) return; errShown = msg;
+    const bar = $('errbar'); bar.textContent = 'Error' + (window.BUILD ? ' (v' + window.BUILD + ')' : '') + ': ' + msg; bar.hidden = false;
   }
+  addEventListener('error', (e) => showErr(e.error || e.message));
+  addEventListener('unhandledrejection', (e) => showErr(e.reason));
+  let lastTick = performance.now();
+  let rafId = 0;
+  function frame(now) {
+    rafId = requestAnimationFrame(frame);
+    lastTick = performance.now();
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+    // never let one bad frame stop the loop: report it, reset the canvas state, and keep driving
+    try { update(dt); render(); hud(); }
+    catch (e) { console.error(e); showErr(e); for (let i = 0; i < 8; i++) ctx.restore(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.globalAlpha = 1; }
+  }
+  // watchdog: if the browser ever stops delivering frames while the game is on screen, start the loop again
+  setInterval(() => {
+    if (!document.hidden && performance.now() - lastTick > 1500) { cancelAnimationFrame(rafId); last = performance.now(); lastTick = last; rafId = requestAnimationFrame(frame); }
+  }, 1000);
   new ResizeObserver(resize).observe(cv);
   resize();
-  requestAnimationFrame(frame);
+  rafId = requestAnimationFrame(frame);
 })();
 </script>
 <script>
