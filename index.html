@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#140c1d">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="favicon.png">
-<script>if (navigator.standalone || matchMedia("(display-mode: standalone)").matches) document.documentElement.classList.add("app");</script>
+<script>if (navigator.standalone || matchMedia("(display-mode: standalone)").matches) { const r = document.documentElement; r.classList.add("app"); r.style.setProperty("--app-h", Math.max(screen.height, innerHeight) + "px"); }</script>
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <title>Roadster Rush</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -138,8 +138,10 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 /* home-screen app: the game fills the whole screen, under the status bar and home bar; only the HUD and menus keep clear of them */
 #game { position: fixed; inset: 0; height: auto; }
 /* launched from the home screen, iOS stops 'inset: 0' above the home bar; the full viewport height reaches the bottom edge */
-html.app, html.app body { height: 100vh; }
-html.app #game { bottom: auto; height: 100vh; }
+html.app, html.app body { height: var(--app-h, 100vh); }
+html.app #game { bottom: auto; height: var(--app-h, 100vh); }
+/* anything still showing past the game blends into the road */
+html, body { background: #26222c !important; }
 .hud { padding-top: calc(env(safe-area-inset-top, 0px) + 10px); }
 .screen { padding-top: calc(env(safe-area-inset-top, 0px) + 24px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); }
 .tip { top: calc(env(safe-area-inset-top, 0px) + 13%); }
