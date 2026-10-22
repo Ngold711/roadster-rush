@@ -1489,7 +1489,7 @@ html, body { background: #26222c !important; }
       ctx.fillStyle = '#ffb84d'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.font = `400 ${fs}px Michroma, sans-serif`; ctx.fillText('↑↑', (rr.l + rr.r) / 2, rr.t + (rr.b - rr.t) * 0.5);
     }
-    if (Math.floor(T * 3 + o.lane) % 2) for (const dx of [-0.6, 0.6]) {
+    if (o.z > ZN + 0.2 && Math.floor(T * 3 + o.lane) % 2) for (const dx of [-0.6, 0.6]) {
       const c = P(x + dx, y + o.h + 0.15, o.z), r = c[2] * 0.2;
       ctx.fillStyle = 'rgba(255,184,77,.35)'; ctx.beginPath(); ctx.arc(c[0], c[1], r * 2.2, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#ffd27a'; ctx.beginPath(); ctx.arc(c[0], c[1], r, 0, Math.PI * 2); ctx.fill();
@@ -1506,7 +1506,7 @@ html, body { background: #26222c !important; }
       ctx.beginPath(); ctx.moveTo(sx, rr.b); ctx.lineTo(sx + step, rr.b); ctx.lineTo(sx + step + h, rr.t); ctx.lineTo(sx + h, rr.t); ctx.fill();
     }
     ctx.restore();
-    if (Math.floor(T * 3 + o.z) % 2) {
+    if (o.z > ZN + 0.2 && Math.floor(T * 3 + o.z) % 2) {
       const c = P(x, y + o.h + 0.12, o.z), r = c[2] * 0.22;
       ctx.fillStyle = 'rgba(255,184,77,.35)'; ctx.beginPath(); ctx.arc(c[0], c[1], r * 2.2, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#ffd27a'; ctx.beginPath(); ctx.arc(c[0], c[1], r, 0, Math.PI * 2); ctx.fill();
@@ -1567,9 +1567,11 @@ html, body { background: #26222c !important; }
   // ---------- loop ----------
   let last = performance.now();
   function frame(now) {
-    const dt = Math.min(0.05, (now - last) / 1000); last = now;
-    update(dt); render(); hud();
     requestAnimationFrame(frame);
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    // never let one bad frame stop the loop: log it, reset the canvas state, and keep driving
+    try { update(dt); render(); hud(); }
+    catch (e) { console.error(e); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.globalAlpha = 1; }
   }
   new ResizeObserver(resize).observe(cv);
   resize();
