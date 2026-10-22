@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#140c1d">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="favicon.png">
-<style>*,*::before,*::after{box-sizing:border-box}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
+<style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <title>Roadster Rush</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -112,6 +112,13 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 @media (prefers-reduced-motion: reduce) { .tip { animation: none; } }
 @media (pointer: coarse) { .key-hint { display: none; } .touch-hint { display: contents; } }
 @media (max-width: 520px) { .card { padding: 18px; gap: 14px; } .screen { align-items: flex-end; } }
+</style>
+<style>
+/* home-screen app: the game fills the whole screen, under the status bar and home bar; only the HUD and menus keep clear of them */
+#game { position: fixed; inset: 0; height: auto; }
+.hud { padding-top: calc(env(safe-area-inset-top, 0px) + 10px); }
+.screen { padding-top: calc(env(safe-area-inset-top, 0px) + 24px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); }
+.tip { top: calc(env(safe-area-inset-top, 0px) + 13%); }
 </style>
 </head>
 <body>
