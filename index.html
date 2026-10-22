@@ -64,6 +64,8 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .batt::after { content: ""; position: absolute; inset: 2px; background: var(--cell); opacity: .8; }
 .dist { font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--paper); }
 .tools { display: flex; gap: 6px; pointer-events: auto; }
+button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.icon-btn:active, .paint:active { transform: scale(0.94); }
 .icon-btn svg { display: block; margin: 0 auto; }
 .icon-btn { width: 36px; height: 36px; border-radius: 3px; border: 1px solid var(--line); background: var(--panel); color: var(--paper); font: 700 13px var(--body); cursor: pointer; }
 .icon-btn:focus-visible, .btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
@@ -255,6 +257,7 @@ html, body { background: #26222c !important; }
 (() => {
   const cv = document.getElementById('cv');
   const ctx = cv.getContext('2d');
+  window.__cx = ctx;
   const $ = (id) => document.getElementById(id);
 
   // ---------- world constants ----------
@@ -308,14 +311,23 @@ html, body { background: #26222c !important; }
   function resize() {
     const r = cv.getBoundingClientRect();
     W = Math.max(1, r.width); H = Math.max(1, r.height);
-    DPR = Math.min(2, window.devicePixelRatio || 1);
+    DPR = Math.min(1.5, window.devicePixelRatio || 1); // sharp enough on phones, and far fewer pixels to fill each frame
     cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     F = Math.min(H * 0.95, W * 1.2);
     HY = H * 0.83 - 3.6 * F / 7;
     buildBackdrop();
+    bg = null;
   }
 
+  // one pre-rendered lamp glow, stretched and drawn wherever a light needs a halo
+  const glowImg = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    r.addColorStop(0, 'rgba(255,226,170,1)'); r.addColorStop(0.25, 'rgba(255,190,110,.42)'); r.addColorStop(1, 'rgba(255,190,110,0)');
+    g.fillStyle = r; g.fillRect(0, 0, 64, 64); return c;
+  })();
+  function glow(x, y, r, a) { const pa = ctx.globalAlpha; ctx.globalAlpha = pa * a; ctx.drawImage(glowImg, x - r, y - r, r * 2, r * 2); ctx.globalAlpha = pa; }
   function rnd(a, b) { return a + Math.random() * (b - a); }
   function ri(n) { return Math.floor(Math.random() * n); }
   function pick(a) { return a[ri(a.length)]; }
@@ -675,6 +687,8 @@ html, body { background: #26222c !important; }
   $('resumeBtn').onclick = togglePause;
   $('pauseBtn').onclick = togglePause;
   $('muteBtn').onclick = toggleMute;
+  // drop focus after a tap so Space/arrow keys go to the car, not the last button pressed
+  document.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) b.blur(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && mode === 'play') togglePause(); });
 
   // ---------- effects ----------
@@ -993,8 +1007,8 @@ html, body { background: #26222c !important; }
     ctx.restore();
   }
 
-  function drawLandmark(m, off, k) {
-    const x = m.x + off, b = HY + 1;
+  function drawLandmark(ctx, m, k) {
+    const x = m.x, b = HY + 1;
     ctx.fillStyle = '#251d3c'; ctx.beginPath();
     if (m.type === 'esb') {
       const w = 34 * k;
@@ -1014,31 +1028,43 @@ html, body { background: #26222c !important; }
       ctx.lineTo(x + w * 0.45, b - 222 * k); ctx.lineTo(x + w * 0.6, b - 200 * k); ctx.lineTo(x + w, b - 190 * k); ctx.lineTo(x + w, b);
     }
     ctx.closePath(); ctx.fill();
-    const top = m.type === 'wtc' ? 360 : m.type === 'esb' ? 290 : 295;
-    if (Math.floor(T * 1.5) % 2) { ctx.fillStyle = '#ff3b3b'; ctx.fillRect(x - 1.5 * k, b - top * k - 3, 3 * k, 3); }
   }
-  function drawSky() {
+  // the sky, skyline and ground never move, so they're painted once per resize and reused every frame
+  let bg = null, hazeG = null;
+  function bakeBackdrop() {
+    bg = document.createElement('canvas'); bg.width = Math.round(W * DPR); bg.height = Math.round(H * DPR);
+    const ctx = bg.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     const g = ctx.createLinearGradient(0, 0, 0, HY);
     g.addColorStop(0, '#0b0d22'); g.addColorStop(0.5, '#241a44'); g.addColorStop(0.85, '#6a2f5c'); g.addColorStop(1, '#d3664a');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, HY + 1);
-    for (const s of stars) { ctx.globalAlpha = (0.2 + 0.4 * Math.abs(Math.sin(T * 0.8 + s[3] * 9))) * (1 - s[1] / HY); ctx.fillStyle = '#fff2e0'; ctx.fillRect(s[0], s[1], s[2], s[2]); }
+    ctx.fillStyle = '#fff2e0';
+    for (const s of stars) { ctx.globalAlpha = (0.2 + 0.4 * s[3]) * (1 - s[1] / HY); ctx.fillRect(s[0], s[1], s[2], s[2]); }
     ctx.globalAlpha = 1;
     const k = H / 800;
     mesas.forEach((m, li) => {
-      // the skyline stays put when you change lanes; sliding it made the view swim
-      const off = 0;
-      if (li === 1) for (const lm of landmarks) drawLandmark(lm, 0, k);
+      if (li === 1) for (const lm of landmarks) drawLandmark(ctx, lm, k);
       for (const [x, w, h, lit, ant] of m.pts) {
-        ctx.fillStyle = m.col; ctx.fillRect(x + off, HY - h, w, h + 1);
-        if (ant) ctx.fillRect(x + off + w / 2 - 1, HY - h - 14 * k, 2, 14 * k);
+        ctx.fillStyle = m.col; ctx.fillRect(x, HY - h, w, h + 1);
+        if (ant) ctx.fillRect(x + w / 2 - 1, HY - h - 14 * k, 2, 14 * k);
         ctx.fillStyle = m.win;
-        for (const [wx, wy] of lit) ctx.fillRect(x + off + wx, HY - h + wy, 2.5, 3);
+        for (const [wx, wy] of lit) ctx.fillRect(x + wx, HY - h + wy, 2.5, 3);
       }
     });
     const gg = ctx.createLinearGradient(0, HY, 0, H);
     gg.addColorStop(0, '#4a4152'); gg.addColorStop(0.4, '#2c2633'); gg.addColorStop(1, '#16131c');
     ctx.fillStyle = gg; ctx.fillRect(0, HY, W, H - HY);
+    hazeG = window.__cx.createLinearGradient(0, HY - 6, 0, HY + H * 0.08);
+    hazeG.addColorStop(0, 'rgba(211,102,74,.35)'); hazeG.addColorStop(1, 'rgba(211,102,74,0)');
   }
+  function drawSky() {
+    if (!bg) bakeBackdrop();
+    ctx.drawImage(bg, 0, 0, W, H);
+    if (Math.floor(T * 1.5) % 2) {
+      const k = H / 800; ctx.fillStyle = '#ff3b3b';
+      for (const m of landmarks) { const top = m.type === 'wtc' ? 360 : m.type === 'esb' ? 290 : 295; ctx.fillRect(m.x - 1.5 * k, HY + 1 - top * k - 3, 3 * k, 3); }
+    }
+  }
+
 
 
   function drawRoad() {
@@ -1068,9 +1094,7 @@ html, body { background: #26222c !important; }
       if (z1 <= ZN) continue;
       for (const lx of [-1.1, 1.1]) poly([[lx - 0.07, 0, z0], [lx + 0.07, 0, z0], [lx + 0.07, 0, z1], [lx - 0.07, 0, z1]], '#e9dfd2');
     }
-    const hg = ctx.createLinearGradient(0, HY - 6, 0, HY + H * 0.08);
-    hg.addColorStop(0, 'rgba(211,102,74,.35)'); hg.addColorStop(1, 'rgba(211,102,74,0)');
-    ctx.fillStyle = hg; ctx.fillRect(0, HY - 6, W, H * 0.08 + 6);
+    ctx.fillStyle = hazeG; ctx.fillRect(0, HY - 6, W, H * 0.08 + 6);
   }
 
   function drawRoadside() {
@@ -1099,9 +1123,7 @@ html, body { background: #26222c !important; }
           ctx.strokeStyle = '#1e1426'; ctx.lineWidth = Math.max(1, a[2] * 0.16); ctx.lineCap = 'round';
           ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.stroke();
           const r = Math.max(2, a[2] * 0.7);
-          const lg = ctx.createRadialGradient(c[0], c[1], 0, c[0], c[1], r);
-          lg.addColorStop(0, 'rgba(255,226,170,.95)'); lg.addColorStop(0.25, 'rgba(255,190,110,.4)'); lg.addColorStop(1, 'rgba(255,190,110,0)');
-          ctx.fillStyle = lg; ctx.fillRect(c[0] - r, c[1] - r, r * 2, r * 2);
+          glow(c[0], c[1], r, 0.95);
         }
       }
     }
@@ -1115,12 +1137,17 @@ html, body { background: #26222c !important; }
     if (z1 <= ZN) return;
     const h = 9 + hash(n, side) * 24, fx = side * 11.5, col = FACADES[Math.floor(hash(side, n) * FACADES.length)];
     drawBox(side * 16, 0, h, z0, z1, 9, shade(col, 0.85), shade(col, 1.1), col);
-    if (z0 > 110) return;
-    const zs = Math.max(z0, ZN + 0.5);
+    if (z0 > 75) return;
+    // all of a building's lit windows go into two paths (warm and cool) and fill in two calls
+    const zs = Math.max(z0, ZN + 0.5), warm = new Path2D(), cool = new Path2D();
     for (let r = 0, wy = 1.6; wy < h - 1; r++, wy += 1.5) for (let c = 0, wz = z0 + 0.7; wz < z1 - 0.9; c++, wz += 1.65) {
       if (wz < zs || hash(n * 31 + r, c * 7 + side) > 0.38) continue;
-      poly([[fx, wy, wz], [fx, wy + 0.8, wz], [fx, wy + 0.8, wz + 0.8], [fx, wy, wz + 0.8]], hash(r, c + n) > 0.3 ? '#f6d48a' : '#9fd3ff');
+      const pth = hash(r, c + n) > 0.3 ? warm : cool;
+      const a = P(fx, wy, wz), b = P(fx, wy + 0.8, wz), c2 = P(fx, wy + 0.8, wz + 0.8), d = P(fx, wy, wz + 0.8);
+      pth.moveTo(a[0], a[1]); pth.lineTo(b[0], b[1]); pth.lineTo(c2[0], c2[1]); pth.lineTo(d[0], d[1]); pth.closePath();
     }
+    ctx.fillStyle = '#f6d48a'; ctx.fill(warm);
+    ctx.fillStyle = '#9fd3ff'; ctx.fill(cool);
     if (z0 > ZN) poly([[fx, 0, z0], [fx, 2.2, z0], [fx, 2.2, z1], [fx, 0, z1]], 'rgba(10,8,16,.35)');
   }
   function drawBillboard(side, z, n) {
@@ -1137,9 +1164,7 @@ html, body { background: #26222c !important; }
     ctx.fillStyle = '#f4ede3'; ctx.fillRect(x0, yy, w, h);
     if (photo) ctx.drawImage(photo, x0, yy, w, h);
     const lamp = P(cx, y1 + 0.3, z), r = Math.max(3, lamp[2] * 2.2);
-    const lg = ctx.createRadialGradient(lamp[0], lamp[1], 0, lamp[0], lamp[1], r);
-    lg.addColorStop(0, 'rgba(255,226,170,.35)'); lg.addColorStop(1, 'rgba(255,226,170,0)');
-    ctx.fillStyle = lg; ctx.fillRect(lamp[0] - r, lamp[1] - r, r * 2, r * 2);
+    glow(lamp[0], lamp[1], r, 0.35);
   }
   function shadowAt(x, w, z0, z1, y) {
     if (z1 <= ZN) return;
