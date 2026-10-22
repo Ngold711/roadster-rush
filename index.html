@@ -12,6 +12,24 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <script>if (navigator.standalone || matchMedia("(display-mode: standalone)").matches) { const r = document.documentElement; r.classList.add("app"); r.style.setProperty("--app-h", Math.max(screen.height, innerHeight) + "px"); }</script>
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
+<script>
+// auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
+window.BUILD = '17';
+(function () {
+  function check() {
+    const menu = document.getElementById('menu');
+    if (menu && menu.hidden) return;
+    fetch('version.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
+      v = (v || '').trim();
+      if (!v || v === window.BUILD) return;
+      try { if (sessionStorage.getItem('rr-tried') === v) return; sessionStorage.setItem('rr-tried', v); } catch (e) {}
+      location.replace(location.pathname + '?v=' + v);
+    }).catch(function () {});
+  }
+  addEventListener('load', check);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+})();
+</script>
 <title>Roadster Rush</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1578,6 +1596,8 @@ html, body { background: #26222c !important; }
   requestAnimationFrame(frame);
 })();
 </script>
-
+<script>
+(function () { const c = document.querySelector('#menu .card'); if (c) c.insertAdjacentHTML('beforeend', '<div class="label" style="opacity:.55">Version ' + window.BUILD + '</div>'); })();
+</script>
 </body>
 </html>
