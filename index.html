@@ -157,6 +157,8 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
         <button class="icon-btn" id="hudShare" type="button" aria-label="Share the game"><svg width="16" height="18" viewBox="0 0 16 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 11V1.5M4.5 5 8 1.5 11.5 5"/><path d="M5 8H2.5v8.5h11V8H11"/></svg></button>
         <button class="icon-btn" id="muteBtn" type="button" aria-label="Mute sound">SND</button>
         <button class="icon-btn" id="pauseBtn" type="button" aria-label="Pause">II</button>
+        <button class="icon-btn" id="hudRestart" type="button" aria-label="Restart run"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M12.5 1.5v3h-3"/></svg></button>
+        <button class="icon-btn" id="hudHome" type="button" aria-label="Home screen"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5 8 2l6 5.5"/><path d="M3.5 6.5v7.5h9V6.5"/><path d="M6.5 14v-4h3v4"/></svg></button>
       </div>
       <div class="cells"><span class="batt" aria-hidden="true"></span><span id="cells">0</span><span class="label">kWh</span></div>
       <div class="dist" id="dist">0.00 km</div>
@@ -211,7 +213,11 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
   <div class="screen" id="pause" hidden>
     <div class="card">
       <h2>Paused</h2>
-      <button class="btn" id="resumeBtn" type="button">Resume</button>
+      <div class="row">
+        <button class="btn" id="resumeBtn" type="button">Resume</button>
+        <button class="btn ghost" id="pauseRestart" type="button">Restart</button>
+        <button class="btn ghost" id="pauseHome" type="button">Home</button>
+      </div>
     </div>
   </div>
 
@@ -233,6 +239,7 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
         <button class="btn" id="againBtn" type="button">Drive again</button>
         <button class="btn ghost" id="overGarage" type="button">Garage</button>
         <button class="btn ghost" id="overShare" type="button">Share score</button>
+        <button class="btn ghost" id="overHome" type="button">Home</button>
       </div>
     </div>
   </div>
@@ -636,7 +643,29 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
   $('garageBack').onclick = () => show(garageFrom);
 
   $('startBtn').onclick = start;
-  $('againBtn').onclick = start;
+  // leaving a run early still banks the cells collected so far; only a finished run counts toward scores and stats
+  function bankUnfinished() {
+    if (mode === 'play' || mode === 'paused' || mode === 'dying') { save.bank += cells; save.cellsTotal += cells; persist(); }
+    if (hum && AC) hum.g.gain.setTargetAtTime(0, AC.currentTime, 0.05);
+  }
+  function restart() {
+    bankUnfinished();
+    start(); endIntro();
+    if (tut) tut.i = 99;
+    $('tip').hidden = true;
+  }
+  function goHome() {
+    bankUnfinished();
+    reset(); mode = 'menu';
+    $('hud').hidden = true; $('tip').hidden = true;
+    show('menu');
+  }
+  $('againBtn').onclick = restart;
+  $('overHome').onclick = goHome;
+  $('hudRestart').onclick = restart;
+  $('hudHome').onclick = goHome;
+  $('pauseRestart').onclick = restart;
+  $('pauseHome').onclick = goHome;
   $('resumeBtn').onclick = togglePause;
   $('pauseBtn').onclick = togglePause;
   $('muteBtn').onclick = toggleMute;
