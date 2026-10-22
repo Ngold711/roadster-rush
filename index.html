@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '18';
+window.BUILD = '19';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -120,6 +120,8 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 .bank { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--muted); }
 .bank b { font-family: var(--display); font-weight: 400; font-size: 22px; color: var(--cell); font-variant-numeric: tabular-nums; }
 .paints { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+#shop { display: grid; gap: 8px; }
+#shop .label { margin-top: 6px; }
 .paint { display: grid; justify-items: center; gap: 6px; padding: 10px 6px; border-radius: 4px; border: 1px solid var(--line); background: rgba(255,255,255,.03); color: var(--paper); font: 600 13px var(--body); cursor: pointer; text-align: center; }
 .paint i { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); }
 .paint small { font-weight: 600; font-size: 12px; color: var(--muted); }
@@ -220,10 +222,17 @@ html, body { background: #26222c !important; }
     <div class="card">
       <div>
         <div class="eyebrow">Garage</div>
-        <h2>Paint shop</h2>
+        <h2>Customize</h2>
       </div>
       <div class="bank"><span class="batt" aria-hidden="true"></span><b id="gBank">0</b>kWh to spend</div>
-      <div class="paints" id="paints"></div>
+      <div id="shop">
+        <div class="label">Paint</div>
+        <div class="paints" id="shop-paint"></div>
+        <div class="label">Designs</div>
+        <div class="paints" id="shop-design"></div>
+        <div class="label">Jet smoke</div>
+        <div class="paints" id="shop-smoke"></div>
+      </div>
       <div class="msg" id="gMsg" aria-live="polite"></div>
       <div class="label">Your stats</div>
       <div class="stats" id="gStats"></div>
@@ -424,22 +433,53 @@ html, body { background: #26222c !important; }
   let tut = null, chaserX = -2.4, noShadow = false, introA = 0, zoom = 1, hyOff = 0;
   // progress saved on this device: banked battery cells, owned paints, lifetime stats, top 5 scores
   const SAVE_KEY = 'roadster-rush-save';
+  // shop catalog: priced so a good run (roughly 80-150 kWh) buys a first item in a few runs and the top items take many sessions
   const PAINTS = [
     { id: 'pearl', name: 'Pearl White', col: '#e6e9ef', cost: 0 },
-    { id: 'red', name: 'Ultra Red', col: '#c8202e', cost: 100 },
-    { id: 'blue', name: 'Deep Blue', col: '#2a4fa8', cost: 250 },
-    { id: 'grey', name: 'Stealth Grey', col: '#5a5f69', cost: 400 },
-    { id: 'black', name: 'Solid Black', col: '#2a2c33', cost: 600 },
-    { id: 'silver', name: 'Quicksilver', col: '#b9bec7', cost: 800 },
-    { id: 'gold', name: 'Cybercab Gold', col: '#c9ab78', cost: 1200 },
-    { id: 'plaid', name: 'Plaid Pink', col: '#ff5fa2', cost: 2000 },
+    { id: 'red', name: 'Ultra Red', col: '#c8202e', cost: 500 },
+    { id: 'blue', name: 'Deep Blue', col: '#2a4fa8', cost: 1000 },
+    { id: 'grey', name: 'Stealth Grey', col: '#5a5f69', cost: 1500 },
+    { id: 'black', name: 'Solid Black', col: '#2a2c33', cost: 2500 },
+    { id: 'silver', name: 'Quicksilver', col: '#b9bec7', cost: 3500 },
+    { id: 'gold', name: 'Cybercab Gold', col: '#c9ab78', cost: 5000 },
+    { id: 'plaid', name: 'Plaid Pink', col: '#ff5fa2', cost: 8000 },
   ];
-  const save = { bank: 0, owned: ['pearl'], paint: 'pearl', runs: 0, dist: 0, longest: 0, cellsTotal: 0, twistsBest: 0, top: [] };
+  const DESIGNS = [
+    { id: 'd:none', name: 'Clean', cost: 0, sw: '#e6e9ef' },
+    { id: 'd:stripes', name: 'Racing Stripes', cost: 2000, sw: 'linear-gradient(90deg,#e6e9ef 30%,#16181d 30% 43%,#e6e9ef 43% 57%,#16181d 57% 70%,#e6e9ef 70%)' },
+    { id: 'd:twotone', name: 'Two-Tone', cost: 3000, sw: 'linear-gradient(#16181d 50%,#e6e9ef 50%)' },
+    { id: 'd:checker', name: 'Checkered', cost: 4500, sw: 'conic-gradient(#16181d 25%,#fff 0 50%,#16181d 0 75%,#fff 0) 0 0/12px 12px' },
+    { id: 'd:number', name: 'Race No. 8', cost: 6000, sw: 'radial-gradient(circle,#fff 42%,#c8202e 45%)' },
+    { id: 'd:glow', name: 'Neon Underglow', cost: 9000, sw: 'radial-gradient(circle,#c9f6ff,#5ce1ff 45%,#123d52)' },
+  ];
+  const SMOKES = [
+    { id: 's:white', name: 'White', cost: 0, rgb: [236, 239, 245] },
+    { id: 's:red', name: 'Red', cost: 1500, rgb: [255, 90, 90] },
+    { id: 's:blue', name: 'Blue', cost: 2000, rgb: [90, 168, 255] },
+    { id: 's:green', name: 'Green', cost: 2500, rgb: [125, 255, 138] },
+    { id: 's:pink', name: 'Pink', cost: 3000, rgb: [255, 122, 217] },
+    { id: 's:gold', name: 'Gold', cost: 4500, rgb: [255, 211, 110] },
+    { id: 's:rainbow', name: 'Rainbow', cost: 12000, rgb: null },
+  ];
+  const SHOP = { paint: PAINTS, design: DESIGNS, smoke: SMOKES };
+  const save = { bank: 0, owned: ['pearl', 'd:none', 's:white'], paint: 'pearl', design: 'd:none', smoke: 's:white', runs: 0, dist: 0, longest: 0, cellsTotal: 0, twistsBest: 0, top: [] };
   try { Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch (e) {}
   try { const old = +localStorage.getItem('roadster-rush-best') || 0; if (old && !save.top.length) save.top = [old]; } catch (e) {}
+  for (const id of ['d:none', 's:white']) if (!save.owned.includes(id)) save.owned.push(id);
   function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
   const paintCol = () => (PAINTS.find((p) => p.id === save.paint) || PAINTS[0]).col;
   let best = save.top[0] || 0, runTwists = 0;
+  function hsl2rgb(h, sa, l) {
+    const k = (n) => (n + h / 30) % 12, a = sa * Math.min(l, 1 - l);
+    const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+  }
+  // current jet-smoke color; rainbow cycles through hues over time (jit spreads neighbouring puffs apart)
+  function smokeRGB(jit = 0) {
+    const sm = SMOKES.find((q) => q.id === save.smoke) || SMOKES[0];
+    return sm.rgb || hsl2rgb((T * 140 + jit * 360) % 360, 0.9, 0.72);
+  }
+  const smokeCss = () => { const c = smokeRGB(Math.random()); return `rgb(${c[0]},${c[1]},${c[2]})`; };
 
   function reset() {
     objs = []; parts = [];
@@ -637,22 +677,27 @@ html, body { background: #26222c !important; }
     $('oTop').innerHTML = save.top.map((v) => { const mine = !marked && v === s && s > 0; if (mine) marked = true; return `<li class="${mine ? 'new' : ''}">${v.toLocaleString()}</li>`; }).join('');
     show('over');
   }
+  const equipped = (cat) => (cat === 'paint' ? save.paint : save[cat]);
   function renderGarage(msg = '') {
     $('gBank').textContent = save.bank.toLocaleString();
-    $('paints').innerHTML = PAINTS.map((p) => {
-      const own = save.owned.includes(p.id), on = save.paint === p.id;
-      const tag = on ? 'Equipped' : own ? 'Owned' : `${p.cost.toLocaleString()} kWh`;
-      return `<button type="button" class="paint${on ? ' on' : ''}${own ? '' : ' locked'}" data-id="${p.id}"><i style="background:${p.col}"></i>${p.name}<small>${tag}</small></button>`;
-    }).join('');
+    for (const cat of ['paint', 'design', 'smoke']) {
+      $('shop-' + cat).innerHTML = SHOP[cat].map((p) => {
+        const own = save.owned.includes(p.id), on = equipped(cat) === p.id;
+        const tag = on ? 'Equipped' : own ? 'Owned' : `${p.cost.toLocaleString()} kWh`;
+        const sw = cat === 'paint' ? p.col : cat === 'design' ? p.sw : p.rgb ? `rgb(${p.rgb.join(',')})` : 'conic-gradient(#ff5a5a,#ffd36e,#7dff8a,#5aa8ff,#ff7ad9,#ff5a5a)';
+        return `<button type="button" class="paint${on ? ' on' : ''}${own ? '' : ' locked'}" data-cat="${cat}" data-id="${p.id}"><i style="background:${sw}"></i>${p.name}<small>${tag}</small></button>`;
+      }).join('');
+    }
     $('gMsg').textContent = msg;
     const st = [['Runs', save.runs.toLocaleString()], ['Best score', (save.top[0] || 0).toLocaleString()], ['Total distance', save.dist.toFixed(1) + ' km'], ['Longest run', save.longest.toFixed(2) + ' km'], ['Cells collected', save.cellsTotal.toLocaleString()], ['Most twists', save.twistsBest]];
     $('gStats').innerHTML = st.map(([k, v]) => `<div class="stat"><span class="label">${k}</span><b>${v}</b></div>`).join('');
   }
-  $('paints').addEventListener('click', (e) => {
+  $('shop').addEventListener('click', (e) => {
     const b = e.target.closest('.paint'); if (!b) return;
-    const p = PAINTS.find((q) => q.id === b.dataset.id);
-    if (save.owned.includes(p.id)) { save.paint = p.id; persist(); renderGarage(`${p.name} equipped`); }
-    else if (save.bank >= p.cost) { save.bank -= p.cost; save.owned.push(p.id); save.paint = p.id; persist(); renderGarage(`Bought ${p.name}`); tone(660, 0.25, 'triangle', 0.05, 1320); }
+    const cat = b.dataset.cat, p = SHOP[cat].find((q) => q.id === b.dataset.id);
+    const wear = () => { if (cat === 'paint') save.paint = p.id; else save[cat] = p.id; };
+    if (save.owned.includes(p.id)) { wear(); persist(); renderGarage(`${p.name} equipped`); }
+    else if (save.bank >= p.cost) { save.bank -= p.cost; save.owned.push(p.id); wear(); persist(); renderGarage(`Bought ${p.name}`); tone(660, 0.25, 'triangle', 0.05, 1320); }
     else renderGarage(`You need ${(p.cost - save.bank).toLocaleString()} more kWh for ${p.name}`);
     pl.col = paintCol();
   });
@@ -719,7 +764,7 @@ html, body { background: #26222c !important; }
   function puff(n) {
     for (let i = 0; i < n; i++) parts.push({
       x: pl.x + (Math.random() < 0.5 ? -0.62 : 0.62) + rnd(-0.15, 0.15), y: pl.ground + rnd(0.1, 0.5), z: (Math.random() < 0.5 ? 0.6 : 3.0) - Math.max(0, pl.y - pl.ground) * 0.15,
-      vx: rnd(-2.5, 2.5), vy: rnd(0.2, 1.2), vz: rnd(-2, 1), life: rnd(0.7, 1.3), smoke: true, r: rnd(0.35, 0.6),
+      vx: rnd(-2.5, 2.5), vy: rnd(0.2, 1.2), vz: rnd(-2, 1), life: rnd(0.7, 1.3), smoke: true, r: rnd(0.35, 0.6), c: smokeCss(),
     });
   }
   function skyCells() {
@@ -931,7 +976,7 @@ html, body { background: #26222c !important; }
       const cy = pl.y + 0.55;
       for (const sx of [-0.7, 0.7]) for (let i = 0; i < 2; i++) parts.push({
         x: pl.x + sx * Math.cos(pl.roll), y: cy + sx * Math.sin(pl.roll), z: rnd(0.2, 1.2),
-        vx: rnd(-0.4, 0.4), vy: rnd(-0.4, 0.4), vz: rnd(-1, 0), life: rnd(0.9, 1.4), smoke: true, r: rnd(0.22, 0.38),
+        vx: rnd(-0.4, 0.4), vy: rnd(-0.4, 0.4), vz: rnd(-1, 0), life: rnd(0.9, 1.4), smoke: true, r: rnd(0.22, 0.38), c: smokeCss(),
       });
     } else pl.roll = 0;
     if (!pl.grounded && pl.rollT <= 0) { pl.smokeT -= dt; if (pl.smokeT <= 0) { pl.smokeT = 0.035; puff(2); } }
@@ -1019,7 +1064,7 @@ html, body { background: #26222c !important; }
     for (const p of parts) {
       if (p.z < ZN) continue;
       const [x, y, s] = P(p.x, p.y, p.z);
-      if (p.smoke) { if (p.z < -1.2) continue; ctx.globalAlpha = clamp(p.life * 0.55, 0, 0.6) * clamp((p.z + 1.2) / 2, 0, 1); ctx.fillStyle = '#eceff5'; ctx.beginPath(); ctx.arc(x, y, p.r * s, 0, Math.PI * 2); ctx.fill(); continue; }
+      if (p.smoke) { if (p.z < -1.2) continue; ctx.globalAlpha = clamp(p.life * 0.55, 0, 0.6) * clamp((p.z + 1.2) / 2, 0, 1); ctx.fillStyle = p.c || '#eceff5'; ctx.beginPath(); ctx.arc(x, y, p.r * s, 0, Math.PI * 2); ctx.fill(); continue; }
       ctx.fillStyle = p.col; ctx.globalAlpha = clamp(p.life * 2, 0, 1);
       const r = Math.max(1.5, s * 0.08); ctx.fillRect(x - r / 2, y - r / 2, r, r);
     }
@@ -1226,6 +1271,7 @@ html, body { background: #26222c !important; }
     }
     if (!rr) return;
     sub(rr, 0, 0.72, 1, 1, '#141016');
+    if (roadster && save.design !== 'd:none') drawDesign(x, y, z, m, rr, col);
     if (roadster || m.bar) {
       sub(rr, 0, 0.14, 1, 0.26, brake ? '#ff5a64' : '#ff2a3a');
       sub(rr, 0, 0.26, 1, 0.3, 'rgba(255,42,58,.35)');
@@ -1261,7 +1307,41 @@ html, body { background: #26222c !important; }
     }
   }
 
+  // livery on the player's car, painted over the body but under the tail lights
+  function drawDesign(x, y, z, m, rr, col) {
+    const n = parseInt(col.slice(1), 16), light = ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 140;
+    const ink = light ? '#16181d' : '#f4f4f2', deck = (x0, x1, c) => { if (z > ZN) poly([[x + x0, y + m.bodyTop + 0.005, z], [x + x1, y + m.bodyTop + 0.005, z], [x + x1, y + m.bodyTop + 0.005, z + m.slope], [x + x0, y + m.bodyTop + 0.005, z + m.slope]], c); };
+    switch (save.design) {
+      case 'd:stripes':
+        sub(rr, 0.36, 0, 0.45, 0.72, ink); sub(rr, 0.55, 0, 0.64, 0.72, ink);
+        deck(-0.26, -0.1, ink); deck(0.1, 0.26, ink);
+        break;
+      case 'd:twotone':
+        sub(rr, 0, 0, 1, 0.45, '#16181d'); deck(-m.w / 2 + 0.14, m.w / 2 - 0.14, '#16181d');
+        break;
+      case 'd:checker':
+        for (let c = 0; c < 12; c++) for (let r = 0; r < 2; r++) sub(rr, c / 12, 0.44 + r * 0.13, (c + 1) / 12, 0.57 + r * 0.13, (c + r) % 2 ? '#f4f4f2' : '#16181d');
+        break;
+      case 'd:number': {
+        const cx = (rr.l + rr.r) / 2, cy = rr.t + (rr.b - rr.t) * 0.52, r = (rr.b - rr.t) * 0.3;
+        if (r > 1) {
+          ctx.fillStyle = '#f4f4f2'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#c8202e'; ctx.font = `700 ${r * 1.5}px "Saira Semi Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('8', cx, cy + r * 0.08);
+        }
+        break;
+      }
+    }
+  }
+  function drawUnderglow() {
+    const c = P(pl.x, pl.ground + 0.02, 1.8), rx = c[2] * 1.6, ry = c[2] * 0.55;
+    const pulse = 0.75 + 0.25 * Math.sin(T * 6);
+    const g = ctx.createRadialGradient(c[0], c[1], 0, c[0], c[1], rx);
+    g.addColorStop(0, `rgba(92,225,255,${0.55 * pulse})`); g.addColorStop(1, 'rgba(92,225,255,0)');
+    ctx.save(); ctx.translate(c[0], c[1]); ctx.scale(1, ry / rx); ctx.translate(-c[0], -c[1]);
+    ctx.fillStyle = g; ctx.fillRect(c[0] - rx, c[1] - rx, rx * 2, rx * 2); ctx.restore();
+  }
   function drawPlayer() {
+    if (save.design === 'd:glow' && mode !== 'menu') drawUnderglow();
     const a = P(pl.x, pl.y, 0);
     ctx.save();
     ctx.translate(a[0], a[1]); ctx.rotate(pl.lean * (mode === 'menu' ? 0 : 1)); ctx.translate(-a[0], -a[1]);
@@ -1293,7 +1373,8 @@ html, body { background: #26222c !important; }
       const a = P(nx, ny, zz), b = P(nx + Math.sin(T * 9 + sx * 5 + zz) * 0.12, gy, zb);
       const w0 = a[2] * 0.14, w1 = b[2] * (0.28 + drop * 0.03) * (0.92 + Math.random() * 0.16);
       const g = ctx.createLinearGradient(0, a[1], 0, b[1]);
-      g.addColorStop(0, 'rgba(255,255,255,.98)'); g.addColorStop(0.5, 'rgba(240,242,248,.82)'); g.addColorStop(1, 'rgba(225,228,238,.55)');
+      const [sr, sg, sb] = smokeRGB(sx + zz * 0.1);
+      g.addColorStop(0, 'rgba(255,255,255,.98)'); g.addColorStop(0.45, `rgba(${sr},${sg},${sb},.85)`); g.addColorStop(1, `rgba(${sr},${sg},${sb},.55)`);
       ctx.fillStyle = g; ctx.beginPath();
       ctx.moveTo(a[0] - w0, a[1]); ctx.lineTo(a[0] + w0, a[1]);
       ctx.quadraticCurveTo((a[0] + b[0]) / 2 + w1 * 0.5, (a[1] + b[1]) / 2, b[0] + w1, b[1]);
@@ -1301,7 +1382,7 @@ html, body { background: #26222c !important; }
       ctx.quadraticCurveTo((a[0] + b[0]) / 2 - w1 * 0.5, (a[1] + b[1]) / 2, a[0] - w0, a[1]);
       ctx.fill();
       const cr = b[2] * (0.55 + Math.random() * 0.15);
-      ctx.fillStyle = 'rgba(236,239,245,.7)';
+      ctx.fillStyle = `rgba(${sr},${sg},${sb},.7)`;
       ctx.beginPath(); ctx.ellipse(b[0], b[1] - cr * 0.25, cr * 1.4, cr * 0.6, 0, 0, Math.PI * 2); ctx.fill();
       const hr = a[2] * 0.22, hg = ctx.createRadialGradient(a[0], a[1], 0, a[0], a[1], hr);
       hg.addColorStop(0, 'rgba(255,120,90,.95)'); hg.addColorStop(1, 'rgba(255,60,60,0)');
