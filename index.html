@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '64';
+window.BUILD = '65';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -808,6 +808,9 @@ html, body { background: #26222c !important; }
       label: 'LEBRON', labelCol: '#ffb81c', num: '23', co: 'C A V S', coCol: '#ffb81c', trim: '#ffb81c', wide: 1.08, tall: 1.05 },
     { id: 'v:shaq', mood: 'laugh', caughtMood: 'shock', name: 'Shaq', cost: 100000, skin: '#5e3a24', tee: '#fdb927', jacket: '#fdb927', arms: '#5e3a24', legs: '#5e3a24', shorts: '#fdb927', shoes: '#f4f4f2', hair: '#1a100a', hairStyle: 'shaq',
       label: 'SHAQ', labelCol: '#552583', num: '34', co: 'L A K E R S', coCol: '#552583', trim: '#552583', wide: 1.25, tall: 1.18 },
+    // Conor McGregor: black UFC fight tee, gold title belt, tattooed forearms, slicked hair and a ginger beard
+    { id: 'v:conor', mood: 'smirk', caughtMood: 'laugh', name: 'Conor McGregor', cost: 90000, skin: '#f0c4a4', tee: '#141518', jacket: '#141518', arms: '#f0c4a4', legs: '#26282e', shoes: '#0d0e11', hair: '#6e3f22', beard: '#b4592c', hairStyle: 'conor',
+      label: 'McGREGOR', labelCol: '#f4f4f2', co: 'U F C', coCol: '#d20a0a', belt: true, tattoo: true, wide: 1.06 },
   ];
   const rarity = (cost) => (cost >= 30000 ? 'legendary' : cost >= 12000 ? 'epic' : cost >= 5000 ? 'rare' : 'common');
   const SHOP = { paint: PAINTS, design: DESIGNS, smoke: SMOKES, map: MAPS, driver: DRIVERS };
@@ -3114,6 +3117,12 @@ html, body { background: #26222c !important; }
     RW(-0.22 + sw, 0, 0.21, 0.08, D.shoes); RW(0.02 - sw, 0, 0.21, 0.08, D.shoes);
     RW(-0.3, 0.88 + bob, 0.6, 0.66, D.jacket);
     RW(-0.18, 0.9 + bob, 0.36, 0.64, TEE);
+    if (D.belt) {
+      // gold championship belt round the waist with a big centre plate
+      RW(-0.31, 0.86 + bob, 0.62, 0.11, '#c99a2e'); RW(-0.31, 0.95 + bob, 0.62, 0.02, '#f2d27a');
+      ctx.fillStyle = '#f2d27a'; ctx.beginPath(); ctx.ellipse(fx, fy - (0.915 + bob) * u, 0.11 * u, 0.085 * u, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#b8860b'; ctx.beginPath(); ctx.ellipse(fx, fy - (0.915 + bob) * u, 0.07 * u, 0.05 * u, 0, 0, Math.PI * 2); ctx.fill();
+    }
     if (D.trim) { RW(-0.3, 1.5 + bob, 0.6, 0.04, D.trim); RW(-0.3, 0.88 + bob, 0.04, 0.66, D.trim); RW(0.26, 0.88 + bob, 0.04, 0.66, D.trim); }
     if (D.tie) { R(-0.035, 0.98 + bob, 0.07, 0.5, D.tie); R(-0.05, 1.43 + bob, 0.1, 0.07, D.tie); }
     if (u > 40) {
@@ -3127,7 +3136,7 @@ html, body { background: #26222c !important; }
       ctx.fillStyle = D.labelCol; tieTxt(D.label, fy - (1.335 + bob) * u, D.tie ? 0.13 : 0.11, 0.34 * wk * u);
       if (D.logo === 'openai') openaiLogo(fx, fy - (1.17 + bob) * u, 0.075 * u, '#f4f4f2', Math.max(1, 0.012 * u));
       if (D.num) { ctx.fillStyle = D.labelCol; ctx.font = `700 ${0.2 * u}px Michroma, "Arial Black", sans-serif`; ctx.fillText(D.num, fx, fy - (1.15 + bob) * u); }
-      ctx.fillStyle = D.coCol; tieTxt(D.co, fy - (1.0 + bob) * u, D.tie ? 0.09 : 0.072);
+      ctx.fillStyle = D.coCol; tieTxt(D.co, fy - ((D.belt ? 1.12 : 1.0) + bob) * u, D.tie ? 0.09 : D.belt ? 0.09 : 0.072);
     }
     R(-0.07, 1.42 + bob, 0.14, 0.1, SKIN);
     if (D.tie) {
@@ -3155,6 +3164,11 @@ html, body { background: #26222c !important; }
     } else {
       RW(-0.42, 0.92 + bob - sw, 0.12, 0.6, JACKET); RW(0.3, 0.92 + bob + sw, 0.12, 0.6, JACKET);
       RW(-0.41, 0.84 + bob - sw, 0.1, 0.09, SKIN); RW(0.31, 0.84 + bob + sw, 0.1, 0.09, SKIN);
+      if (D.tattoo) {
+        // short black sleeves and inked forearms
+        RW(-0.43, 1.32 + bob - sw, 0.14, 0.2, D.tee); RW(0.29, 1.32 + bob + sw, 0.14, 0.2, D.tee);
+        for (const [ax, s2] of [[-0.41, -sw], [0.31, sw]]) { RW(ax + 0.015, 1.0 + bob + s2, 0.07, 0.07, '#3a4a52'); RW(ax + 0.02, 1.12 + bob + s2, 0.05, 0.12, '#3a4a52'); }
+      }
     }
     drawHead(ctx, fx, fy, u, D, 1.72 + bob, pose.cuffed ? D.caughtMood : D.mood);
   }
@@ -3183,6 +3197,10 @@ html, body { background: #26222c !important; }
       R(-0.16, hy + 0.09, 0.32, 0.055, '#f4f4f2');
       g.fillStyle = D.hair; g.beginPath(); g.ellipse(fx, Y(hy - 0.07), 0.15 * u, 0.13 * u, 0, 0, Math.PI); g.fill();
       R(-0.155, hy - 0.08, 0.04, 0.1, D.hair); R(0.115, hy - 0.08, 0.04, 0.1, D.hair);
+    } else if (D.hairStyle === 'conor') {
+      // short slicked-back hair, faded at the sides
+      g.ellipse(fx, Y(hy + 0.08), 0.16 * u, 0.15 * u, 0, Math.PI, 2 * Math.PI); g.fill();
+      g.fillStyle = 'rgba(110,63,34,.45)'; R(-0.165, hy - 0.02, 0.03, 0.12, 'rgba(110,63,34,.45)'); R(0.135, hy - 0.02, 0.03, 0.12, 'rgba(110,63,34,.45)');
     } else if (D.hairStyle === 'shaq') {
       // shaved head with a little shine, short goatee
       g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(X(-0.04), Y(hy + 0.13), 0.07 * u, 0.035 * u, -0.3, 0, Math.PI * 2); g.fill();
@@ -3202,6 +3220,12 @@ html, body { background: #26222c !important; }
       g.quadraticCurveTo(X(0.07), Y(hy + 0.16), X(0.005), Y(hy + 0.125));
       g.quadraticCurveTo(X(-0.07), Y(hy + 0.16), X(-0.125), Y(hy + 0.1));
       g.closePath(); g.fill();
+    }
+    if (D.beard) {
+      // full ginger beard along the jaw, with the moustache
+      g.fillStyle = D.beard; g.beginPath(); g.ellipse(fx, Y(hy - 0.075), 0.155 * u, 0.135 * u, 0, 0, Math.PI); g.fill();
+      R(-0.155, hy - 0.08, 0.035, 0.1, D.beard); R(0.12, hy - 0.08, 0.035, 0.1, D.beard);
+      R(-0.07, hy - 0.085, 0.14, 0.025, D.beard);
     }
     const dark = D.hairStyle === 'lebron' || D.hairStyle === 'shaq', brow = D.hairStyle === 'trump' ? '#d9b25a' : dark ? '#140c08' : '#3a2618';
     R(-0.095, hy + 0.035, 0.07, 0.017, brow); R(0.025, hy + 0.035, 0.07, 0.017, brow);
