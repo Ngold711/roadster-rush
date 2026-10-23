@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '54';
+window.BUILD = '55';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -28,6 +28,7 @@ window.BUILD = '54';
   }
   addEventListener('load', check);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+  setInterval(check, 30000);
 })();
 </script>
 <title>Roadster Rush</title>
@@ -880,7 +881,7 @@ html, body { background: #26222c !important; }
   function reset() {
     objs = []; parts = [];
     hunt = { word: pick(WORDS), got: 0, next: rnd(400, 600), out: false, done: false };
-    tunnel = null; nextTunnel = rnd(550, 750); dawnK = 0; dawnTold = false; boss = null; nextBoss = rnd(70, 100); zuckArm = 0;
+    tunnel = null; nextTunnel = rnd(550, 750); dawnK = 0; dawnTold = false; boss = null; nextBoss = rnd(35, 50); zuckArm = 0;
     renderHunt();
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
     reviveUsed = false; revivePending = false; jumpBuf = 0; lastWall = false; t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
