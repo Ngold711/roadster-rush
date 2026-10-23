@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '39';
+window.BUILD = '40';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -1857,13 +1857,9 @@ html, body { background: #26222c !important; }
   function drawBuilding(side, z, n) {
     const z0 = z, z1 = z + 14.5;
     if (z1 <= ZN) return;
+    if (SET.real) { drawBuildingReal(side, z0, z1, n); return; }
     const h = 9 + hash(n, side) * 24, fx = side * 11.5, col = FACADES[Math.floor(hash(side, n) * FACADES.length)];
     drawBox(side * 16, 0, h, z0, z1, 9, shade(col, 0.85), shade(col, 1.1), col);
-    if (SET.real && z0 > ZN) {
-      const zm = Math.max(z0, ZN + 0.5);
-      poly([[fx, 0, zm], [fx, h * 0.55, zm], [fx, h * 0.55, z1], [fx, 0, z1]], 'rgba(0,0,0,.22)');
-      poly([[fx, 0, zm], [fx, h * 0.22, zm], [fx, h * 0.22, z1], [fx, 0, z1]], 'rgba(0,0,0,.22)');
-    }
     // about half the buildings have a wanted poster pasted on the wall, mapped onto the receding facade
     if (z0 < 70 && hash(n * 7, side * 3) < 0.55) pasteWanted(side * 11.45, z0 + 4 + hash(n, side * 5) * 6, 1.4, 2.1);
     if (z0 > 75 || SET.low) return;
@@ -1878,6 +1874,137 @@ html, body { background: #26222c !important; }
     ctx.fillStyle = '#f6d48a'; ctx.fill(warm);
     ctx.fillStyle = '#9fd3ff'; ctx.fill(cool);
     if (z0 > ZN) poly([[fx, 0, z0], [fx, 2.2, z0], [fx, 2.2, z1], [fx, 0, z1]], 'rgba(10,8,16,.35)');
+  }
+  // Realistic street wall: brick walk-ups with fire escapes and water towers, pre-war limestone with
+  // cornices and setbacks, glass office towers; every one has a shopfront or lobby at street level
+  const BRICK = ['#4f2a23', '#5c3226', '#46271f', '#56302a'], STONE = ['#5f5a50', '#6a6152', '#57534d'], GLASS = ['#172433', '#1a2b36', '#202a3a'];
+  const AWNINGS = ['#7a1f24', '#1f4a35', '#1d2f5a', '#5a1f4a', '#6b4a12'];
+  // street-level shop windows: a quad on a wall facing the street
+  function quad(pth, x, y0, y1, za, zb) {
+    const a = P(x, y0, za), b = P(x, y1, za), c = P(x, y1, zb), d = P(x, y0, zb);
+    pth.moveTo(a[0], a[1]); pth.lineTo(b[0], b[1]); pth.lineTo(c[0], c[1]); pth.lineTo(d[0], d[1]); pth.closePath();
+  }
+  // facades are painted once into textures (windows, lintels, curtain-wall grid) over a transparent
+  // background, so each building's own wall colour shows through; 3 variants per style
+  const TPX = 20, TEX_H = [17, 27, 43];
+  function bakeFacade(style, v) {
+    const c = document.createElement('canvas'), H = TEX_H[style];
+    c.width = 15 * TPX; c.height = H * TPX;
+    const g = c.getContext('2d'), R = (a, b) => hash(a * 13 + v * 101 + style * 7, b * 3 + v + 1);
+    const box = (z, y, w, h, fill) => { g.fillStyle = fill; g.fillRect(z * TPX, (H - y - h) * TPX, w * TPX, h * TPX); };
+    if (style === 2) {
+      for (let r = 0, wy = 3.6; wy < H; r++, wy += 1.35) {
+        for (let cc = 0, wz = 0.2; wz < 14.4; cc++, wz += 1.2) {
+          const on = R(r, Math.floor(cc / 3)) < 0.33;
+          box(wz, wy + 0.15, 1.1, 1.0, on ? (R(r, cc + 50) < 0.85 ? '#cfe6ff' : '#f3dca6') : 'rgba(60,90,130,.18)');
+        }
+        box(0, wy, 15, 0.1, 'rgba(0,0,0,.5)');
+      }
+      for (let wz = 0.2; wz < 15; wz += 1.2) box(wz - 0.04, 3.6, 0.08, H, 'rgba(0,0,0,.45)');
+    } else {
+      const fh = style ? 1.6 : 1.75, ww = style ? 0.62 : 0.75, wh = style ? 1.1 : 1.25, step = style ? 1.2 : 1.45;
+      for (let r = 0, wy = 3.7; wy + wh < H; r++, wy += fh) {
+        for (let cc = 0, wz = 0.8; wz < 13.6; cc++, wz += step) {
+          const q = R(r, cc);
+          box(wz - 0.06, wy - 0.12, ww + 0.12, 0.12, 'rgba(255,235,210,.16)');
+          box(wz, wy, ww, wh, q < 0.28 ? '#f2c97c' : q < 0.34 ? '#a8cdf0' : 'rgba(12,14,22,.78)');
+          if (q < 0.1) box(wz, wy + wh * 0.55, ww, wh * 0.45, 'rgba(140,80,30,.45)'); // blinds half down
+          box(wz - 0.08, wy + wh, ww + 0.16, 0.16, 'rgba(255,235,210,.24)');
+        }
+        if (style === 1 && r % 3 === 2) box(0, wy - 0.32, 15, 0.12, 'rgba(255,235,210,.2)');
+      }
+    }
+    return c;
+  }
+  const FACADE_TEX = [0, 1, 2].map((st) => [0, 1, 2].map((v) => bakeFacade(st, v)));
+  // map a facade texture onto the receding wall in thin vertical strips, each one an affine draw;
+  // strips get wider with distance, where perspective barely bends them
+  function wallTex(img, fx, z0, zs, z1, yTop) {
+    const base = ctx.getTransform(), sy = (img.height / TPX - yTop) * TPX, vh = (yTop - 3.3) * TPX;
+    for (let za = zs; za < z1 - 0.01;) {
+      const zb = Math.min(z1, za + Math.max(0.5, (za - cam.z) * 0.12));
+      const a = P(fx, yTop, za), b = P(fx, yTop, zb), c = P(fx, 3.3, za), uw = (zb - za) * TPX;
+      ctx.setTransform(base); ctx.transform(b[0] - a[0], b[1] - a[1], c[0] - a[0], c[1] - a[1], a[0], a[1]);
+      ctx.drawImage(img, (za - z0) * TPX, sy, uw + 0.6, vh, 0, 0, 1 + 0.6 / uw, 1);
+      za = zb;
+    }
+    ctx.setTransform(base);
+  }
+  function drawBuildingReal(side, z0, z1, n) {
+    const k = hash(n * 3, side * 11), style = k < 0.42 ? 0 : k < 0.75 ? 1 : 2; // 0 brick, 1 limestone, 2 glass
+    const pal = [BRICK, STONE, GLASS][style], col = pal[Math.floor(hash(n, side * 7) * pal.length)];
+    const h = [9 + hash(n, side) * 7, 14 + hash(n, side) * 12, 22 + hash(n, side) * 20][style];
+    const fx = side * 11.5, zs = Math.max(z0, ZN + 0.5), detail = z0 < 75 && !SET.low;
+    // roof pieces first: the facade below hides their bases
+    if (style === 1 && hash(n * 5, side) < 0.7) {
+      const sh = 3 + hash(n * 9, side) * 5;
+      drawBox(side * 17.5, h, h + sh, z0 + 1.5, z1 - 1.5, 6, shade(col, 0.75), shade(col, 1.05), shade(col, 0.92));
+    }
+    if (style === 0 && hash(n * 5, side) < 0.6) {
+      const tx = side * 15.5, tz = z0 + 3 + hash(n * 2, side) * 7;
+      if (tz > ZN + 0.5) {
+        for (const lx of [-0.6, 0.6]) drawBox(tx + lx, h, h + 1.1, tz + 0.2, tz + 0.35, 0.15, '#141012', '#141012', '#141012');
+        const rr = drawBox(tx, h + 1.1, h + 3.1, tz, tz + 1.6, 1.6, '#3b2a1f', '#46321f', '#33251b');
+        if (rr) { sub(rr, 0, 0.25, 1, 0.3, 'rgba(0,0,0,.4)'); sub(rr, 0, 0.7, 1, 0.75, 'rgba(0,0,0,.4)'); }
+        poly([[tx - 0.9, h + 3.1, tz], [tx, h + 4.1, tz + 0.8], [tx + 0.9, h + 3.1, tz]], '#211812');
+      }
+    }
+    drawBox(side * 16, 0, h, z0, z1, 9, shade(col, 0.8), shade(col, 1.1), col);
+    if (style !== 2) {
+      // projecting cornice with a shadow line under it
+      drawBox(side * 15.75, h - 0.55, h, z0 - 0.15, z1 + 0.15, 9.5, shade(col, 1.2), shade(col, 1.2), shade(col, 1.3));
+      if (z1 > ZN + 0.5) poly([[fx, h - 0.95, zs], [fx, h - 0.55, zs], [fx, h - 0.55, z1], [fx, h - 0.95, z1]], 'rgba(0,0,0,.35)');
+    }
+    if (!detail) return;
+    const s0 = P(fx, 0, zs)[2], tex = FACADE_TEX[style][Math.floor(hash(n * 29, side) * 3)];
+    let yTop = h - 0.3;
+    if (style !== 2) { const fh = style ? 1.6 : 1.75, wh = style ? 1.1 : 1.25; yTop = 3.7 + Math.floor((h - 1 - 3.7 - wh) / fh) * fh + wh + 0.2; }
+    yTop = Math.min(yTop, TEX_H[style] - 0.1);
+    if (yTop > 3.6) {
+      wallTex(tex, fx, z0, zs, z1, yTop);
+      if (z0 > ZN + 0.5) {
+        // the end wall facing the camera reuses the same facade, it's a flat rectangle there
+        const a = P(side * 11.5, yTop, z0), b = P(side * 20.5, 3.3, z0), sy = (TEX_H[style] - yTop) * TPX;
+        ctx.drawImage(tex, 0, sy, 9 * TPX, (yTop - 3.3) * TPX, Math.min(a[0], b[0]), a[1], Math.abs(b[0] - a[0]), b[1] - a[1]);
+      }
+    }
+    if (style === 2 && z1 > ZN + 0.5) {
+      const top = P(fx, h, zs), bot = P(fx, 3.4, zs), g = ctx.createLinearGradient(0, top[1], 0, bot[1]);
+      g.addColorStop(0, 'rgba(130,160,200,.22)'); g.addColorStop(1, 'rgba(130,160,200,0)');
+      poly([[fx, 3.4, zs], [fx, h, zs], [fx, h, z1], [fx, 3.4, z1]], g);
+    }
+    if (style === 0 && hash(n * 17, side) < 0.75) {
+      // fire escape: a landing at every floor, zig-zag stairs between them
+      const lines = new Path2D(), zc = Math.max(z0 + 3, Math.min(z1 - 3, z0 + 4 + hash(n, side * 13) * 6)), ex = fx - side * 0.35;
+      for (let wy = 3.45; wy + 1.75 < h - 1; wy += 1.75) {
+        if (zc - 1.6 < zs) break;
+        for (const [y, za, zb] of [[wy, zc - 1.6, zc + 1.6], [wy + 0.8, zc - 1.6, zc + 1.6]]) { const a = P(ex, y, za), b = P(ex, y, zb); lines.moveTo(a[0], a[1]); lines.lineTo(b[0], b[1]); }
+        for (const zz of [zc - 1.6, zc + 1.6]) { const a = P(ex, wy, zz), b = P(ex, wy + 0.8, zz); lines.moveTo(a[0], a[1]); lines.lineTo(b[0], b[1]); }
+        const a = P(ex, wy, zc - 1.3), b = P(ex, wy + 1.75, zc + 1.1); lines.moveTo(a[0], a[1]); lines.lineTo(b[0], b[1]);
+      }
+      ctx.strokeStyle = '#0c0a0c'; ctx.lineWidth = Math.max(0.8, s0 * 0.07); ctx.stroke(lines);
+    }
+    // street level: three shops under awnings (or a bright lobby on the glass towers)
+    if (z1 <= ZN + 0.5) return;
+    const shops = new Path2D(), pillars = new Path2D(), seg = (z1 - z0) / 3;
+    poly([[fx, 0, zs], [fx, 3.3, zs], [fx, 3.3, z1], [fx, 0, z1]], 'rgba(8,6,12,.55)');
+    const lits = [];
+    for (let i = 0; i < 3; i++) {
+      const za = z0 + seg * i + 0.35, zb = z0 + seg * (i + 1) - 0.35;
+      if (zb < zs) continue;
+      const on = style === 2 || hash(n * 19 + i, side) < 0.75;
+      quad(on ? shops : pillars, fx, 0.35, 2.5, Math.max(za, zs), zb);
+      if (on) lits.push([za, zb, i]);
+    }
+    ctx.fillStyle = 'rgba(14,12,18,.9)'; ctx.fill(pillars);
+    ctx.fillStyle = style === 2 ? '#d9ecff' : '#ffcf86'; ctx.fill(shops);
+    if (z0 < 70 && hash(n * 7, side * 3) < 0.55) pasteWanted(side * 11.45, z0 + 4 + hash(n, side * 5) * 6, 1.4, 2.1);
+    for (const [za, zb, i] of lits) {
+      const zA = Math.max(za, zs);
+      poly([[fx, 0.01, zA], [fx - side * 2, 0.01, zA], [fx - side * 2, 0.01, zb], [fx, 0.01, zb]], style === 2 ? 'rgba(200,225,255,.12)' : 'rgba(255,190,110,.14)');
+      if (style !== 2) poly([[fx, 3.05, zA], [fx - side * 0.9, 2.55, zA], [fx - side * 0.9, 2.55, zb], [fx, 3.05, zb]], AWNINGS[Math.floor(hash(n * 23 + i, side) * AWNINGS.length)]);
+      if (weather === 'rain') reflect(fx - side * 1.2, (zA + zb) / 2, P(fx, 0, (zA + zb) / 2)[2], warmStrip, 0.3);
+    }
   }
   function pasteWanted(fx, pz, pw, ph) {
     const img = wantedAt(); if (!img || pz <= ZN + 0.5) return;
