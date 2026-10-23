@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '62';
+window.BUILD = '63';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -601,7 +601,7 @@ html, body { background: #26222c !important; }
   let missFlyer = null;
   function missAt() {
     if (missFlyer || !missImg.complete || !missImg.naturalWidth) return missFlyer;
-    const W2 = 300, H2 = 420, c = document.createElement('canvas'); c.width = W2; c.height = H2;
+    const W2 = 300, H2 = 660, c = document.createElement('canvas'); c.width = W2; c.height = H2;
     const g = c.getContext('2d');
     const bgG = g.createLinearGradient(0, 0, 0, H2); bgG.addColorStop(0, '#ffe3ef'); bgG.addColorStop(1, '#ff9cc8');
     g.fillStyle = bgG; g.fillRect(0, 0, W2, H2);
@@ -614,20 +614,21 @@ html, body { background: #26222c !important; }
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = '#8a1450'; g.font = '700 30px Georgia, "Times New Roman", serif'; g.fillText('MISS AMERICA', W2 / 2, 84);
     g.fillStyle = '#b8860b'; g.font = '700 26px Georgia, "Times New Roman", serif'; g.fillText('\u2605 2026 \u2605', W2 / 2, 114);
-    // photo in a gold frame
-    const px = 40, py = 132, pw = 220, ph = 220;
+    // the whole photo, top to bottom, in a gold frame
+    const px = 40, py = 132, pw = 220, ph = 476;
     g.fillStyle = '#d4a52a'; g.fillRect(px - 6, py - 6, pw + 12, ph + 12);
     const sr = missImg.naturalWidth / missImg.naturalHeight, dr = pw / ph; let sx = 0, sy = 0, sw = missImg.naturalWidth, sh = missImg.naturalHeight;
     if (sr > dr) { sw = sh * dr; sx = (missImg.naturalWidth - sw) / 2; } else { sh = sw / dr; sy = (missImg.naturalHeight - sh) * 0.25; }
     g.drawImage(missImg, sx, sy, sw, sh, px, py, pw, ph);
     // WINNER sash across the corner of the photo
-    g.save(); g.translate(px + pw - 40, py + ph - 34); g.rotate(-0.5);
-    g.fillStyle = '#e8b931'; g.fillRect(-90, -15, 180, 30); g.fillStyle = '#8a1450'; g.font = '700 18px Georgia, serif'; g.fillText('WINNER', 0, 1);
+    g.save(); g.translate(px + pw - 44, py + 46); g.rotate(0.62);
+    g.beginPath(); g.rect(-px - pw, -py - ph, 2000, 2000); g.restore(); g.save(); g.beginPath(); g.rect(px, py, pw, ph); g.clip(); g.translate(px + pw - 44, py + 46); g.rotate(0.62);
+    g.fillStyle = '#e8b931'; g.fillRect(-80, -14, 160, 28); g.fillStyle = '#8a1450'; g.font = '700 18px Georgia, serif'; g.fillText('WINNER', 0, 1);
     g.restore();
-    g.fillStyle = '#8a1450'; g.font = 'italic 700 17px Georgia, "Times New Roman", serif'; g.fillText('Congratulations to our Queen!', W2 / 2, 382);
+    g.fillStyle = '#8a1450'; g.font = 'italic 700 17px Georgia, "Times New Roman", serif'; g.fillText('Congratulations to our Queen!', W2 / 2, 634);
     // sparkles
     g.fillStyle = '#ffffff';
-    for (const [x, y, r] of [[30, 40, 7], [268, 46, 6], [26, 230, 5], [274, 260, 7], [50, 400, 5], [252, 398, 6]]) {
+    for (const [x, y, r] of [[30, 40, 7], [268, 46, 6], [24, 300, 5], [276, 360, 7], [50, 646, 5], [252, 644, 6]]) {
       g.beginPath(); g.moveTo(x, y - r); g.quadraticCurveTo(x, y, x + r, y); g.quadraticCurveTo(x, y, x, y + r); g.quadraticCurveTo(x, y, x - r, y); g.quadraticCurveTo(x, y, x, y - r); g.fill();
     }
     return (missFlyer = c);
@@ -2798,7 +2799,7 @@ html, body { background: #26222c !important; }
   // flyer taped around a lamp pole at chest height, a little crooked, with tape at the corners
   function drawMissFlyer(x, z, n) {
     const img = missAt(); if (!img || z <= ZN + 0.5) return;
-    const tl = P(x - 0.7, 3.2, z), br = P(x + 0.7, 1.24, z), s = tl[2];
+    const tl = P(x - 0.62, 3.75, z), br = P(x + 0.62, 1.03, z), s = tl[2];
     const x0 = tl[0], y0 = tl[1], w = br[0] - x0, h = br[1] - y0;
     if (x0 > W || x0 + w < 0 || w < 3) return;
     ctx.save(); ctx.translate(x0 + w / 2, y0 + h / 2); ctx.rotate((n % 3 - 1) * 0.05);
