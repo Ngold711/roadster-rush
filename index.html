@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '37';
+window.BUILD = '38';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -1567,6 +1567,7 @@ html, body { background: #26222c !important; }
   function bakeBackdrop() {
     bg = document.createElement('canvas'); bg.width = Math.max(1, Math.round(W * DPR)); bg.height = Math.max(1, Math.round(H * DPR));
     const ctx = bg.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (SET.real) { bakeManhattan(ctx); finishBackdrop(ctx); return; }
     const g = ctx.createLinearGradient(0, 0, 0, HY);
     g.addColorStop(0, '#0b0d22'); g.addColorStop(0.5, '#241a44'); g.addColorStop(0.85, '#6a2f5c'); g.addColorStop(1, '#d3664a');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, HY + 1);
@@ -1583,19 +1584,121 @@ html, body { background: #26222c !important; }
         for (const [wx, wy] of lit) ctx.fillRect(x + wx, HY - h + wy, 2.5, 3);
       }
     });
-    if (SET.real) {
-      // moon with a soft halo, and low clouds catching the city glow
-      const mx = W * 0.2, my = HY * 0.28, mr = Math.min(W, H) * 0.035;
-      const halo = ctx.createRadialGradient(mx, my, mr, mx, my, mr * 7); halo.addColorStop(0, 'rgba(220,225,255,.28)'); halo.addColorStop(1, 'rgba(220,225,255,0)');
-      ctx.fillStyle = halo; ctx.fillRect(mx - mr * 7, my - mr * 7, mr * 14, mr * 14);
-      ctx.fillStyle = '#eef0f8'; ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(200,205,225,.35)'; ctx.beginPath(); ctx.arc(mx - mr * 0.3, my - mr * 0.2, mr * 0.28, 0, Math.PI * 2); ctx.arc(mx + mr * 0.35, my + mr * 0.25, mr * 0.18, 0, Math.PI * 2); ctx.fill();
-      for (let i = 0; i < 14; i++) {
-        const cx = (i * 0.137 % 1) * W * 1.2 - W * 0.1, cy = HY * (0.18 + (i * 0.29 % 1) * 0.55), rw = W * (0.18 + (i * 0.37 % 1) * 0.22), rh = rw * 0.22;
-        const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, rw); cg.addColorStop(0, 'rgba(120,80,130,.22)'); cg.addColorStop(1, 'rgba(120,80,130,0)');
-        ctx.save(); ctx.translate(cx, cy); ctx.scale(1, rh / rw); ctx.translate(-cx, -cy); ctx.fillStyle = cg; ctx.fillRect(cx - rw, cy - rw, rw * 2, rw * 2); ctx.restore();
+    finishBackdrop(ctx);
+  }
+  // ---------- realistic Manhattan skyline (Realistic graphics): looking up an avenue toward Midtown at night ----------
+  function bakeManhattan(g) {
+    const k = H / 800, cx = W / 2, B = HY + 1;
+    let seed = 20280;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    // sky: deep night overhead, warm light pollution low down
+    const sky = g.createLinearGradient(0, 0, 0, B);
+    sky.addColorStop(0, '#04060d'); sky.addColorStop(0.45, '#0f1426'); sky.addColorStop(0.78, '#2e2734'); sky.addColorStop(1, '#7a5040');
+    g.fillStyle = sky; g.fillRect(0, 0, W, B);
+    g.fillStyle = '#e8ecff';
+    for (const st of stars) { g.globalAlpha = 0.25 * (1 - st[1] / B); g.fillRect(st[0], st[1] * 0.6, 1, 1); }
+    g.globalAlpha = 1;
+    // lit office windows: mostly warm, some cool LED white, in loose floor bands
+    function windows(x0, y0, w, h, cw, rh, p) {
+      for (let y = y0; y < y0 + h - rh * 0.6; y += rh) {
+        const band = rnd() < 0.18 ? 0.25 : 1;
+        for (let x = x0; x < x0 + w - cw * 0.5; x += cw) {
+          const r = rnd(); if (r > p * band) continue;
+          g.fillStyle = r < p * 0.18 ? '#d6e8ff' : r < p * 0.6 ? '#ffd9a2' : '#f0b36a';
+          g.globalAlpha = 0.45 + rnd() * 0.55;
+          g.fillRect(x, y, Math.max(1, cw * 0.55), Math.max(1, rh * 0.45));
+        }
       }
+      g.globalAlpha = 1;
     }
+    // a plain tower with a shaded side (the city glow lights one face)
+    function block(x, w, h, face, p, cw, rh, cap) {
+      const l = x - w / 2, t = B - h;
+      g.fillStyle = face; g.fillRect(l, t, w, h);
+      g.fillStyle = 'rgba(255,160,110,.07)'; g.fillRect(l, t, w * 0.42, h);
+      g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(l + w * 0.8, t, w * 0.2, h);
+      windows(l + 1, t + 3 * k, w - 2, h - 3 * k, cw, rh, p);
+      if (cap && rnd() < 0.5) { g.fillStyle = face; g.fillRect(x - 1, t - cap, 2, cap); if (rnd() < 0.6) { g.fillStyle = '#ff3b3b'; g.fillRect(x - 1, t - cap - 2, 2, 2); } }
+    }
+    function haze(a) {
+      const hz = g.createLinearGradient(0, B - 260 * k, 0, B);
+      hz.addColorStop(0, 'rgba(120,80,70,0)'); hz.addColorStop(1, `rgba(150,95,75,${a})`);
+      g.fillStyle = hz; g.fillRect(0, B - 260 * k, W, 260 * k);
+    }
+    // 1) distant towers fading into the glow, tallest toward Midtown in the middle
+    for (let x = -10; x < W + 10;) {
+      const w = (7 + rnd() * 12) * k, mid = 1 - Math.min(1, Math.abs(x - cx) / (W * 0.6));
+      block(x + w / 2, w, (35 + rnd() * 70 + mid * 110) * k, '#1d1f2c', 0.22, 2.2 * k, 3.2 * k, 12 * k);
+      x += w + rnd() * 2 * k;
+    }
+    haze(0.55);
+    // 2) the landmarks
+    const s = k;
+    // Central Park Tower (far left, very tall and slender)
+    block(cx - W * 0.29, 22 * s, 300 * s, '#171a25', 0.3, 3 * s, 4 * s, 0);
+    // 432 Park Avenue: thin column, perfect grid of square windows
+    (() => { const x = cx - W * 0.2, w = 15 * s, h = 285 * s, l = x - w / 2, t = B - h;
+      g.fillStyle = '#15161e'; g.fillRect(l, t, w, h);
+      for (let y = t + 3 * s; y < B - 3 * s; y += 4.2 * s) for (let xx = l + 1.5 * s; xx < l + w - 2 * s; xx += 4.2 * s) {
+        if (rnd() > 0.5) continue; g.fillStyle = rnd() < 0.5 ? '#e9eef8' : '#ffdcae'; g.globalAlpha = 0.5 + rnd() * 0.5; g.fillRect(xx, y, 2.6 * s, 2.6 * s);
+      }
+      g.globalAlpha = 1; })();
+    // One Vanderbilt: tapered faces stepping to a pointed crown
+    (() => { const x = cx + W * 0.2, h = 245 * s, bw = 36 * s, tw = 15 * s, t = B - h;
+      g.fillStyle = '#20232f'; g.beginPath(); g.moveTo(x - bw / 2, B); g.lineTo(x - tw / 2, t); g.lineTo(x + tw / 2, t); g.lineTo(x + bw / 2, B); g.fill();
+      g.fillStyle = 'rgba(255,170,120,.08)'; g.beginPath(); g.moveTo(x - bw / 2, B); g.lineTo(x - tw / 2, t); g.lineTo(x - tw * 0.1, t); g.lineTo(x - bw * 0.1, B); g.fill();
+      windows(x - bw * 0.3, t + 8 * s, bw * 0.6, h - 8 * s, 3 * s, 4 * s, 0.35);
+      g.fillStyle = '#c9b9a0'; for (let i = 0; i < 4; i++) g.fillRect(x - tw / 2 + i * 1.6 * s, t - (i + 1) * 5 * s, tw - i * 3.2 * s, 5 * s);
+      g.fillStyle = '#d8dce6'; g.fillRect(x - 0.8 * s, t - 52 * s, 1.6 * s, 32 * s);
+      g.fillStyle = '#ff3b3b'; g.fillRect(x - 1, t - 54 * s, 2, 2); })();
+    // One World Trade Center (behind, downtown): tapered glass with a lit edge and a tall spire
+    (() => { const x = cx + W * 0.03, h = 300 * s, bw = 44 * s, tw = 18 * s, t = B - h;
+      const lf = g.createLinearGradient(x - bw / 2, 0, x, 0); lf.addColorStop(0, '#2b3348'); lf.addColorStop(1, '#46536f');
+      g.fillStyle = lf; g.beginPath(); g.moveTo(x - bw / 2, B); g.lineTo(x - tw / 2, t); g.lineTo(x, t); g.lineTo(x, B); g.fill();
+      g.fillStyle = '#1b2131'; g.beginPath(); g.moveTo(x, B); g.lineTo(x, t); g.lineTo(x + tw / 2, t); g.lineTo(x + bw / 2, B); g.fill();
+      g.strokeStyle = 'rgba(190,215,255,.55)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, B); g.lineTo(x, t); g.stroke();
+      windows(x - bw * 0.36, t + 6 * s, bw * 0.72, h - 6 * s, 2.6 * s, 3.4 * s, 0.18);
+      g.fillStyle = '#c7ccd8'; g.fillRect(x - 0.9 * s, t - 70 * s, 1.8 * s, 70 * s);
+      const bx = x, by = t - 72 * s, bgl = g.createRadialGradient(bx, by, 0, bx, by, 10 * s); bgl.addColorStop(0, 'rgba(255,60,60,.9)'); bgl.addColorStop(1, 'rgba(255,60,60,0)');
+      g.fillStyle = bgl; g.fillRect(bx - 10 * s, by - 10 * s, 20 * s, 20 * s); })();
+    // Empire State Building: setbacks, lit crown tiers, mast
+    (() => { const x = cx - W * 0.08, wb = 54 * s, face = '#22242f';
+      const step = (w, y0, y1) => { g.fillStyle = face; g.fillRect(x - w / 2, B - y1, w, y1 - y0); g.fillStyle = 'rgba(255,170,120,.07)'; g.fillRect(x - w / 2, B - y1, w * 0.4, y1 - y0); };
+      step(wb, 0, 70 * s); step(wb * 0.7, 70 * s, 205 * s); windows(x - wb * 0.33, B - 205 * s, wb * 0.66, 135 * s, 3 * s, 4 * s, 0.4); windows(x - wb * 0.48, B - 70 * s, wb * 0.96, 70 * s, 3 * s, 4 * s, 0.35);
+      const tiers = [[wb * 0.46, 205, 218, '#fff4dc'], [wb * 0.34, 218, 230, '#ffffff'], [wb * 0.24, 230, 241, '#5b8cff'], [wb * 0.16, 241, 250, '#ffffff']];
+      for (const [w, y0, y1, c] of tiers) {
+        const gl = g.createRadialGradient(x, B - (y0 + y1) / 2 * s, 0, x, B - (y0 + y1) / 2 * s, w * 1.4); gl.addColorStop(0, c === '#5b8cff' ? 'rgba(91,140,255,.35)' : 'rgba(255,240,210,.3)'); gl.addColorStop(1, 'rgba(255,240,210,0)');
+        g.fillStyle = gl; g.fillRect(x - w * 1.4, B - (y0 + y1) / 2 * s - w * 1.4, w * 2.8, w * 2.8);
+        g.fillStyle = c; g.fillRect(x - w / 2, B - y1 * s, w, (y1 - y0) * s);
+      }
+      g.fillStyle = '#d6dae4'; g.fillRect(x - 2 * s, B - 272 * s, 4 * s, 22 * s); g.fillRect(x - 0.7 * s, B - 300 * s, 1.4 * s, 28 * s);
+      g.fillStyle = '#ff3b3b'; g.fillRect(x - 1, B - 302 * s, 2, 2); })();
+    // Chrysler Building: stainless arches with triangular windows lit, needle spire
+    (() => { const x = cx + W * 0.11, w = 36 * s, h0 = 185 * s, face = '#24262f';
+      g.fillStyle = face; g.fillRect(x - w / 2, B - h0, w, h0); g.fillStyle = 'rgba(255,170,120,.07)'; g.fillRect(x - w / 2, B - h0, w * 0.4, h0);
+      windows(x - w * 0.45, B - h0 + 4 * s, w * 0.9, h0 - 4 * s, 3 * s, 4 * s, 0.38);
+      const gl = g.createRadialGradient(x, B - h0 - 28 * s, 0, x, B - h0 - 28 * s, 60 * s); gl.addColorStop(0, 'rgba(255,250,235,.35)'); gl.addColorStop(1, 'rgba(255,250,235,0)');
+      g.fillStyle = gl; g.fillRect(x - 60 * s, B - h0 - 88 * s, 120 * s, 120 * s);
+      for (let i = 0; i < 5; i++) {
+        const rw = w * (0.5 - i * 0.085), cy = B - h0 - i * 11 * s;
+        g.fillStyle = '#b9bdc8'; g.beginPath(); g.ellipse(x, cy, rw, rw * 0.95, 0, Math.PI, 0); g.fill();
+        g.fillStyle = '#fffbe6';
+        for (let j = 1; j < 6; j++) { const a = Math.PI + j * Math.PI / 6, px = x + Math.cos(a) * rw * 0.72, py = cy + Math.sin(a) * rw * 0.7; g.beginPath(); g.moveTo(px - 1.6 * s, py + 2 * s); g.lineTo(px + 1.6 * s, py + 2 * s); g.lineTo(px, py - 2.2 * s); g.fill(); }
+      }
+      g.fillStyle = '#e4e7ee'; g.beginPath(); g.moveTo(x - 2.4 * s, B - h0 - 50 * s); g.lineTo(x + 2.4 * s, B - h0 - 50 * s); g.lineTo(x, B - h0 - 95 * s); g.fill(); })();
+    haze(0.18);
+    // 3) closer Midtown blocks along the avenue
+    for (let x = -10; x < W + 10;) {
+      const w = (12 + rnd() * 22) * k;
+      block(x + w / 2, w, (25 + rnd() * 75) * k, '#121320', 0.42, 3.4 * k, 4.6 * k, 0);
+      x += w + rnd() * 3 * k;
+    }
+    // street-level glow where the avenue meets the skyline
+    const sg = g.createLinearGradient(0, B - 70 * k, 0, B);
+    sg.addColorStop(0, 'rgba(255,150,90,0)'); sg.addColorStop(1, 'rgba(255,150,90,.35)');
+    g.fillStyle = sg; g.fillRect(0, B - 70 * k, W, 70 * k);
+  }
+  function finishBackdrop(ctx) {
     const gg = ctx.createLinearGradient(0, HY, 0, H);
     gg.addColorStop(0, '#4a4152'); gg.addColorStop(0.4, '#2c2633'); gg.addColorStop(1, '#16131c');
     ctx.fillStyle = gg; ctx.fillRect(0, HY, W, H - HY);
@@ -1645,7 +1748,7 @@ html, body { background: #26222c !important; }
     if (!bg) bakeBackdrop();
     if (hyOff > 0) { ctx.fillStyle = '#0b0d22'; ctx.fillRect(0, 0, W, hyOff + 1); }
     ctx.drawImage(bg, 0, hyOff, W, H);
-    if (Math.floor(T * 1.5) % 2) {
+    if (!SET.real && Math.floor(T * 1.5) % 2) {
       const k = H / 800; ctx.fillStyle = '#ff3b3b';
       for (const m of landmarks) { const top = m.type === 'wtc' ? 360 : m.type === 'esb' ? 290 : 295; ctx.fillRect(m.x - 1.5 * k, HY + hyOff + 1 - top * k - 3, 3 * k, 3); }
     }
