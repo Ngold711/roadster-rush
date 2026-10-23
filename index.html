@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '40';
+window.BUILD = '41';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -563,6 +563,34 @@ html, body { background: #26222c !important; }
     g.fillStyle = r; g.fillRect(0, 0, 64, 64); return c;
   })();
   function glow(x, y, r, a) { if (SET.low) return; const pa = ctx.globalAlpha; ctx.globalAlpha = pa * a; ctx.drawImage(glowImg, x - r, y - r, r * 2, r * 2); ctx.globalAlpha = pa; }
+  // Realistic-mode finish for vehicles: blurred contact shadow, paint gloss, lamps that bloom
+  const tint = (rgb) => {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    r.addColorStop(0, `rgba(${rgb},.9)`); r.addColorStop(0.3, `rgba(${rgb},.3)`); r.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = r; g.fillRect(0, 0, 64, 64); return c;
+  };
+  const redGlow = tint('255,40,55'), blueGlow = tint('60,120,255');
+  const softShadow = (() => {
+    const c = document.createElement('canvas'); c.width = 96; c.height = 64;
+    const g = c.getContext('2d'); g.shadowColor = '#000'; g.shadowBlur = 12; g.shadowOffsetX = 300;
+    g.fillStyle = '#000'; g.fillRect(16 - 300, 14, 64, 36); return c;
+  })();
+  function gloss(rr) {
+    if (!SET.real || rr.b - rr.t < 3) return;
+    const g = ctx.createLinearGradient(0, rr.t, 0, rr.b);
+    g.addColorStop(0, 'rgba(255,255,255,.3)'); g.addColorStop(0.16, 'rgba(255,255,255,.07)');
+    g.addColorStop(0.5, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.4)');
+    ctx.fillStyle = g; ctx.fillRect(rr.l, rr.t, rr.r - rr.l, rr.b - rr.t);
+  }
+  // fx: lamp positions across the rear face, fy: their height (fractions of the face)
+  function lampGlow(rr, fxs, fy, img = redGlow, k = 1) {
+    if (!SET.real || SET.low) return;
+    const R = Math.max(3, (rr.r - rr.l) * 0.24 * k), cy = rr.t + (rr.b - rr.t) * fy, pa = ctx.globalAlpha;
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = pa * 0.85;
+    for (const fx of fxs) ctx.drawImage(img, rr.l + (rr.r - rr.l) * fx - R, cy - R * 0.6, R * 2, R * 1.2);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = pa;
+  }
   function rnd(a, b) { return a + Math.random() * (b - a); }
   function ri(n) { return Math.floor(Math.random() * n); }
   function pick(a) { return a[ri(a.length)]; }
@@ -2028,6 +2056,11 @@ html, body { background: #26222c !important; }
     ctx.fillStyle = '#6b4423'; ctx.fillRect(x0 - f, yy - f, w + f * 2, h + f * 2);
     ctx.fillStyle = '#583818'; for (let i = 1; i < 6; i++) ctx.fillRect(x0 - f, yy - f + (h + f * 2) * i / 6, w + f * 2, Math.max(1, s * 0.03));
     ctx.drawImage(img, x0, yy, w, h);
+    if (SET.real) {
+      const g = ctx.createRadialGradient(x0 + w / 2, yy + h * 0.35, 0, x0 + w / 2, yy + h * 0.35, Math.max(w, h) * 0.8);
+      g.addColorStop(0, 'rgba(255,220,160,.08)'); g.addColorStop(1, 'rgba(20,8,0,.45)');
+      ctx.fillStyle = g; ctx.fillRect(x0 - f, yy - f, w + f * 2, h + f * 2);
+    }
     ctx.fillStyle = '#2a1a0c'; const nr = Math.max(1.2, s * 0.06);
     for (const [nx, ny] of [[x0 + f * 0.5, yy + f * 0.5], [x0 + w - f * 0.5, yy + f * 0.5], [x0 + f * 0.5, yy + h - f * 0.5], [x0 + w - f * 0.5, yy + h - f * 0.5]]) { ctx.beginPath(); ctx.arc(nx, ny, nr, 0, Math.PI * 2); ctx.fill(); }
     ctx.restore();
@@ -2042,14 +2075,47 @@ html, body { background: #26222c !important; }
     const tl = P(cx - hw, y1, z), br = P(cx + hw, y0, z), s = tl[2];
     const x0 = tl[0], yy = tl[1], w = br[0] - x0, h = br[1] - yy;
     if (x0 > W || x0 + w < 0) return;
+    if (SET.real) { drawBillboardReal(photo, cx, z, x0, yy, w, h, s); return; }
     ctx.fillStyle = '#1e1426'; ctx.fillRect(x0 - s * 0.15, yy - s * 0.15, w + s * 0.3, h + s * 0.3);
     ctx.fillStyle = '#f4ede3'; ctx.fillRect(x0, yy, w, h);
     if (photo) ctx.drawImage(photo, x0, yy, w, h);
     const lamp = P(cx, y1 + 0.3, z), r = Math.max(3, lamp[2] * 2.2);
     glow(lamp[0], lamp[1], r, 0.35);
   }
+  // steel billboard: I-beam post, deep frame, a catwalk with railing and floodlights washing the face from below
+  function drawBillboardReal(photo, cx, z, x0, yy, w, h, s) {
+    const g0 = P(cx, 0, z), by = yy + h;
+    ctx.fillStyle = '#1b1d22'; ctx.fillRect(g0[0] - s * 0.2, by, s * 0.4, g0[1] - by);
+    ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(g0[0] - s * 0.2, by, s * 0.06, g0[1] - by);
+    ctx.fillStyle = '#2a2d33'; ctx.fillRect(x0 - s * 0.18, yy - s * 0.18, w + s * 0.36, h + s * 0.36);
+    ctx.fillStyle = '#3c4048'; ctx.fillRect(x0 - s * 0.18, yy - s * 0.18, w + s * 0.36, s * 0.05);
+    ctx.fillStyle = '#f4ede3'; ctx.fillRect(x0, yy, w, h);
+    if (photo) ctx.drawImage(photo, x0, yy, w, h);
+    const g = ctx.createLinearGradient(0, yy, 0, by);
+    g.addColorStop(0, 'rgba(0,0,10,.32)'); g.addColorStop(0.55, 'rgba(255,236,200,0)'); g.addColorStop(1, 'rgba(255,230,180,.22)');
+    ctx.fillStyle = g; ctx.fillRect(x0, yy, w, h);
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(x0, yy, w, s * 0.06); ctx.fillRect(x0, yy, s * 0.05, h);
+    // catwalk, railing, floodlights
+    const cw = by + s * 0.2;
+    ctx.fillStyle = '#30333a'; ctx.fillRect(x0 - s * 0.3, cw, w + s * 0.6, s * 0.1);
+    ctx.fillStyle = '#4a4e57'; ctx.fillRect(x0 - s * 0.3, cw - s * 0.45, w + s * 0.6, Math.max(1, s * 0.035));
+    for (let i = 0; i <= 6; i++) ctx.fillRect(x0 - s * 0.3 + (w + s * 0.6) * i / 6 - s * 0.015, cw - s * 0.45, Math.max(1, s * 0.03), s * 0.45);
+    for (const f of [0.2, 0.5, 0.8]) {
+      const lx = x0 + w * f;
+      ctx.fillStyle = '#1b1d22'; ctx.fillRect(lx - s * 0.03, cw - s * 0.3, s * 0.06, s * 0.3);
+      ctx.fillStyle = '#fff1d0'; ctx.fillRect(lx - s * 0.12, cw - s * 0.38, s * 0.24, s * 0.08);
+      glow(lx, cw - s * 0.4, Math.max(3, s * 0.8), 0.5);
+    }
+  }
   function shadowAt(x, w, z0, z1, y) {
     if (z1 <= ZN) return;
+    if (SET.real) {
+      const zn = Math.max(z0, ZN), a = P(x - w / 2, y, zn), b = P(x + w / 2, y, zn), c = P(x, y, z1);
+      const cw = b[0] - a[0], ch = Math.max(2, a[1] - c[1]), pa = ctx.globalAlpha;
+      ctx.globalAlpha = pa * 0.85;
+      ctx.drawImage(softShadow, a[0] - cw / 4, c[1] - ch * 14 / 36, cw * 1.5, ch * 64 / 36);
+      ctx.globalAlpha = pa; return;
+    }
     poly([[x - w / 2, y + 0.01, Math.max(z0, ZN)], [x + w / 2, y + 0.01, Math.max(z0, ZN)], [x + w / 2, y + 0.01, z1], [x - w / 2, y + 0.01, z1]], 'rgba(10,4,14,.45)');
   }
 
@@ -2079,13 +2145,18 @@ html, body { background: #26222c !important; }
     if (z + slope > ZN) {
       const zs = z + slope, zc = z + cab0, edge = shade(col, roadster ? 1.1 : 1.0);
       poly([[x - w / 2 + 0.14, y + bodyTop, zs], [x + w / 2 - 0.14, y + bodyTop, zs], [x + cabW / 2, y + cabTop, zc], [x - cabW / 2, y + cabTop, zc]], '#1a1f2a');
+      if (SET.real) {
+        // a band of reflected street light across the rear glass
+        const at = (u, sx) => [x + sx * ((w / 2 - 0.14) * (1 - u) + (cabW / 2) * u), y + bodyTop + (cabTop - bodyTop) * u, zs + (zc - zs) * u];
+        poly([at(0.5, -1), at(0.5, 1), at(0.68, 1), at(0.68, -1)], 'rgba(200,215,240,.13)');
+      }
       poly([[x - w / 2 + 0.14, y + bodyTop, zs], [x - w / 2 + 0.3, y + bodyTop, zs], [x - cabW / 2 + 0.08, y + cabTop, zc], [x - cabW / 2, y + cabTop, zc]], edge);
       poly([[x + w / 2 - 0.3, y + bodyTop, zs], [x + w / 2 - 0.14, y + bodyTop, zs], [x + cabW / 2, y + cabTop, zc], [x + cabW / 2 - 0.08, y + cabTop, zc]], edge);
     }
     if (!rr) return;
     sub(rr, 0, 0.72, 1, 1, '#141016');
     if (SET.real) {
-      sub(rr, 0, 0, 1, 0.1, 'rgba(255,255,255,.22)');
+      gloss(rr);
       const rw = (rr.r - rr.l) * 0.16, rl = (rr.b - rr.t) * 1.6;
       const pa = ctx.globalAlpha; ctx.globalAlpha = pa * (weather === 'rain' ? 0.4 : 0);
       if (weather === 'rain') for (const fx of [0.12, 0.88]) ctx.drawImage(redStrip, rr.l + (rr.r - rr.l) * fx - rw / 2, rr.b, rw, rl);
@@ -2125,6 +2196,8 @@ html, body { background: #26222c !important; }
       }
       sub(rr, 0.4, 0.44, 0.6, 0.64, '#ecebe6');
     }
+    if (roadster || m.bar) lampGlow(rr, [0.12, 0.5, 0.88], 0.2, redGlow, brake ? 1.4 : 1);
+    else lampGlow(rr, [0.12, 0.88], m.vert ? 0.32 : 0.2);
   }
 
   // livery on the player's car, painted over the body but under the tail lights
@@ -2230,11 +2303,20 @@ html, body { background: #26222c !important; }
       drawBox(x - 0.34, peakY, peakY + 0.18, peakZ - 0.25, peakZ + 0.1, 0.62, on ? '#ff2a3a' : '#5a1018', on ? '#ff6b75' : '#5a1018', '#3a0a10');
       drawBox(x + 0.34, peakY, peakY + 0.18, peakZ - 0.25, peakZ + 0.1, 0.62, on ? '#183a8a' : '#3a7bff', on ? '#183a8a' : '#7aa6ff', '#0c1d45');
     }
+    if (police && SET.real && !SET.low && peakZ > ZN + 0.5) {
+      // light bar throws colored light around it
+      const lb = P(x + (on ? -0.34 : 0.34), peakY + 0.1, peakZ), R = lb[2] * 1.6, pa = ctx.globalAlpha;
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = pa * 0.8;
+      ctx.drawImage(on ? redGlow : blueGlow, lb[0] - R, lb[1] - R * 0.6, R * 2, R * 1.2);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = pa;
+    }
     if (!rr) return;
+    gloss(rr);
     sub(rr, 0, 0.05, 1, 0.13, '#ff2a3a');
     sub(rr, 0, 0.13, 1, 0.17, 'rgba(255,42,58,.35)');
     if (police) sub(rr, 0.3, 0.42, 0.7, 0.5, on ? '#3a7bff' : '#ff2a3a');
     sub(rr, 0, 0.74, 1, 1, '#1c1f26');
+    lampGlow(rr, [0.1, 0.5, 0.9], 0.09);
   }
   // the driver: tall cartoon tech-founder type in a black tee, black jacket and dark jeans, short swept-back hair
   function drawMan(x, y, z, pose) {
@@ -2309,9 +2391,12 @@ html, body { background: #26222c !important; }
     const l = x - o.w / 2, r = x + o.w / 2, z0 = Math.max(z, ZN);
     if (cam.x < l || cam.x > r) { const sx = cam.x < l ? l : r; poly([[sx, y + 1.15, z0], [sx, y + 2.0, z0], [sx, y + 2.0, z + o.d - 0.3], [sx, y + 1.15, z + o.d - 0.3]], '#161b25'); }
     if (!rr) return;
+    gloss(rr);
     sub(rr, 0.04, 0.12, 0.96, 0.52, '#161b25');
+    if (SET.real) sub(rr, 0.04, 0.12, 0.96, 0.2, 'rgba(200,215,240,.12)');
     sub(rr, 0, 0.6, 1, 0.65, '#ff2a3a');
     sub(rr, 0, 0.88, 1, 1, '#2a2f3a');
+    lampGlow(rr, [0.1, 0.5, 0.9], 0.62);
   }
   function drawChaser() { drawCyber(chaserX, 0, chaserZ, '#b4b8c0', true); }
 
@@ -2337,6 +2422,7 @@ html, body { background: #26222c !important; }
     sub(rr, 0.08, 0.1, 0.92, 0.75, '#2a2f3a');
     sub(rr, 0.12, 0.14, 0.88, 0.7, '#1f232c');
     sub(rr, 0.02, 0.8, 0.12, 0.88, '#e01f30'); sub(rr, 0.88, 0.8, 0.98, 0.88, '#e01f30');
+    gloss(rr); lampGlow(rr, [0.07, 0.93], 0.84, redGlow, 0.6);
   }
   // bobtail Semi chassis: low frame and fifth-wheel plate behind the cab
   function drawSemiDeck(o) {
@@ -2348,6 +2434,7 @@ html, body { background: #26222c !important; }
     if (o.z + 1.6 > ZN) drawBox(x, y + o.h, y + o.h + 0.06, o.z + 1.0, o.z + 2.2, 1.0, '#555a64', '#6a707b', '#444852');
     if (!rr) return;
     sub(rr, 0.02, 0.15, 0.16, 0.55, '#e01f30'); sub(rr, 0.84, 0.15, 0.98, 0.55, '#e01f30');
+    lampGlow(rr, [0.09, 0.91], 0.35, redGlow, 0.6);
   }
 
 
@@ -2368,12 +2455,25 @@ html, body { background: #26222c !important; }
     if (cam.x < x - o.w / 2 || cam.x > x + o.w / 2) {
       const sx = cam.x < x ? x - o.w / 2 : x + o.w / 2, z0 = Math.max(o.z, ZN);
       poly([[sx, y + 1.5, z0], [sx, y + 1.9, z0], [sx, y + 1.9, o.z + o.d], [sx, y + 1.5, o.z + o.d]], o.band);
+      if (SET.real && !SET.low) {
+        // corrugated side panels: vertical ribs every half metre
+        const ribs = new Path2D();
+        for (let rz = Math.ceil(z0 * 2) / 2; rz < o.z + o.d; rz += 0.5) { const a = P(sx, y + 0.6, rz), b = P(sx, y + o.h - 0.05, rz); ribs.moveTo(a[0], a[1]); ribs.lineTo(b[0], b[1]); }
+        ctx.strokeStyle = 'rgba(0,0,0,.12)'; ctx.lineWidth = 1; ctx.stroke(ribs);
+      }
+    }
+    if (SET.real) {
+      // rear doors: ribbed panels, locking bars, under-ride bumper
+      for (let i = 1; i < 8; i++) if (i !== 4) sub(rr, i / 8 - 0.004, 0.04, i / 8 + 0.004, 0.9, 'rgba(0,0,0,.1)');
+      for (const f of [0.3, 0.7]) sub(rr, f - 0.01, 0.05, f + 0.01, 0.9, '#9aa0ae');
+      sub(rr, 0.06, 0.92, 0.94, 0.97, '#2a2d33');
     }
     sub(rr, 0, 0.37, 1, 0.52, o.band);
     sub(rr, 0.495, 0.04, 0.505, 0.9, '#8e93a3');
     sub(rr, 0.04, 0.82, 0.16, 0.92, '#e01f30');
     sub(rr, 0.84, 0.82, 0.96, 0.92, '#e01f30');
     sub(rr, 0, 0.96, 1, 1, '#1c1820');
+    gloss(rr); lampGlow(rr, [0.1, 0.9], 0.87, redGlow, 0.7);
     const photo = o.photo ? photoAt(o.pi) : null;
     if (photo) {
       const ph = (rr.b - rr.t) * 0.7, pw = ph * 0.667, px = (rr.l + rr.r) / 2 - pw / 2, py = rr.t + (rr.b - rr.t) * 0.07;
