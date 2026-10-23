@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '46';
+window.BUILD = '47';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -1186,8 +1186,7 @@ html, body { background: #26222c !important; }
       ctx = pctx; W = pw; H = ph; zoom = 1; hyOff = 0; T = performance.now() / 1000;
       F = Math.min(pw * 2.0, ph * 3.4); cam.x = 0; cam.y = 3.0;
       HY = ph * 0.5 - 1.25 * (F / 7);
-      if (pvState.map === 'm:mars') marsPostcard(pctx, pw, ph);
-      else { const g = pctx.createRadialGradient(pw / 2, ph * 0.45, 8, pw / 2, ph * 0.45, pw * 0.65); g.addColorStop(0, '#3e2856'); g.addColorStop(1, '#140c1d'); pctx.fillStyle = g; pctx.fillRect(0, 0, pw, ph); }
+      if (pvState.map === 'm:mars') marsPostcard(pctx, pw, ph); else nycPostcard(pctx, pw, ph);
       save.design = pvState.design; save.smoke = pvState.smoke;
       const y = 1.05 + Math.sin(T * 2) * 0.08;
       pl = Object.assign({}, keep.pl, { x: 0, y, ground: y - 0.35, grounded: false, rollT: 0, lean: 0, col: (PAINTS.find((q) => q.id === pvState.paint) || PAINTS[0]).col });
@@ -2005,6 +2004,39 @@ html, body { background: #26222c !important; }
     const hz = g.createLinearGradient(0, B - 60 * k, 0, B);
     hz.addColorStop(0, 'rgba(236,150,100,0)'); hz.addColorStop(1, real ? 'rgba(236,150,100,.35)' : 'rgba(236,150,100,.22)');
     g.fillStyle = hz; g.fillRect(0, B - 60 * k, W, 60 * k);
+  }
+  // little Manhattan scene behind the car in the garage preview: night sky, lit towers, the Empire State Building
+  let nycCard = null;
+  function nycPostcard(g, w, h) {
+    if (!nycCard || nycCard.w !== w || nycCard.h !== h) {
+      const c = document.createElement('canvas'), dpr = Math.min(2, window.devicePixelRatio || 1);
+      c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+      const q = c.getContext('2d'); q.scale(dpr, dpr);
+      let seed = 2028; const r = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+      const hy = h * 0.66, sk = q.createLinearGradient(0, 0, 0, h);
+      sk.addColorStop(0, '#0b0d22'); sk.addColorStop(0.45, '#241a44'); sk.addColorStop(0.62, '#6a2f5c'); sk.addColorStop(0.66, '#d3664a'); sk.addColorStop(0.661, '#2c2633'); sk.addColorStop(1, '#16131c');
+      q.fillStyle = sk; q.fillRect(0, 0, w, h);
+      q.fillStyle = '#fff2e0'; for (let i = 0; i < 40; i++) { q.globalAlpha = 0.3 + r() * 0.5; q.fillRect(r() * w, r() * hy * 0.5, 1.2, 1.2); }
+      q.globalAlpha = 1;
+      // Empire State Building, then two rows of towers with lit windows
+      const ex = w * 0.86, eb = hy;
+      q.fillStyle = '#251d3c'; q.beginPath(); q.moveTo(ex - 16, eb); q.lineTo(ex - 16, eb - 70); q.lineTo(ex - 11, eb - 70); q.lineTo(ex - 11, eb - 88); q.lineTo(ex - 6, eb - 88); q.lineTo(ex - 6, eb - 100); q.lineTo(ex - 1, eb - 128); q.lineTo(ex + 1, eb - 128); q.lineTo(ex + 6, eb - 100); q.lineTo(ex + 6, eb - 88); q.lineTo(ex + 11, eb - 88); q.lineTo(ex + 11, eb - 70); q.lineTo(ex + 16, eb - 70); q.lineTo(ex + 16, eb); q.fill();
+      q.fillStyle = '#ff3b3b'; q.fillRect(ex - 1, eb - 131, 2, 2);
+      for (const [col, win, hmax, wmul] of [['#3a2c55', 'rgba(255,214,150,.4)', 80, 1], ['#1d1830', 'rgba(255,214,150,.7)', 55, 1.4]]) {
+        let x = -10;
+        while (x < w + 10) {
+          const bw = (14 + r() * 26) * wmul, bh = 18 + r() * hmax;
+          if (col === '#3a2c55' && Math.abs(x + bw / 2 - ex) < 22) { x += bw; continue; }
+          q.fillStyle = col; q.fillRect(x, hy - bh, bw, bh + 1);
+          q.fillStyle = win; for (let wy = 5; wy < bh - 3; wy += 6) for (let wx = 3; wx < bw - 3; wx += 5) if (r() < 0.3) q.fillRect(x + wx, hy - bh + wy, 2, 2.5);
+          x += bw + (r() < 0.2 ? 4 : 0);
+        }
+      }
+      const hz = q.createLinearGradient(0, hy - 14, 0, hy + 8); hz.addColorStop(0, 'rgba(211,102,74,0)'); hz.addColorStop(1, 'rgba(211,102,74,.35)');
+      q.fillStyle = hz; q.fillRect(0, hy - 14, w, 22);
+      nycCard = { c, w, h };
+    }
+    g.drawImage(nycCard.c, 0, 0, w, h);
   }
   // little Mars scene behind the car in the garage preview
   function marsPostcard(g, w, h) {
