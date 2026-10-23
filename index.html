@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '43';
+window.BUILD = '44';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -201,7 +201,14 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='200'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='14' cy='20' r='2.2' opacity='.9'/%3E%3Ccircle cx='70' cy='60' r='1.6' opacity='.8'/%3E%3Ccircle cx='120' cy='30' r='2.6' opacity='.85'/%3E%3Ccircle cx='40' cy='120' r='1.8' opacity='.75'/%3E%3Ccircle cx='100' cy='150' r='2.2' opacity='.9'/%3E%3Ccircle cx='146' cy='110' r='1.5' opacity='.7'/%3E%3Ccircle cx='60' cy='180' r='2.4' opacity='.85'/%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='110'%3E%3Cg fill='%23fff' opacity='.55'%3E%3Ccircle cx='10' cy='14' r='1.1'/%3E%3Ccircle cx='54' cy='40' r='.9'/%3E%3Ccircle cx='30' cy='80' r='1.2'/%3E%3Ccircle cx='76' cy='96' r='1'/%3E%3C/g%3E%3C/svg%3E");
   background-size: 160px 200px, 90px 110px; animation: snowFall 5s linear infinite; }
 @keyframes snowFall { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(30px, 200px, 0); } }
-@media (prefers-reduced-motion: reduce) { .weather .rain, .weather .snow { animation: none; } }
+/* Mars dust storm: an orange haze plus a tile of grit blown sideways */
+.weather .dust { position: absolute; inset: 0; opacity: 0; transition: opacity 3s ease; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 62%, rgba(214,120,64,.18), rgba(160,72,36,.55)); }
+.weather.is-dust .dust { opacity: 1; }
+.weather .dust::before { content: ""; position: absolute; left: -10%; top: -200px; width: calc(120% + 220px); height: calc(100% + 400px);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='160'%3E%3Cg fill='%23f2b48a'%3E%3Ccircle cx='12' cy='20' r='1.3' opacity='.7'/%3E%3Ccircle cx='80' cy='44' r='1' opacity='.6'/%3E%3Ccircle cx='150' cy='12' r='1.6' opacity='.5'/%3E%3Ccircle cx='196' cy='70' r='1.1' opacity='.7'/%3E%3Ccircle cx='40' cy='96' r='1.4' opacity='.55'/%3E%3Ccircle cx='118' cy='120' r='1' opacity='.6'/%3E%3Ccircle cx='176' cy='140' r='1.3' opacity='.5'/%3E%3Ccircle cx='64' cy='148' r='.9' opacity='.6'/%3E%3C/g%3E%3Cg stroke='%23e9a070' stroke-opacity='.28' stroke-width='1.2' stroke-linecap='round'%3E%3Cpath d='M20 60h34M120 80h46M170 30h30M60 128h40M140 150h28'/%3E%3C/g%3E%3C/svg%3E"); background-size: 220px 160px; animation: dustBlow 1.3s linear infinite; }
+@keyframes dustBlow { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-220px, 160px, 0); } }
+@media (prefers-reduced-motion: reduce) { .weather .rain, .weather .snow, .weather .dust::before { animation: none; } }
 .gfxrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
 .seg button { padding: 7px 14px; border: 0; background: transparent; color: var(--muted); font: 600 13px var(--body); letter-spacing: .04em; cursor: pointer; }
@@ -243,6 +250,26 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
   .row .btn:nth-child(2):last-child { grid-column: 1 / -1; }
   .row .btn:nth-child(2):nth-last-child(2), .row .btn:nth-child(3):last-child { grid-column: span 3; }
 }
+/* word hunt: the run's word under the score, letters light up as you grab them */
+.readout { position: relative; }
+.hunt { position: absolute; left: 0; top: 100%; margin-top: 6px; display: flex; gap: 3px; }
+.hunt i { width: 17px; height: 21px; display: grid; place-items: center; font: 700 12px var(--body); font-style: normal; border-radius: 2px; background: rgba(20,11,30,.72); border: 1px solid var(--line); color: rgba(244,237,227,.38); }
+.hunt i.on { background: #ffd36e; border-color: #ffd36e; color: var(--ink); }
+.hunt.done i { background: #9be15d; border-color: #9be15d; color: var(--ink); }
+.hunt.pop i.on:last-of-type { animation: comboPop .3s ease-out; }
+.btn.gold { justify-self: stretch; background: #ffd36e; color: var(--ink); box-shadow: 0 3px 0 #b8892e; }
+.btn.gold:active { box-shadow: 0 1px 0 #b8892e; }
+/* Cyber Crate: an angular steel box with a red light bar; the lid flies off and the prize pops up */
+.cbox { position: relative; justify-self: center; width: 190px; height: 170px; }
+.cbox .body { position: absolute; left: 0; right: 0; bottom: 0; height: 86px; background: linear-gradient(160deg, #f1f3f6, #a3a9b3 55%, #6b717b); clip-path: polygon(6% 0, 94% 0, 100% 100%, 0 100%); z-index: 2; }
+.cbox .body::after { content: ""; position: absolute; left: 9%; right: 9%; top: 20px; height: 4px; background: #ff2a3a; box-shadow: 0 0 12px #ff2a3a; }
+.cbox .lid { position: absolute; left: 4%; right: 4%; bottom: 86px; height: 44px; background: linear-gradient(170deg, #ffffff, #c3c8d0 60%, #8a9099); clip-path: polygon(50% 0, 100% 100%, 0 100%); transform-origin: 85% 100%; transition: transform .6s cubic-bezier(.3,1.4,.5,1), opacity .6s; z-index: 3; }
+.cbox.shake { animation: crateShake .7s ease-in-out; }
+@keyframes crateShake { 0%, 100% { transform: none; } 20% { transform: rotate(-5deg); } 40% { transform: rotate(5deg); } 60% { transform: rotate(-3deg); } 80% { transform: rotate(2deg); } }
+.cbox.open .lid { transform: translate(46px, -70px) rotate(38deg); opacity: 0; }
+.cbox .prize { position: absolute; left: 50%; bottom: 52px; width: 68px; height: 68px; margin-left: -34px; border-radius: 50%; border: 3px solid rgba(255,255,255,.7); display: grid; place-items: center; font: 400 13px var(--display); color: var(--ink); transform: scale(0); transition: transform .55s .25s cubic-bezier(.2,1.6,.4,1); box-shadow: 0 0 44px rgba(255,211,110,.85); z-index: 1; }
+.cbox.open .prize { transform: translateY(-52px) scale(1); }
+@media (prefers-reduced-motion: reduce) { .cbox.shake { animation: none; } }
 @media (max-width: 520px) { .card { padding: 18px; gap: 14px; } .screen { align-items: flex-start; } #menu { align-items: center; padding-bottom: 26vh; } } /* on phones the start box sits mid-screen, other menus at the top, so the car stays in view */
 </style>
 <style>
@@ -263,13 +290,14 @@ html, body { background: #26222c !important; }
 <div id="game">
   <canvas id="cv" aria-label="Roadster Rush game view"></canvas>
   <div class="fx" id="fx" hidden></div>
-  <div class="weather" id="weather"><div class="rain"></div><div class="snow"></div></div>
+  <div class="weather" id="weather"><div class="rain"></div><div class="snow"></div><div class="dust"></div></div>
 
   <div class="hud" id="hud" hidden>
     <div class="readout">
       <div class="driver"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%3E%3Crect%20width%3D%2764%27%20height%3D%2764%27%20fill%3D%27%232a1d36%27/%3E%3Cpath%20d%3D%27M10%2064c2-12%2010-17%2022-17s20%205%2022%2017z%27%20fill%3D%27%2316181d%27/%3E%3Cpath%20d%3D%27M26%2047l6%207%206-7z%27%20fill%3D%27%232b2e36%27/%3E%3Crect%20x%3D%2727%27%20y%3D%2738%27%20width%3D%2710%27%20height%3D%279%27%20fill%3D%27%23efc4a8%27/%3E%3Ccircle%20cx%3D%2718.5%27%20cy%3D%2730%27%20r%3D%272.5%27%20fill%3D%27%23efc4a8%27/%3E%3Ccircle%20cx%3D%2745.5%27%20cy%3D%2730%27%20r%3D%272.5%27%20fill%3D%27%23efc4a8%27/%3E%3Cellipse%20cx%3D%2732%27%20cy%3D%2729%27%20rx%3D%2713.5%27%20ry%3D%2716%27%20fill%3D%27%23efc4a8%27/%3E%3Crect%20x%3D%2721%27%20y%3D%2734%27%20width%3D%2722%27%20height%3D%279%27%20rx%3D%274%27%20fill%3D%27%23efc4a8%27/%3E%3Cpath%20d%3D%27M18.5%2028C17%2015%2025%2011%2033%2011c9%200%2015%204%2013.5%2017l-3.5-6c-3-3-6-4-10-1-4-3-8-2-11%201z%27%20fill%3D%27%234a3324%27/%3E%3Crect%20x%3D%2724%27%20y%3D%2725%27%20width%3D%276%27%20height%3D%271.6%27%20fill%3D%27%233a2618%27/%3E%3Crect%20x%3D%2734%27%20y%3D%2725%27%20width%3D%276%27%20height%3D%271.6%27%20fill%3D%27%233a2618%27/%3E%3Ccircle%20cx%3D%2727%27%20cy%3D%2729%27%20r%3D%271.5%27%20fill%3D%27%232a1a10%27/%3E%3Ccircle%20cx%3D%2737%27%20cy%3D%2729%27%20r%3D%271.5%27%20fill%3D%27%232a1a10%27/%3E%3Cpath%20d%3D%27M27.5%2037.5c3%201.8%206%201.6%209-1%27%20stroke%3D%27%237a3b2e%27%20stroke-width%3D%271.5%27%20fill%3D%27none%27%20stroke-linecap%3D%27round%27/%3E%3C/svg%3E" alt="Driver"><div class="label">Score</div></div>
       <div class="score" id="score">0</div>
       <div class="chips" id="chips"></div>
+      <div class="hunt" id="hunt" aria-label="Word hunt"></div>
     </div>
     <div class="right">
       <div class="tools">
@@ -290,11 +318,11 @@ html, body { background: #26222c !important; }
       <div class="titlerow">
         <img src="data:image/jpeg;base64,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" alt="">
         <div>
-          <div class="eyebrow">Manhattan · Night run</div>
+          <div class="eyebrow" id="menuEyebrow">Manhattan · Night run</div>
           <h1>Roadster <em>Rush</em></h1>
         </div>
       </div>
-      <p class="lede">Dodge traffic. Fly. Grab every battery cell.</p>
+      <p class="lede">Dodge traffic. Fly. Grab every battery cell. Spell the hidden word in one run to win a Cyber Crate.</p>
       <div class="label">Power-ups to grab on the road</div>
       <div class="legend" style="margin-top:-10px">
         <span><i class="dot" style="background:#e9ecf2">F</i>Flight</span>
@@ -304,8 +332,10 @@ html, body { background: #26222c !important; }
         <span><i class="dot" style="background:#ffb84d">2×</i>Double</span>
       </div>
       <div class="gfxrow"><span class="label">Graphics</span><div class="seg" role="group" aria-label="Graphics style"><button type="button" id="gfxClassic">Classic</button><button type="button" id="gfxReal">Realistic</button></div></div>
+      <div class="gfxrow" id="mapRow" hidden><span class="label">Map</span><div class="seg" role="group" aria-label="Map"><button type="button" id="mapNyc">New York</button><button type="button" id="mapMars">Mars</button></div></div>
       <div class="missions" id="missionsMenu"></div>
       <div class="install" id="installHint" hidden>To save your colors and scores, tap Safari's <b>Share</b> button, then <b>Add to Home Screen</b>, and play from the icon.</div>
+      <button class="btn gold" id="menuCrate" type="button" hidden></button>
       <div class="row">
         <button class="btn" id="startBtn" type="button">Start driving</button>
         <button class="btn ghost" id="garageBtn" type="button">Garage</button>
@@ -327,7 +357,7 @@ html, body { background: #26222c !important; }
         </div>
         <div class="bank"><span class="batt" aria-hidden="true"></span><b id="gBank">0</b>kWh to spend</div>
         <canvas class="preview" id="preview" aria-label="Preview of your roadster"></canvas>
-        <div class="buybar"><span id="pvName">Tap a paint, design or smoke to try it on</span><button class="btn" id="pvBtn" type="button" hidden>Buy</button></div>
+        <div class="buybar"><span id="pvName">Tap a paint, design, smoke or map to try it on</span><button class="btn" id="pvBtn" type="button" hidden>Buy</button></div>
       </div>
       <div id="shop">
         <div class="label">Paint</div>
@@ -336,6 +366,8 @@ html, body { background: #26222c !important; }
         <div class="paints" id="shop-design"></div>
         <div class="label">Jet smoke</div>
         <div class="paints" id="shop-smoke"></div>
+        <div class="label">Maps</div>
+        <div class="paints" id="shop-map"></div>
       </div>
       <div class="msg" id="gMsg" aria-live="polite"></div>
       <div class="label">Your stats</div>
@@ -411,6 +443,21 @@ html, body { background: #26222c !important; }
 
   <div class="count" id="count" hidden></div>
 
+  <div class="screen" id="crate" hidden>
+    <div class="card">
+      <div>
+        <div class="eyebrow">Word hunt prize</div>
+        <h2>Cyber Crate</h2>
+      </div>
+      <div class="cbox" id="cbox"><div class="lid"></div><div class="body"></div><div class="prize" id="cPrize"></div></div>
+      <p class="lede" id="cText">Tap Open to see what's inside.</p>
+      <div class="row">
+        <button class="btn" id="cOpen" type="button">Open</button>
+        <button class="btn ghost" id="cDone" type="button">Done</button>
+      </div>
+    </div>
+  </div>
+
   <div class="screen" id="over" hidden>
     <div class="card">
       <div>
@@ -424,6 +471,8 @@ html, body { background: #26222c !important; }
         <div class="stat"><span class="label">Distance</span><b id="oDist">0.00 km</b></div>
       </div>
       <div class="banked" id="oBanked"></div>
+      <div class="banked" id="oHunt"></div>
+      <button class="btn gold" id="overCrate" type="button" hidden></button>
       <div class="missions" id="missionsOver"></div>
       <div class="top5"><span class="label">Top scores</span><ol id="oTop"></ol></div>
       <div class="row">
@@ -694,11 +743,19 @@ html, body { background: #26222c !important; }
     { id: 's:gold', name: 'Gold', cost: 13500, rgb: [255, 211, 110] },
     { id: 's:rainbow', name: 'Rainbow', cost: 36000, rgb: null },
   ];
-  const SHOP = { paint: PAINTS, design: DESIGNS, smoke: SMOKES };
-  const save = { bank: 0, owned: ['pearl', 'd:none', 's:white'], paint: 'pearl', design: 'd:none', smoke: 's:white', runs: 0, dist: 0, longest: 0, cellsTotal: 0, twistsBest: 0, top: [] };
+  // maps: Mars is the most expensive thing in the garage, and never comes out of a crate
+  const MAPS = [
+    { id: 'm:nyc', name: 'New York', cost: 0, sw: 'linear-gradient(#241a44 40%,#d3664a)' },
+    { id: 'm:mars', name: 'Mars Base', cost: 50000, sw: 'radial-gradient(circle at 35% 35%,#f4a070,#b5482a 55%,#4a1810)' },
+  ];
+  const SHOP = { paint: PAINTS, design: DESIGNS, smoke: SMOKES, map: MAPS };
+  const save = { bank: 0, owned: ['pearl', 'd:none', 's:white', 'm:nyc'], paint: 'pearl', design: 'd:none', smoke: 's:white', map: 'm:nyc', crates: 0, runs: 0, dist: 0, longest: 0, cellsTotal: 0, twistsBest: 0, top: [] };
   try { Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch (e) {}
   try { const old = +localStorage.getItem('roadster-rush-best') || 0; if (old && !save.top.length) save.top = [old]; } catch (e) {}
-  for (const id of ['d:none', 's:white']) if (!save.owned.includes(id)) save.owned.push(id);
+  for (const id of ['d:none', 's:white', 'm:nyc']) if (!save.owned.includes(id)) save.owned.push(id);
+  if (!save.map || !save.owned.includes(save.map)) save.map = 'm:nyc';
+  save.crates = save.crates || 0;
+  const onMars = () => save.map === 'm:mars';
   function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
   const paintCol = () => (PAINTS.find((p) => p.id === save.paint) || PAINTS[0]).col;
   let best = save.top[0] || 0, runTwists = 0, runRoofs = 0, runWalls = 0, wallsWarned = 0, onRoof = false;
@@ -772,8 +829,29 @@ html, body { background: #26222c !important; }
   }
   const smokeCss = () => { const c = smokeRGB(Math.random()); return `rgb(${c[0]},${c[1]},${c[2]})`; };
 
+  // ---------- word hunt: each run hides one word, letters show up far apart; spell it before you crash ----------
+  const WORDS = ['PIZZA', 'ROCKET', 'GUITAR', 'PLANET', 'JUNGLE', 'CASTLE', 'DRAGON', 'PENCIL', 'BANANA', 'ORANGE',
+    'PIRATE', 'WIZARD', 'TURBO', 'GALAXY', 'COMET', 'THUNDER', 'DONUT', 'BURGER', 'TACOS', 'CHEESE',
+    'PUPPY', 'KITTEN', 'TIGER', 'ZEBRA', 'MONKEY', 'PANDA', 'SHARK', 'WHALE', 'EAGLE', 'FALCON',
+    'ROBOT', 'LASER', 'MAGNET', 'BATTERY', 'ENGINE', 'OCEAN', 'ISLAND', 'DESERT', 'VOLCANO', 'CANYON',
+    'RIVER', 'FOREST', 'GARDEN', 'BRIDGE', 'TUNNEL', 'STREET', 'SUBWAY', 'TICKET', 'MOVIE', 'CAMERA',
+    'PHOTO', 'MUSIC', 'PIANO', 'DRUMS', 'TRUMPET', 'VIOLIN', 'SOCCER', 'HOCKEY', 'TENNIS', 'KARATE',
+    'NINJA', 'KNIGHT', 'PRINCE', 'QUEEN', 'CROWN', 'JEWEL', 'DIAMOND', 'SILVER', 'MARBLE', 'PUZZLE',
+    'RIDDLE', 'SECRET', 'MYSTERY', 'TREASURE', 'COOKIE', 'CANDY', 'WAFFLE', 'PANCAKE', 'SPLASH', 'BUBBLE',
+    'RAINBOW', 'SUNSET', 'LIGHTNING', 'TORNADO', 'BLIZZARD', 'PENGUIN', 'DOLPHIN', 'OCTOPUS', 'LOBSTER', 'PARROT',
+    'MARS', 'ORBIT', 'PLAID', 'CYBER', 'STARSHIP', 'COFFEE', 'HOTDOG', 'POPCORN', 'SKATER', 'LEGEND'];
+  let hunt = null;
+  // the first letter turns up after a short drive, the rest are spaced so a whole word takes a long run
+  const huntGap = () => rnd(300, 480);
+  function renderHunt(pop) {
+    const el = $('hunt'); if (!hunt) { el.innerHTML = ''; return; }
+    el.className = 'hunt' + (hunt.done ? ' done' : '') + (pop ? ' pop' : '');
+    el.innerHTML = [...hunt.word].map((c, i) => `<i class="${i < hunt.got ? 'on' : ''}">${c}</i>`).join('');
+  }
   function reset() {
     objs = []; parts = [];
+    hunt = { word: pick(WORDS), got: 0, next: rnd(150, 250), out: false, done: false };
+    renderHunt();
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
     reviveUsed = false; revivePending = false; jumpBuf = 0; lastWall = false; t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
     flightRocket = -99; caught = false; shield = false; chaserZ = -2.6; introT = 4; chaserX = -2.4; pw.lud = pw.magnet = pw.dbl = pw.fly = 0; combo = 0;
@@ -830,7 +908,9 @@ html, body { background: #26222c !important; }
     const rampLane = kinds.indexOf('ramp');
     const cl = rampLane >= 0 && Math.random() < 0.45 ? rampLane : Math.random() < 0.65 ? free : pick(open);
     placeCells(cl, kinds[cl], z);
-    if (Math.random() < 0.14 && kinds[free] === 'empty' && cl !== free) {
+    if (hunt && !hunt.done && !hunt.out && pw.fly <= 0 && traveled + z >= hunt.next && kinds[free] === 'empty' && cl !== free) {
+      objs.push({ k: 'letter', lane: free, x: LANES[free], z: z - 6, y: 1.25, ch: hunt.word[hunt.got] }); hunt.out = true;
+    } else if (Math.random() < 0.14 && kinds[free] === 'empty' && cl !== free) {
       objs.push({ k: 'pow', lane: free, x: LANES[free], z: z - 6, y: 1.1, p: pick(Object.keys(POW)) });
     }
   }
@@ -978,7 +1058,7 @@ html, body { background: #26222c !important; }
   }
 
   // ---------- flow ----------
-  function show(id) { ['menu', 'pause', 'over', 'garage', 'revive', 'settings'].forEach((s) => { $(s).hidden = s !== id; }); }
+  function show(id) { ['menu', 'pause', 'over', 'garage', 'revive', 'settings', 'crate'].forEach((s) => { $(s).hidden = s !== id; }); }
   function start() {
     initAudio();
     if (AC && AC.state === 'suspended') AC.resume();
@@ -1007,6 +1087,7 @@ html, body { background: #26222c !important; }
     reviveUsed = true; revivePending = false; show(null);
     mode = 'play'; deathT = 0; caught = false; stumble = 0; introT = 0; chaserZ = -14; invuln = 3; shake = 0;
     objs = objs.filter((o) => o.z > 45); spawnZ = Math.max(spawnZ, 45);
+    if (hunt && hunt.out && !objs.some((o) => o.k === 'letter')) hunt.out = false;
     Object.assign(pl, { y: 0, vy: 0, grounded: true, ground: 0, rollT: 0, roll: 0, boost: true });
     toast('Back on the road!'); tone(660, 0.3, 'triangle', 0.05, 1320);
   }
@@ -1030,6 +1111,8 @@ html, body { background: #26222c !important; }
     $('oBanked').textContent = cells ? `+${cells} kWh banked · ${save.bank.toLocaleString()} kWh to spend in the Garage` : `${save.bank.toLocaleString()} kWh to spend in the Garage`;
     let marked = false;
     $('oTop').innerHTML = save.top.map((v) => { const mine = !marked && v === s && s > 0; if (mine) marked = true; return `<li class="${mine ? 'new' : ''}">${v.toLocaleString()}</li>`; }).join('');
+    $('oHunt').textContent = hunt.done ? `Word hunt: ${hunt.word} spelled. Cyber Crate earned!` : `Word hunt: ${hunt.got}/${hunt.word.length} letters of ${hunt.word}`;
+    renderCrateBtns();
     renderMissions('missionsOver');
     $('wallWarn').hidden = true; $('comboTag').hidden = true; $('toast').hidden = true;
     show('over');
@@ -1039,11 +1122,11 @@ html, body { background: #26222c !important; }
   let pvState = null, pvItem = null, pvRaf = 0;
   function renderGarage(msg = '') {
     $('gBank').textContent = save.bank.toLocaleString();
-    for (const cat of ['paint', 'design', 'smoke']) {
+    for (const cat of ['paint', 'design', 'smoke', 'map']) {
       $('shop-' + cat).innerHTML = SHOP[cat].map((p) => {
         const own = save.owned.includes(p.id), on = equipped(cat) === p.id, pv = pvState && pvState[cat] === p.id && !on;
         const tag = on ? 'Equipped' : own ? 'Owned' : `${p.cost.toLocaleString()} kWh`;
-        const sw = cat === 'paint' ? p.col : cat === 'design' ? p.sw : p.rgb ? `rgb(${p.rgb.join(',')})` : 'conic-gradient(#ff5a5a,#ffd36e,#7dff8a,#5aa8ff,#ff7ad9,#ff5a5a)';
+        const sw = cat === 'paint' ? p.col : cat === 'design' || cat === 'map' ? p.sw : p.rgb ? `rgb(${p.rgb.join(',')})` : 'conic-gradient(#ff5a5a,#ffd36e,#7dff8a,#5aa8ff,#ff7ad9,#ff5a5a)';
         return `<button type="button" class="paint${on ? ' on' : ''}${pv ? ' pv' : ''}${own ? '' : ' locked'}" data-cat="${cat}" data-id="${p.id}"><i style="background:${sw}"></i>${p.name}<small>${tag}</small></button>`;
       }).join('');
     }
@@ -1054,7 +1137,7 @@ html, body { background: #26222c !important; }
   }
   function renderBuyBar() {
     const btn = $('pvBtn');
-    if (!pvItem) { $('pvName').textContent = 'Tap a paint, design or smoke to try it on'; btn.hidden = true; return; }
+    if (!pvItem) { $('pvName').textContent = 'Tap a paint, design, smoke or map to try it on'; btn.hidden = true; return; }
     const p = SHOP[pvItem.cat].find((q) => q.id === pvItem.id), own = save.owned.includes(p.id), on = equipped(pvItem.cat) === p.id;
     $('pvName').textContent = p.name;
     btn.hidden = false;
@@ -1075,6 +1158,7 @@ html, body { background: #26222c !important; }
     if (save.owned.includes(p.id)) { wear(); persist(); renderGarage(`${p.name} equipped`); }
     else if (save.bank >= p.cost) { save.bank -= p.cost; save.owned.push(p.id); wear(); persist(); renderGarage(`Bought ${p.name}`); tone(660, 0.25, 'triangle', 0.05, 1320); }
     pl.col = paintCol();
+    if (cat === 'map') mapChanged();
   });
   // live preview: the scene renderer is pointed at the small canvas for a moment to draw the car hovering on its jets
   function drawPreview() {
@@ -1087,8 +1171,8 @@ html, body { background: #26222c !important; }
       ctx = pctx; W = pw; H = ph; zoom = 1; hyOff = 0; T = performance.now() / 1000;
       F = Math.min(pw * 2.0, ph * 3.4); cam.x = 0; cam.y = 3.0;
       HY = ph * 0.5 - 1.25 * (F / 7);
-      const g = pctx.createRadialGradient(pw / 2, ph * 0.45, 8, pw / 2, ph * 0.45, pw * 0.65);
-      g.addColorStop(0, '#3e2856'); g.addColorStop(1, '#140c1d'); pctx.fillStyle = g; pctx.fillRect(0, 0, pw, ph);
+      if (pvState.map === 'm:mars') marsPostcard(pctx, pw, ph);
+      else { const g = pctx.createRadialGradient(pw / 2, ph * 0.45, 8, pw / 2, ph * 0.45, pw * 0.65); g.addColorStop(0, '#3e2856'); g.addColorStop(1, '#140c1d'); pctx.fillStyle = g; pctx.fillRect(0, 0, pw, ph); }
       save.design = pvState.design; save.smoke = pvState.smoke;
       const y = 1.05 + Math.sin(T * 2) * 0.08;
       pl = Object.assign({}, keep.pl, { x: 0, y, ground: y - 0.35, grounded: false, rollT: 0, lean: 0, col: (PAINTS.find((q) => q.id === pvState.paint) || PAINTS[0]).col });
@@ -1126,7 +1210,7 @@ html, body { background: #26222c !important; }
   let garageFrom = 'menu';
   renderMissions('missionsMenu');
   function openGarage(from) {
-    garageFrom = from; pvState = { paint: save.paint, design: save.design, smoke: save.smoke }; pvItem = null;
+    garageFrom = from; pvState = { paint: save.paint, design: save.design, smoke: save.smoke, map: save.map }; pvItem = null;
     renderGarage(); show('garage');
     if (!pvRaf) pvRaf = requestAnimationFrame(previewLoop);
   }
@@ -1141,7 +1225,7 @@ html, body { background: #26222c !important; }
   // ---------- weather: picked at random each run and changing on its own mid-run; no setting for it ----------
   let weather = 'clear', weatherT = 0, snowAmt = 0;
   function setWeather(w) { weather = w; $('weather').className = 'weather is-' + w; }
-  function rollWeather() { const r = Math.random(); setWeather(r < 0.45 ? 'clear' : r < 0.8 ? 'rain' : 'snow'); weatherT = 40 + Math.random() * 45; }
+  function rollWeather() { const r = Math.random(); setWeather(onMars() ? (r < 0.6 ? 'clear' : 'dust') : r < 0.45 ? 'clear' : r < 0.8 ? 'rain' : 'snow'); weatherT = 40 + Math.random() * 45; }
   rollWeather();
   function showGfx() { $('gfxClassic').setAttribute('aria-pressed', String(!SET.real)); $('gfxReal').setAttribute('aria-pressed', String(SET.real)); $('fx').hidden = !SET.real; }
   // switching style re-bakes the sky (the realistic one adds a moon and clouds)
@@ -1149,6 +1233,67 @@ html, body { background: #26222c !important; }
   $('gfxClassic').onclick = () => setGfx(false);
   $('gfxReal').onclick = () => setGfx(true);
   showGfx();
+  // map picker on the start screen, once Mars is owned
+  function showMap() {
+    $('mapRow').hidden = !save.owned.includes('m:mars');
+    $('mapNyc').setAttribute('aria-pressed', String(!onMars())); $('mapMars').setAttribute('aria-pressed', String(onMars()));
+    $('menuEyebrow').textContent = onMars() ? 'Mars · Base run' : 'Manhattan · Night run';
+  }
+  function mapChanged() { bg = null; rollWeather(); snowAmt = 0; showMap(); }
+  function setMap(id) { if (!save.owned.includes(id)) return; save.map = id; persist(); mapChanged(); }
+  $('mapNyc').onclick = () => setMap('m:nyc');
+  $('mapMars').onclick = () => setMap('m:mars');
+  showMap();
+  // ---------- Cyber Crate: kWh, or something from the garage you don't own yet (pricier items are rarer) ----------
+  function rollCrate() {
+    const pool = [];
+    for (const cat of ['paint', 'design', 'smoke']) for (const p of SHOP[cat]) if (p.cost > 0 && !save.owned.includes(p.id)) pool.push({ cat, p, w: 1 / p.cost });
+    if (pool.length && Math.random() < 0.4) {
+      let r = Math.random() * pool.reduce((a, q) => a + q.w, 0), it = pool[0];
+      for (const q of pool) { r -= q.w; if (r <= 0) { it = q; break; } }
+      save.owned.push(it.p.id); persist();
+      return { cat: it.cat, p: it.p };
+    }
+    const r = Math.random(), kwh = r < 0.4 ? 150 : r < 0.7 ? 250 : r < 0.9 ? 500 : r < 0.98 ? 1000 : 2500;
+    save.bank += kwh; persist();
+    return { kwh };
+  }
+  function renderCrateBtns() {
+    const n = save.crates, txt = n > 1 ? `Open Cyber Crate (${n})` : 'Open Cyber Crate';
+    for (const id of ['menuCrate', 'overCrate']) { $(id).hidden = n < 1; $(id).textContent = txt; }
+  }
+  let crateFrom = 'menu';
+  function openCrates(from) {
+    crateFrom = from; $('cbox').className = 'cbox'; $('cPrize').textContent = ''; $('cPrize').style.background = '';
+    $('cText').textContent = `Tap Open to see what's inside.${save.crates > 1 ? ` ${save.crates} crates waiting.` : ''}`;
+    $('cOpen').hidden = false; $('cOpen').textContent = 'Open';
+    show('crate');
+  }
+  $('cOpen').onclick = () => {
+    const box = $('cbox');
+    if (box.classList.contains('open')) { openCrates(crateFrom); return; }
+    if (save.crates < 1 || box.classList.contains('shake')) return;
+    save.crates--; persist();
+    const res = rollCrate();
+    box.classList.add('shake'); tone(220, 0.5, 'sawtooth', 0.03, 440);
+    setTimeout(() => {
+      box.classList.remove('shake'); box.classList.add('open');
+      const pr = $('cPrize');
+      if (res.kwh) { pr.style.background = 'radial-gradient(circle,#c9f6ff,#5ce1ff 60%,#1b6f86)'; pr.textContent = res.kwh; $('cText').textContent = `+${res.kwh.toLocaleString()} kWh added to your bank.`; }
+      else {
+        const p = res.p, sw = res.cat === 'paint' ? p.col : res.cat === 'design' ? p.sw : p.rgb ? `rgb(${p.rgb.join(',')})` : 'conic-gradient(#ff5a5a,#ffd36e,#7dff8a,#5aa8ff,#ff7ad9,#ff5a5a)';
+        pr.style.background = sw;
+        $('cText').textContent = `New ${res.cat === 'smoke' ? 'jet smoke' : res.cat}: ${p.name}! Equip it in the Garage.`;
+      }
+      tone(990, 0.4, 'triangle', 0.06, 1980); buzz(50);
+      $('cOpen').hidden = save.crates < 1; $('cOpen').textContent = `Open next (${save.crates})`;
+      renderCrateBtns();
+    }, 750);
+  };
+  $('cDone').onclick = () => { renderCrateBtns(); if (crateFrom === 'menu') renderMissions('missionsMenu'); show(crateFrom); };
+  $('menuCrate').onclick = () => openCrates('menu');
+  $('overCrate').onclick = () => openCrates('over');
+  renderCrateBtns();
   $('settingsBack').onclick = () => { renderMissions('missionsMenu'); show('menu'); };
   $('setLow').onchange = (e) => { SET.low = e.target.checked; persist(); resize(); };
   $('setMus').oninput = (e) => { SET.mus = +e.target.value; persist(); if (musGain) musGain.gain.value = 0.32 * SET.mus / 70; };
@@ -1180,7 +1325,7 @@ html, body { background: #26222c !important; }
     bankUnfinished();
     reset(); mode = 'menu';
     $('hud').hidden = true; $('tip').hidden = true;
-    renderMissions('missionsMenu');
+    renderMissions('missionsMenu'); renderCrateBtns();
     $('wallWarn').hidden = true; $('comboTag').hidden = true; $('toast').hidden = true;
     show('menu');
   }
@@ -1412,6 +1557,7 @@ html, body { background: #26222c !important; }
     for (const o of objs) {
       o.z -= dz;
       if (o.k === 'wall' && o.lane === 1 && !o.passed && !o.smash && o.z + o.d < 0 && mode === 'play') { o.passed = true; runWalls++; }
+      if (o.k === 'letter' && !o.gone && !o.missed && o.z < -1 && mode === 'play') { o.missed = true; if (hunt) { hunt.out = false; hunt.next = traveled + rnd(120, 220); } }
       if (o.smash) { const m = o.smash; m.age += dt; m.vy -= G * dt; m.sx += m.vx * dt; m.sy += m.vy * dt; }
       if (o.k === 'cell' && pw.magnet > 0 && o.z < 28 && o.z > -1 && mode === 'play') {
         const k = Math.min(1, dt * 9);
@@ -1431,7 +1577,7 @@ html, body { background: #26222c !important; }
 
     let ground = 0;
     for (const o of objs) {
-      if (o.k === 'cell' || o.k === 'pow') {
+      if (o.k === 'cell' || o.k === 'pow' || o.k === 'letter') {
         if (o.z < CAR_LEN + 0.2 && o.z > -0.6 && Math.abs(o.x - pl.x) < 1.25 && Math.abs(o.y - (pl.y + 0.8)) < 1.4) collect(o);
         continue;
       }
@@ -1486,6 +1632,16 @@ html, body { background: #26222c !important; }
 
   function collect(o) {
     o.gone = true;
+    if (o.k === 'letter') {
+      hunt.got++; hunt.out = false; hunt.next = traveled + huntGap();
+      sparks(o.x, o.y, o.z, 18, '#ffd36e'); buzz(30);
+      if (hunt.got >= hunt.word.length) {
+        hunt.done = true; save.crates++; persist();
+        toast(`${hunt.word}! Cyber Crate earned`); tone(660, 0.18, 'triangle', 0.06, 990); tone(990, 0.45, 'triangle', 0.05, 1980); shake = Math.max(shake, 0.25);
+      } else { toast(`Letter ${o.ch} · ${hunt.got}/${hunt.word.length}`); tone(740, 0.22, 'triangle', 0.05, 1480); }
+      renderHunt(true);
+      return;
+    }
     if (o.k === 'cell') {
       cells++; combo++; comboT = 1.0;
       // every 10 cells in a row pays a small bonus
@@ -1561,6 +1717,7 @@ html, body { background: #26222c !important; }
         case 'ramp': drawRamp(o); break;
         case 'cell': drawCell(o); break;
         case 'pow': drawPow(o); break;
+        case 'letter': drawLetter(o); break;
         case 'arrestMan': drawMan(o.p.x, o.p.y, o.p.z, o.p); break;
         case 'cop': drawCop(o.p.x, o.p.z, o.p); break;
         case 'man': { const m = manPose(); drawMan(m.x, m.y, 1.8, m); break; }
@@ -1610,6 +1767,7 @@ html, body { background: #26222c !important; }
   function bakeBackdrop() {
     bg = document.createElement('canvas'); bg.width = Math.max(1, Math.round(W * DPR)); bg.height = Math.max(1, Math.round(H * DPR));
     const ctx = bg.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (onMars()) { bakeMars(ctx, SET.real); finishBackdrop(ctx); return; }
     if (SET.real) { bakeManhattan(ctx); finishBackdrop(ctx); return; }
     const g = ctx.createLinearGradient(0, 0, 0, HY);
     g.addColorStop(0, '#0b0d22'); g.addColorStop(0.5, '#241a44'); g.addColorStop(0.85, '#6a2f5c'); g.addColorStop(1, '#d3664a');
@@ -1742,11 +1900,92 @@ html, body { background: #26222c !important; }
     g.fillStyle = sg; g.fillRect(0, B - 70 * k, W, 70 * k);
   }
   function finishBackdrop(ctx) {
-    const gg = ctx.createLinearGradient(0, HY, 0, H);
-    gg.addColorStop(0, '#4a4152'); gg.addColorStop(0.4, '#2c2633'); gg.addColorStop(1, '#16131c');
+    const mars = onMars(), gg = ctx.createLinearGradient(0, HY, 0, H);
+    if (mars) { gg.addColorStop(0, '#a0583a'); gg.addColorStop(0.4, '#6a3220'); gg.addColorStop(1, '#2a140c'); }
+    else { gg.addColorStop(0, '#4a4152'); gg.addColorStop(0.4, '#2c2633'); gg.addColorStop(1, '#16131c'); }
     ctx.fillStyle = gg; ctx.fillRect(0, HY, W, H - HY);
     hazeG = window.__cx.createLinearGradient(0, HY - 6, 0, HY + H * 0.08);
-    hazeG.addColorStop(0, 'rgba(211,102,74,.35)'); hazeG.addColorStop(1, 'rgba(211,102,74,0)');
+    const hz = mars ? '236,150,100' : '211,102,74';
+    hazeG.addColorStop(0, `rgba(${hz},.35)`); hazeG.addColorStop(1, `rgba(${hz},0)`);
+  }
+  // ---------- Mars: dusk over red mesas, a small sun with a blue halo, Earth as a bright dot, a base on the horizon ----------
+  let marsTower = null;
+  function bakeMars(g, real) {
+    const k = H / 800, B = HY + 1;
+    let seed = real ? 7311 : 1977;
+    const rr = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    const sky = g.createLinearGradient(0, 0, 0, B);
+    if (real) { sky.addColorStop(0, '#07050c'); sky.addColorStop(0.4, '#1e1018'); sky.addColorStop(0.72, '#6e3427'); sky.addColorStop(0.9, '#c0683f'); sky.addColorStop(1, '#e3a072'); }
+    else { sky.addColorStop(0, '#160c1c'); sky.addColorStop(0.5, '#43202e'); sky.addColorStop(0.85, '#a8482e'); sky.addColorStop(1, '#ec8b50'); }
+    g.fillStyle = sky; g.fillRect(0, 0, W, B);
+    g.fillStyle = '#f2ecff';
+    for (const st of stars) { const y = st[1] * 0.55, a = (real ? 0.55 : 0.4) * (1 - y / (B * 0.45)); if (a <= 0) continue; g.globalAlpha = a; g.fillRect(st[0], y, real ? 1 : 1.4, real ? 1 : 1.4); }
+    g.globalAlpha = 1;
+    const ex = W * 0.18, ey = B * 0.22, eg = g.createRadialGradient(ex, ey, 0, ex, ey, 10 * k);
+    eg.addColorStop(0, 'rgba(150,200,255,.9)'); eg.addColorStop(1, 'rgba(150,200,255,0)');
+    g.fillStyle = eg; g.fillRect(ex - 10 * k, ey - 10 * k, 20 * k, 20 * k);
+    g.fillStyle = '#d8ecff'; g.beginPath(); g.arc(ex, ey, 1.9 * k, 0, 6.283); g.fill();
+    g.fillStyle = real ? '#8a8078' : '#9a8f86'; g.beginPath(); g.ellipse(W * 0.4, B * 0.3, 5 * k, 3.6 * k, 0.4, 0, 6.283); g.fill();
+    if (real) { g.fillStyle = 'rgba(0,0,0,.4)'; g.beginPath(); g.ellipse(W * 0.4 + 1.6 * k, B * 0.3 + 0.6 * k, 4 * k, 3 * k, 0.4, 0, 6.283); g.fill(); }
+    const sx = W * 0.74, sy = B - 64 * k, sg = g.createRadialGradient(sx, sy, 0, sx, sy, 120 * k);
+    sg.addColorStop(0, 'rgba(215,232,255,.85)'); sg.addColorStop(0.12, 'rgba(140,180,240,.45)'); sg.addColorStop(0.5, 'rgba(120,150,210,.12)'); sg.addColorStop(1, 'rgba(120,150,210,0)');
+    g.fillStyle = sg; g.fillRect(sx - 120 * k, sy - 120 * k, 240 * k, 240 * k);
+    g.fillStyle = '#f6f8ff'; g.beginPath(); g.arc(sx, sy, 5 * k, 0, 6.283); g.fill();
+    // a broad shield volcano far off, then ridges and flat-topped mesas, far to near
+    const ol = real ? '#94564a' : '#8a4638', ox = W * 0.3, ow = W * 0.42;
+    g.fillStyle = ol; g.beginPath(); g.moveTo(ox - ow, B);
+    for (let i = 0; i <= 40; i++) { const u = i / 40 * 2 - 1; g.lineTo(ox + u * ow, B - 120 * k - 55 * k * Math.pow(1 - u * u, 0.7)); }
+    g.lineTo(ox + ow, B); g.fill();
+    const layers = real ? [['#8a4a3e', 150, 0.15], ['#6e352a', 105, 0.35], ['#542619', 70, 0.6], ['#3e1b12', 40, 1]] : [['#7f3c30', 140, 0.2], ['#5e2a21', 90, 0.5], ['#45201a', 50, 1]];
+    for (const [col, amp, rough] of layers) {
+      const f = [1 + rr() * 2, 4 + rr() * 4, 11 + rr() * 9], ph = [rr() * 6.3, rr() * 6.3, rr() * 6.3], flat = 0.62 + rr() * 0.15;
+      g.beginPath(); g.moveTo(0, B);
+      for (let i = 0; i <= 96; i++) {
+        const u = i / 96, v = Math.min(flat, 0.5 + 0.3 * Math.sin(u * f[0] * 3.1 + ph[0]) + 0.14 * Math.sin(u * f[1] * 3.1 + ph[1]) + rough * 0.07 * Math.sin(u * f[2] * 3.1 + ph[2]));
+        g.lineTo(u * W, B - v * amp * k);
+      }
+      g.lineTo(W, B); g.closePath();
+      if (real) { const lg = g.createLinearGradient(0, B - amp * k, 0, B); lg.addColorStop(0, shade(col, 1.3)); lg.addColorStop(1, shade(col, 0.75)); g.fillStyle = lg; } else g.fillStyle = col;
+      g.fill();
+      if (real) { const hz = g.createLinearGradient(0, B - amp * k * 0.6, 0, B); hz.addColorStop(0, 'rgba(230,150,100,0)'); hz.addColorStop(1, 'rgba(230,150,100,.2)'); g.fillStyle = hz; g.fillRect(0, B - amp * k * 0.6, W, amp * k * 0.6); }
+    }
+    // the base on the horizon: lit domes, and a Starship standing next to its launch tower
+    for (const [fx, r] of [[0.07, 14], [0.12, 9], [0.33, 16], [0.385, 10], [0.86, 13], [0.92, 8]]) {
+      const x = W * fx, rad = r * k;
+      if (real) { const lg = g.createRadialGradient(x, B, 0, x, B, rad * 2.2); lg.addColorStop(0, 'rgba(255,190,120,.35)'); lg.addColorStop(1, 'rgba(255,190,120,0)'); g.fillStyle = lg; g.fillRect(x - rad * 2.2, B - rad * 2.2, rad * 4.4, rad * 2.2); }
+      g.fillStyle = real ? '#2a2427' : '#3a2a2a'; g.beginPath(); g.arc(x, B, rad, Math.PI, 0); g.fill();
+      g.fillStyle = 'rgba(255,205,140,.9)'; for (let j = -2; j <= 2; j++) g.fillRect(x + j * rad * 0.3 - k, B - rad * 0.28, 2 * k, 1.5 * k);
+    }
+    const tx = W * 0.6, th = 120 * k, shx = tx + 15 * k, shw = 9 * k, shh = 100 * k;
+    if (real) {
+      const fl = g.createLinearGradient(0, B - shh, 0, B); fl.addColorStop(0, 'rgba(255,230,190,0)'); fl.addColorStop(1, 'rgba(255,230,190,.28)');
+      g.fillStyle = fl; g.beginPath(); g.moveTo(shx - 26 * k, B); g.lineTo(shx - shw, B - shh); g.lineTo(shx + shw, B - shh); g.lineTo(shx + 26 * k, B); g.fill();
+    }
+    g.fillStyle = real ? '#1c181c' : '#2a2026'; g.fillRect(tx - 4 * k, B - th, 8 * k, th);
+    g.fillRect(tx + 4 * k, B - th * 0.82, shx - tx - 8 * k, 2.5 * k);
+    if (real) { const bg2 = g.createLinearGradient(shx - shw / 2, 0, shx + shw / 2, 0); bg2.addColorStop(0, '#6e737c'); bg2.addColorStop(0.35, '#e6e9ee'); bg2.addColorStop(1, '#4a4e56'); g.fillStyle = bg2; } else g.fillStyle = '#bdb8b5';
+    g.fillRect(shx - shw / 2, B - shh, shw, shh);
+    g.beginPath(); g.moveTo(shx - shw / 2, B - shh); g.quadraticCurveTo(shx - shw / 2, B - shh - 14 * k, shx, B - shh - 16 * k); g.quadraticCurveTo(shx + shw / 2, B - shh - 14 * k, shx + shw / 2, B - shh); g.fill();
+    marsTower = { x: tx, y: B - th - 3 };
+    const hz = g.createLinearGradient(0, B - 60 * k, 0, B);
+    hz.addColorStop(0, 'rgba(236,150,100,0)'); hz.addColorStop(1, real ? 'rgba(236,150,100,.35)' : 'rgba(236,150,100,.22)');
+    g.fillStyle = hz; g.fillRect(0, B - 60 * k, W, 60 * k);
+  }
+  // little Mars scene behind the car in the garage preview
+  function marsPostcard(g, w, h) {
+    const sk = g.createLinearGradient(0, 0, 0, h);
+    sk.addColorStop(0, '#24101c'); sk.addColorStop(0.5, '#93402c'); sk.addColorStop(0.66, '#e08a52'); sk.addColorStop(0.661, '#8a4428'); sk.addColorStop(1, '#3a1810');
+    g.fillStyle = sk; g.fillRect(0, 0, w, h);
+    const hy = h * 0.66, sg = g.createRadialGradient(w * 0.78, hy - 16, 0, w * 0.78, hy - 16, 60);
+    sg.addColorStop(0, 'rgba(215,232,255,.8)'); sg.addColorStop(0.2, 'rgba(140,180,240,.35)'); sg.addColorStop(1, 'rgba(140,180,240,0)');
+    g.fillStyle = sg; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#6a2e22'; g.beginPath(); g.moveTo(0, hy);
+    for (let i = 0; i <= 20; i++) g.lineTo(w * i / 20, hy - 10 - 9 * Math.sin(i * 1.3) - 5 * Math.sin(i * 3.1));
+    g.lineTo(w, hy); g.fill();
+    g.fillStyle = '#2f4f48'; g.beginPath(); g.arc(w * 0.13, hy, h * 0.13, Math.PI, 0); g.fill();
+    g.strokeStyle = 'rgba(220,240,235,.35)'; g.lineWidth = 1; g.beginPath(); g.ellipse(w * 0.13, hy, h * 0.065, h * 0.13, 0, Math.PI, 2 * Math.PI); g.stroke();
+    g.fillStyle = '#c9ccd2'; g.fillRect(w * 0.9 - 4, hy - h * 0.42, 8, h * 0.42);
+    g.beginPath(); g.moveTo(w * 0.9 - 4, hy - h * 0.42); g.quadraticCurveTo(w * 0.9, hy - h * 0.5, w * 0.9 + 4, hy - h * 0.42); g.fill();
   }
   const skyOff = (o) => [o.x + (o.smash ? o.smash.sx : 0), o.y0 + (o.smash ? o.smash.sy : 0)];
   function drawSkyCar(o) {
@@ -1789,9 +2028,10 @@ html, body { background: #26222c !important; }
   }
   function drawSky() {
     if (!bg) bakeBackdrop();
-    if (hyOff > 0) { ctx.fillStyle = '#0b0d22'; ctx.fillRect(0, 0, W, hyOff + 1); }
+    if (hyOff > 0) { ctx.fillStyle = onMars() ? '#120a10' : '#0b0d22'; ctx.fillRect(0, 0, W, hyOff + 1); }
     ctx.drawImage(bg, 0, hyOff, W, H);
-    if (!SET.real && Math.floor(T * 1.5) % 2) {
+    if (onMars()) { if (marsTower && Math.floor(T * 1.5) % 2) { const k = H / 800; ctx.fillStyle = '#ff3b3b'; ctx.fillRect(marsTower.x - 1.5 * k, marsTower.y + hyOff, 3 * k, 3 * k); } }
+    else if (!SET.real && Math.floor(T * 1.5) % 2) {
       const k = H / 800; ctx.fillStyle = '#ff3b3b';
       for (const m of landmarks) { const top = m.type === 'wtc' ? 360 : m.type === 'esb' ? 290 : 295; ctx.fillRect(m.x - 1.5 * k, HY + hyOff + 1 - top * k - 3, 3 * k, 3); }
     }
@@ -1802,16 +2042,17 @@ html, body { background: #26222c !important; }
 
   function drawRoad() {
     snowAmt += ((weather === 'snow' ? 1 : 0) - snowAmt) * 0.004;
-    const walk = snowAmt > 0.01 ? `rgb(${Math.round(75 + 130 * snowAmt)},${Math.round(70 + 138 * snowAmt)},${Math.round(84 + 132 * snowAmt)})` : '#4b4654';
+    const mars = onMars();
+    const walk = mars ? (SET.real ? '#7c3f27' : '#8a4a2e') : snowAmt > 0.01 ? `rgb(${Math.round(75 + 130 * snowAmt)},${Math.round(70 + 138 * snowAmt)},${Math.round(84 + 132 * snowAmt)})` : '#4b4654';
     poly([[-11.5, 0, ZN], [-4.6, 0, ZN], [-4.6, 0, FAR], [-11.5, 0, FAR]], walk);
     poly([[4.6, 0, ZN], [11.5, 0, ZN], [11.5, 0, FAR], [4.6, 0, FAR]], walk);
-    let roadFill = '#26222c';
-    if (SET.real) { const rg = ctx.createLinearGradient(0, HY + hyOff, 0, H); rg.addColorStop(0, '#4a3b52'); rg.addColorStop(0.25, '#1f1b26'); rg.addColorStop(1, '#0e0c12'); roadFill = rg; }
+    let roadFill = mars ? '#2e1e1c' : '#26222c';
+    if (SET.real) { const rg = ctx.createLinearGradient(0, HY + hyOff, 0, H); rg.addColorStop(0, mars ? '#6a3b2c' : '#4a3b52'); rg.addColorStop(0.25, mars ? '#2a1813' : '#1f1b26'); rg.addColorStop(1, mars ? '#140b09' : '#0e0c12'); roadFill = rg; }
     poly([[-4.6, 0, ZN], [4.6, 0, ZN], [4.6, 0, FAR], [-4.6, 0, FAR]], roadFill);
     const P8 = 8, off = traveled % P8;
     for (let z = -off - P8; z < FAR; z += P8) {
       const z0 = Math.max(z, ZN), z1 = z + P8 / 2;
-      if (z1 > ZN) poly([[-4.1, 0, z0], [4.1, 0, z0], [4.1, 0, z1], [-4.1, 0, z1]], '#2f2736');
+      if (z1 > ZN) poly([[-4.1, 0, z0], [4.1, 0, z0], [4.1, 0, z1], [-4.1, 0, z1]], mars ? '#382320' : '#2f2736');
       const r0 = Math.max(z, ZN), r1 = z + P8 / 2;
       if (r1 > ZN) {
         poly([[-4.6, 0, r0], [-4.1, 0, r0], [-4.1, 0, r1], [-4.6, 0, r1]], '#8d8896');
@@ -1853,11 +2094,11 @@ html, body { background: #26222c !important; }
       ctx.globalAlpha = clamp((FAR - z) / 35, 0, 1);
       if (k === 'board') { drawBillboard(bs, z, bn); continue; }
       if (k === 'wboard') { drawWantedSign(bs, z); continue; }
-      if (k === 'bldg') { drawBuilding(bs, z, bn); continue; }
+      if (k === 'bldg') { if (onMars()) drawMarsSite(bs, z, bn); else drawBuilding(bs, z, bn); continue; }
       for (const side of [-1, 1]) {
         if (k === 'post') {
           const a = P(side * 5.1, 0, z), b = P(side * 5.1, 0.6, z);
-          ctx.fillStyle = '#c8262c'; const w = Math.max(1.5, a[2] * 0.3); ctx.fillRect(a[0] - w / 2, b[1], w, a[1] - b[1]);
+          ctx.fillStyle = onMars() ? '#ff7a2a' : '#c8262c'; const w = Math.max(1.5, a[2] * 0.3); ctx.fillRect(a[0] - w / 2, b[1], w, a[1] - b[1]);
           ctx.fillRect(a[0] - w * 0.8, b[1] + (a[1] - b[1]) * 0.35, w * 1.6, w * 0.3);
         } else {
           const a = P(side * 5.6, 0, z), b = P(side * 5.6, 6, z), c = P(side * 4.2, 6, z);
@@ -2033,6 +2274,130 @@ html, body { background: #26222c !important; }
       if (style !== 2) poly([[fx, 3.05, zA], [fx - side * 0.9, 2.55, zA], [fx - side * 0.9, 2.55, zb], [fx, 3.05, zb]], AWNINGS[Math.floor(hash(n * 23 + i, side) * AWNINGS.length)]);
       if (weather === 'rain') reflect(fx - side * 1.2, (zA + zb) / 2, P(fx, 0, (zA + zb) / 2)[2], warmStrip, 0.3);
     }
+  }
+  // ---------- Mars base along the road: habitat modules, greenhouse domes, solar arrays and the odd Starship on its pad ----------
+  const HAB_COLS = ['#d9d5cc', '#cdd1d6', '#e2dccf'];
+  function drawMarsSite(side, z, n) {
+    const z0 = z, z1 = z + 14.5; if (z1 <= ZN) return;
+    const k = hash(n * 5, side * 3);
+    if (k < 0.07) drawStarshipPad(side, z0, n);
+    else if (k < 0.38) drawDome(side, z0);
+    else if (k < 0.52) drawSolar(side, z0);
+    else drawHab(side, z0, z1, n);
+  }
+  function drawHab(side, z0, z1, n) {
+    const col = HAB_COLS[Math.floor(hash(n, side * 7) * 3)], h1 = 3.8 + hash(n, side) * 2, h2 = 2.4 + hash(n * 3, side) * 1.6;
+    const fx = side * 11.5, fx2 = side * 13.1, zs = Math.max(z0, ZN + 0.5), real = SET.real, two = hash(n * 9, side) < 0.65;
+    // upper module first: the lower one hides its base
+    if (two) drawBox(side * 16.8, h1, h1 + h2, z0 + 2, z1 - 2, 7.4, shade(col, 0.78), shade(col, 1.05), shade(col, 0.93));
+    drawBox(side * 16, 0, h1, z0, z1, 9, shade(col, 0.8), shade(col, 1.05), col);
+    if (z1 <= ZN + 0.5) return;
+    poly([[fx, 1.0, zs], [fx, 1.45, zs], [fx, 1.45, z1], [fx, 1.0, z1]], '#e2622a');
+    if (z0 > ZN + 0.5) { const a = P(side * 11.5, 1.45, z0), b = P(side * 20.5, 1.0, z0); ctx.fillStyle = '#e2622a'; ctx.fillRect(Math.min(a[0], b[0]), a[1], Math.abs(b[0] - a[0]), b[1] - a[1]); }
+    if (z0 > 75 || SET.low) return;
+    const win = new Path2D(), dark = new Path2D();
+    for (let wz = z0 + 3.4; wz < z1 - 1; wz += 1.9) if (wz > zs) quad(hash(n * 13, wz) < 0.75 ? win : dark, fx, 2.2, 3.0, wz, wz + 0.8);
+    if (two && z0 + 2 > ZN + 0.5) for (let wz = z0 + 3; wz < z1 - 3; wz += 2.2) quad(win, fx2, h1 + 0.8, h1 + 1.5, wz, wz + 0.9);
+    if (z0 + 1.2 > ZN + 0.5) quad(dark, fx, 0, 2.3, z0 + 1.2, z0 + 2.6);
+    ctx.fillStyle = '#20252e'; ctx.fill(dark); ctx.fillStyle = '#ffd28a'; ctx.fill(win);
+    if (real) {
+      // sheen up top, red dust kicked up along the base, panel seams
+      const top = P(fx, h1, zs), bot = P(fx, 0, zs), g = ctx.createLinearGradient(0, top[1], 0, bot[1]);
+      g.addColorStop(0, 'rgba(255,255,255,.2)'); g.addColorStop(0.5, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(150,60,25,.45)');
+      poly([[fx, 0, zs], [fx, h1, zs], [fx, h1, z1], [fx, 0, z1]], g);
+      const seams = new Path2D();
+      for (let sz = z0 + 2.4; sz < z1; sz += 2.4) if (sz > zs) { const a = P(fx, 0.2, sz), b = P(fx, h1 - 0.1, sz); seams.moveTo(a[0], a[1]); seams.lineTo(b[0], b[1]); }
+      ctx.strokeStyle = 'rgba(0,0,0,.14)'; ctx.lineWidth = 1; ctx.stroke(seams);
+      for (let wz = z0 + 3.4; wz < z1 - 1; wz += 3.8) if (wz > zs) { const c = P(fx, 2.6, wz + 0.4); glow(c[0], c[1], c[2] * 1.1, 0.45); }
+      const lamp = P(fx, 2.5, z0 + 1.9); if (z0 + 1.9 > ZN + 0.5) { ctx.fillStyle = '#7dff8a'; ctx.fillRect(lamp[0] - lamp[2] * 0.06, lamp[1] - lamp[2] * 0.06, lamp[2] * 0.12, lamp[2] * 0.12); }
+    }
+    if (z0 < 70 && hash(n * 7, side * 3) < 0.45) pasteWanted(side * 11.45, z0 + 4 + hash(n, side * 5) * 6, 1.4, 2.1);
+  }
+  // glass greenhouse dome: a sphere's outline is a circle from any angle, so it's drawn in screen space
+  function drawDome(side, z0) {
+    const x = side * 16, zc = z0 + 7.25, R = 4.6, real = SET.real;
+    drawBox(x, 0, 0.9, zc - R, zc + R, R * 2, '#6d6a66', '#8a8680', '#7a7672');
+    if (zc <= ZN + 0.6) return;
+    const c = P(x, 0.9, zc), r = R * c[2];
+    if (c[0] + r < 0 || c[0] - r > W) return;
+    ctx.save(); ctx.beginPath(); ctx.arc(c[0], c[1], r, Math.PI, 0); ctx.closePath();
+    if (real) { const g = ctx.createRadialGradient(c[0] - r * 0.3, c[1] - r * 0.65, r * 0.05, c[0], c[1] - r * 0.3, r * 1.1); g.addColorStop(0, 'rgba(210,245,235,.75)'); g.addColorStop(0.45, 'rgba(70,125,112,.85)'); g.addColorStop(1, 'rgba(22,44,42,.95)'); ctx.fillStyle = g; }
+    else ctx.fillStyle = '#3c6e62';
+    ctx.fill(); ctx.clip();
+    ctx.fillStyle = real ? 'rgba(120,205,110,.6)' : '#5a9a5a';
+    for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.ellipse(c[0] + (i - 2.5) / 3 * r * 0.8, c[1] - r * 0.1, r * 0.15, r * 0.13, 0, 0, 6.283); ctx.fill(); }
+    if (real) glow(c[0], c[1] - r * 0.15, r * 0.9, 0.35);
+    ctx.strokeStyle = 'rgba(230,245,240,.4)'; ctx.lineWidth = Math.max(0.6, r * 0.012);
+    ctx.beginPath();
+    for (const m of [0.33, 0.66]) ctx.ellipse(c[0], c[1], r * m, r, 0, Math.PI, 2 * Math.PI);
+    for (const q of [0.35, 0.7]) { const hw = r * Math.sqrt(1 - q * q); ctx.moveTo(c[0] - hw, c[1] - r * q); ctx.lineTo(c[0] + hw, c[1] - r * q); }
+    ctx.stroke(); ctx.restore();
+    ctx.strokeStyle = '#a3a8b0'; ctx.lineWidth = Math.max(1, r * 0.025); ctx.beginPath(); ctx.arc(c[0], c[1], r, Math.PI, 0); ctx.stroke();
+    if (real) { ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = Math.max(1, r * 0.03); ctx.beginPath(); ctx.arc(c[0], c[1], r * 0.86, Math.PI * 1.15, Math.PI * 1.45); ctx.stroke(); }
+  }
+  // rows of solar panels tilted toward the sky, low enough to see the mesas over them
+  function drawSolar(side, z0) {
+    const real = SET.real, grid = new Path2D();
+    for (let i = 0; i < 4; i++) {
+      const za = z0 + 0.6 + i * 3.5, zb = za + 2.6; if (zb <= ZN + 0.4) continue;
+      const zA = Math.max(za, ZN + 0.4), yA = 0.9 + (zA - za) / 2.6 * 1.3;
+      for (const lx of [13, 19]) drawBox(side * lx, 0, 1.6, za + 1.1, za + 1.3, 0.15, '#2a2a2e', '#2a2a2e', '#2a2a2e');
+      let fill = '#1d2f57';
+      if (real) { const t0 = P(side * 16, 2.2, zb), b0 = P(side * 16, yA, zA), g = ctx.createLinearGradient(0, t0[1], 0, b0[1]); g.addColorStop(0, '#5a7ab8'); g.addColorStop(0.4, '#1d2f57'); g.addColorStop(1, '#0d1630'); fill = g; }
+      poly([[side * 12, yA, zA], [side * 20, yA, zA], [side * 20, 2.2, zb], [side * 12, 2.2, zb]], fill);
+      for (const xx of [14, 16, 18]) { const a = P(side * xx, yA, zA), b = P(side * xx, 2.2, zb); grid.moveTo(a[0], a[1]); grid.lineTo(b[0], b[1]); }
+      const zm = (zA + zb) / 2, ym = (yA + 2.2) / 2, a = P(side * 12, ym, zm), b = P(side * 20, ym, zm); grid.moveTo(a[0], a[1]); grid.lineTo(b[0], b[1]);
+    }
+    ctx.strokeStyle = 'rgba(160,190,240,.35)'; ctx.lineWidth = 1; ctx.stroke(grid);
+  }
+  // a Starship on its launch mount with the tower beside it, chopstick arms up top and a blinking beacon
+  function drawStarshipPad(side, z0, n) {
+    const zc = z0 + 7.25, x = side * 17.5, tx = side * 12.8, real = SET.real;
+    drawBox(x, 0, 2.6, zc - 4, zc + 4, 8, '#4c4f55', '#6a6e75', '#5a5e65');
+    drawBox(tx, 0, 40, zc - 1.2, zc + 1.2, 2.4, '#26282d', '#34373d', '#2e3136');
+    if (zc <= ZN + 0.6) return;
+    const brace = new Path2D(), fx = tx - side * 1.2;
+    if (zc - 1.2 > ZN + 0.5) for (let y = 0; y < 39; y += 3) { const a = P(fx, y, zc - 1.2), b = P(fx, y + 3, zc + 1.2), c = P(fx, y, zc + 1.2), d = P(fx, y + 3, zc - 1.2); brace.moveTo(a[0], a[1]); brace.lineTo(b[0], b[1]); brace.moveTo(c[0], c[1]); brace.lineTo(d[0], d[1]); }
+    ctx.strokeStyle = 'rgba(150,155,165,.45)'; ctx.lineWidth = 1; ctx.stroke(brace);
+    const r = 2.1, a = P(x - r, 34, zc), b = P(x + r, 2.6, zc), sc = a[2];
+    const L = Math.min(a[0], b[0]), Wd = Math.abs(b[0] - a[0]), top = a[1], bot = b[1];
+    if (L > W || L + Wd < 0) return;
+    let body = '#c9ccd2';
+    if (real) { const g = ctx.createLinearGradient(L, 0, L + Wd, 0); g.addColorStop(0, '#7d828b'); g.addColorStop(0.3, '#eef1f5'); g.addColorStop(0.55, '#c3c8d0'); g.addColorStop(1, '#5d626b'); body = g; }
+    ctx.fillStyle = body; ctx.fillRect(L, top, Wd, bot - top);
+    const nh = sc * 6; ctx.beginPath(); ctx.moveTo(L, top); ctx.quadraticCurveTo(L, top - nh * 0.9, L + Wd / 2, top - nh); ctx.quadraticCurveTo(L + Wd, top - nh * 0.9, L + Wd, top); ctx.fill();
+    ctx.fillStyle = real ? 'rgba(18,18,22,.88)' : '#1b1c20'; ctx.fillRect(side > 0 ? L + Wd / 2 : L, top, Wd / 2, bot - top);
+    ctx.fillStyle = '#2a2b30';
+    for (const [y0, y1, out] of [[top + sc * 1.5, top + sc * 5, 1.0], [bot - sc * 7, bot - sc * 1, 1.4]]) {
+      ctx.beginPath(); ctx.moveTo(L, y0); ctx.lineTo(L - sc * out, y1 - sc); ctx.lineTo(L, y1); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(L + Wd, y0); ctx.lineTo(L + Wd + sc * out, y1 - sc); ctx.lineTo(L + Wd, y1); ctx.fill();
+    }
+    if (real) { ctx.fillStyle = 'rgba(0,0,0,.18)'; for (let y = top + sc * 2.2; y < bot; y += sc * 2.2) ctx.fillRect(L, y, Wd, Math.max(0.5, sc * 0.04)); }
+    // chopstick arms reaching toward the ship
+    const c1 = P(tx, 30, zc - 0.8), c2 = P(x - side * r, 30.5, zc - 0.4), c3 = P(tx, 30, zc + 0.8), c4 = P(x - side * r, 30.5, zc + 0.4);
+    ctx.strokeStyle = '#1e2024'; ctx.lineWidth = Math.max(1.5, sc * 0.35); ctx.beginPath(); ctx.moveTo(c1[0], c1[1]); ctx.lineTo(c2[0], c2[1]); ctx.moveTo(c3[0], c3[1]); ctx.lineTo(c4[0], c4[1]); ctx.stroke();
+    if (Math.floor(T * 1.5 + n) % 2) { const bl = P(tx, 40.3, zc); ctx.fillStyle = '#ff3b3b'; ctx.fillRect(bl[0] - bl[2] * 0.15, bl[1] - bl[2] * 0.15, bl[2] * 0.3, bl[2] * 0.3); if (real) glow(bl[0], bl[1], bl[2] * 1.2, 0.6); }
+  }
+  // word-hunt letter: a gold hex token spinning over a soft beam of light so you can spot it from far off
+  function hexPath(r) { ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; if (i) ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); }
+  function drawLetter(o) {
+    if (o.z <= ZN) return;
+    const [sx, sy, s] = P(o.x, o.y + Math.sin(T * 2.2) * 0.15, o.z), r = s * 0.95, w = Math.max(0.14, Math.abs(Math.cos(T * 2.6)));
+    // the beam fades out as the token gets close, so it never washes over the car
+    const fade = clamp((o.z - 6) / 25, 0, 1);
+    if (fade > 0) {
+      const g0 = P(o.x, 0, o.z), bt = sy - r * 5, beam = ctx.createLinearGradient(0, bt, 0, g0[1]);
+      beam.addColorStop(0, 'rgba(255,211,110,0)'); beam.addColorStop(1, `rgba(255,211,110,${(0.38 * fade).toFixed(3)})`);
+      ctx.fillStyle = beam; ctx.fillRect(sx - r * 0.4, bt, r * 0.8, g0[1] - bt);
+    }
+    glow(sx, sy, r * 2.6, 0.55);
+    ctx.save(); ctx.translate(sx, sy); ctx.scale(w, 1);
+    hexPath(r); ctx.fillStyle = '#a8761f'; ctx.fill();
+    hexPath(r * 0.84);
+    if (SET.real) { const g = ctx.createLinearGradient(0, -r, 0, r); g.addColorStop(0, '#fff1c2'); g.addColorStop(0.5, '#ffcf5a'); g.addColorStop(1, '#c88d22'); ctx.fillStyle = g; } else ctx.fillStyle = '#ffd36e';
+    ctx.fill();
+    if (w > 0.35) { ctx.fillStyle = '#3a2208'; ctx.font = `700 ${Math.max(9, r * 1.05)}px Michroma, "Arial Black", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(o.ch, 0, r * 0.06); }
+    ctx.restore();
   }
   function pasteWanted(fx, pz, pw, ph) {
     const img = wantedAt(); if (!img || pz <= ZN + 0.5) return;
