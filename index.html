@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '50';
+window.BUILD = '51';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -856,9 +856,11 @@ html, body { background: #26222c !important; }
     'THEFACEBOOK', 'POKE', 'LIKES', 'HACKATHON', 'SURFING'];
   let hunt = null;
   // tunnels: after a while on the road you dive into one now and then (a Boring Company Loop in New York, a lava tube on Mars)
-  let tunnel = null, nextTunnel = 600, underground = false;
-  // the first letter turns up after a short drive, the rest are spaced so a whole word takes a long run
-  const huntGap = () => rnd(300, 480);
+  let tunnel = null, nextTunnel = 600, underground = false, lastHue = 355;
+  // each Loop tunnel glows one neon color, picked fresh (never the same twice in a row)
+  const NEON = [355, 215, 188, 130, 278, 318, 22, 52];
+  // letters are far apart (about 2.4-3.6 km of driving each), so spelling a whole word takes a really long run
+  const huntGap = () => rnd(600, 900);
   function renderHunt(pop) {
     const el = $('hunt'); if (!hunt) { el.innerHTML = ''; return; }
     el.className = 'hunt' + (hunt.done ? ' done' : '') + (pop ? ' pop' : '');
@@ -866,7 +868,7 @@ html, body { background: #26222c !important; }
   }
   function reset() {
     objs = []; parts = [];
-    hunt = { word: pick(WORDS), got: 0, next: rnd(150, 250), out: false, done: false };
+    hunt = { word: pick(WORDS), got: 0, next: rnd(400, 600), out: false, done: false };
     tunnel = null; nextTunnel = rnd(550, 750);
     renderHunt();
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
@@ -1556,7 +1558,7 @@ html, body { background: #26222c !important; }
     const dz = speed * dt;
     score += dz * 0.35 * multiplier();
     advance(dz, dt);
-    if (!tunnel && traveled > nextTunnel) { const s0 = traveled + FAR + 25; tunnel = { s: s0, e: s0 + rnd(170, 260) }; }
+    if (!tunnel && traveled > nextTunnel) { const s0 = traveled + FAR + 25; let hue; do hue = pick(NEON); while (hue === lastHue); lastHue = hue; tunnel = { s: s0, e: s0 + rnd(170, 260), hue }; }
     if (tunnel && traveled > tunnel.e + 12) { tunnel = null; nextTunnel = traveled + rnd(700, 1100); }
     // extra room after a wall so you can land and get set before the next row
     while (spawnZ < FAR) { spawnRow(spawnZ); spawnZ += 26 + speed * 0.28 + rnd(0, 12) + (lastWall ? speed * 0.75 : 0); }
@@ -1627,7 +1629,7 @@ html, body { background: #26222c !important; }
     for (const o of objs) {
       o.z -= dz;
       if (o.k === 'wall' && o.lane === 1 && !o.passed && !o.smash && o.z + o.d < 0 && mode === 'play') { o.passed = true; runWalls++; }
-      if (o.k === 'letter' && !o.gone && !o.missed && o.z < -1 && mode === 'play') { o.missed = true; if (hunt) { hunt.out = false; hunt.next = traveled + rnd(120, 220); } }
+      if (o.k === 'letter' && !o.gone && !o.missed && o.z < -1 && mode === 'play') { o.missed = true; if (hunt) { hunt.out = false; hunt.next = traveled + rnd(300, 450); } }
       if (o.smash) { const m = o.smash; m.age += dt; m.vy -= G * dt; m.sx += m.vx * dt; m.sy += m.vy * dt; }
       if (o.k === 'cell' && pw.magnet > 0 && o.z < 28 && o.z > -1 && mode === 'play') {
         const k = Math.min(1, dt * 9);
@@ -2566,10 +2568,10 @@ html, body { background: #26222c !important; }
           if (real) poly([[-4.4, 0.01, zr - 1.2], [4.4, 0.01, zr - 1.2], [4.4, 0.01, zr + 1.2], [-4.4, 0.01, zr + 1.2]], 'rgba(255,170,90,.08)');
         } else {
           // neon red hoops on black, with a brighter pulse racing down the tunnel ahead of you
-          const pulse = Math.pow(0.5 + 0.5 * Math.sin(k * 0.8 - T * 7), 3), lum = 40 + 32 * pulse;
-          if (real || pulse > 0.4) { ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `hsla(355,100%,55%,${(0.12 + 0.3 * pulse).toFixed(2)})`; ctx.lineWidth = Math.max(3, sc * (0.6 + 0.6 * pulse)); ctx.beginPath(); tubeLine(zr); ctx.stroke(); ctx.globalCompositeOperation = 'source-over'; }
-          ctx.strokeStyle = `hsl(355,100%,${lum.toFixed(0)}%)`; ctx.lineWidth = Math.max(1, sc * 0.13); ctx.beginPath(); tubeLine(zr); ctx.stroke();
-          if (real) poly([[-4.5, 0.01, zr - 1.4], [4.5, 0.01, zr - 1.4], [4.5, 0.01, zr + 1.4], [-4.5, 0.01, zr + 1.4]], `hsla(355,100%,50%,${(0.06 + 0.1 * pulse).toFixed(2)})`);
+          const hu = tunnel.hue, pulse = Math.pow(0.5 + 0.5 * Math.sin(k * 0.8 - T * 7), 3), lum = 40 + 32 * pulse;
+          if (real || pulse > 0.4) { ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `hsla(${hu},100%,55%,${(0.12 + 0.3 * pulse).toFixed(2)})`; ctx.lineWidth = Math.max(3, sc * (0.6 + 0.6 * pulse)); ctx.beginPath(); tubeLine(zr); ctx.stroke(); ctx.globalCompositeOperation = 'source-over'; }
+          ctx.strokeStyle = `hsl(${hu},100%,${lum.toFixed(0)}%)`; ctx.lineWidth = Math.max(1, sc * 0.13); ctx.beginPath(); tubeLine(zr); ctx.stroke();
+          if (real) poly([[-4.5, 0.01, zr - 1.4], [4.5, 0.01, zr - 1.4], [4.5, 0.01, zr + 1.4], [-4.5, 0.01, zr + 1.4]], `hsla(${hu},100%,50%,${(0.06 + 0.1 * pulse).toFixed(2)})`);
         }
       }
       ctx.globalAlpha = 1;
