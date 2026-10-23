@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '44';
+window.BUILD = '45';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -193,6 +193,8 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 /* rain: a tall tile of streaks slid down on the compositor, so it costs nothing per frame */
 .weather { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .weather .rain, .weather .snow { opacity: 0; transition: opacity 3s ease; }
+.weather { transition: opacity .5s ease; }
+.weather.under { opacity: 0; }
 .weather.is-rain .rain, .weather.is-snow .snow { opacity: 1; }
 .weather .rain { position: absolute; left: -10%; right: -10%; top: -180px; height: calc(100% + 360px); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='180'%3E%3Cg stroke='%23d2dcf2' stroke-opacity='.38' stroke-width='1'%3E%3Cpath d='M12 4l-3 22M48 60l-3 22M90 18l-3 26M120 90l-3 22M30 120l-3 24M70 140l-3 22M104 150l-3 24M60 8l-2 18M132 40l-2 18M20 70l-2 18'/%3E%3C/g%3E%3C/svg%3E"); background-size: 140px 180px; animation: rainFall .42s linear infinite; }
 @keyframes rainFall { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-24px, 180px, 0); } }
@@ -741,7 +743,7 @@ html, body { background: #26222c !important; }
     { id: 's:green', name: 'Green', cost: 7500, rgb: [125, 255, 138] },
     { id: 's:pink', name: 'Pink', cost: 9000, rgb: [255, 122, 217] },
     { id: 's:gold', name: 'Gold', cost: 13500, rgb: [255, 211, 110] },
-    { id: 's:rainbow', name: 'Rainbow', cost: 36000, rgb: null },
+    { id: 's:stars', name: 'Shooting Stars', cost: 36000, rgb: null, stars: true },
   ];
   // maps: Mars is the most expensive thing in the garage, and never comes out of a crate
   const MAPS = [
@@ -754,6 +756,9 @@ html, body { background: #26222c !important; }
   try { const old = +localStorage.getItem('roadster-rush-best') || 0; if (old && !save.top.length) save.top = [old]; } catch (e) {}
   for (const id of ['d:none', 's:white', 'm:nyc']) if (!save.owned.includes(id)) save.owned.push(id);
   if (!save.map || !save.owned.includes(save.map)) save.map = 'm:nyc';
+  // Rainbow smoke was replaced by Shooting Stars: anyone who had it gets the new one
+  if (save.owned.includes('s:rainbow')) save.owned = save.owned.map((id) => (id === 's:rainbow' ? 's:stars' : id));
+  if (save.smoke === 's:rainbow') save.smoke = 's:stars';
   save.crates = save.crates || 0;
   const onMars = () => save.map === 'm:mars';
   function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
@@ -822,10 +827,17 @@ html, body { background: #26222c !important; }
     const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
     return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
   }
-  // current jet-smoke color; rainbow cycles through hues over time (jit spreads neighbouring puffs apart)
+  // current jet-smoke color; Shooting Stars is a deep night-blue stream full of gold and white sparks
+  const STAR_COLS = ['#fff6d8', '#ffd36e', '#cfe0ff', '#ffffff'];
+  const starSmoke = () => save.smoke === 's:stars';
   function smokeRGB(jit = 0) {
     const sm = SMOKES.find((q) => q.id === save.smoke) || SMOKES[0];
-    return sm.rgb || hsl2rgb((T * 140 + jit * 360) % 360, 0.9, 0.72);
+    return sm.rgb || hsl2rgb((235 + Math.sin(T * 1.3 + jit * 6) * 18 + 360) % 360, 0.7, 0.62);
+  }
+  const smokeSw = (p) => (p.rgb ? `rgb(${p.rgb.join(',')})` : 'radial-gradient(circle,#fff 0 9%,#ffd36e 16%,#4a3fb0 42%,#100c2e 76%)');
+  function star4(x, y, r) {
+    ctx.beginPath(); ctx.moveTo(x, y - r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.quadraticCurveTo(x, y, x, y + r);
+    ctx.quadraticCurveTo(x, y, x - r, y); ctx.quadraticCurveTo(x, y, x, y - r); ctx.fill();
   }
   const smokeCss = () => { const c = smokeRGB(Math.random()); return `rgb(${c[0]},${c[1]},${c[2]})`; };
 
@@ -841,6 +853,8 @@ html, body { background: #26222c !important; }
     'RAINBOW', 'SUNSET', 'LIGHTNING', 'TORNADO', 'BLIZZARD', 'PENGUIN', 'DOLPHIN', 'OCTOPUS', 'LOBSTER', 'PARROT',
     'MARS', 'ORBIT', 'PLAID', 'CYBER', 'STARSHIP', 'COFFEE', 'HOTDOG', 'POPCORN', 'SKATER', 'LEGEND'];
   let hunt = null;
+  // tunnels: after a while on the road you dive into one now and then (a Boring Company Loop in New York, a lava tube on Mars)
+  let tunnel = null, nextTunnel = 600, underground = false;
   // the first letter turns up after a short drive, the rest are spaced so a whole word takes a long run
   const huntGap = () => rnd(300, 480);
   function renderHunt(pop) {
@@ -851,6 +865,7 @@ html, body { background: #26222c !important; }
   function reset() {
     objs = []; parts = [];
     hunt = { word: pick(WORDS), got: 0, next: rnd(150, 250), out: false, done: false };
+    tunnel = null; nextTunnel = rnd(550, 750);
     renderHunt();
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
     reviveUsed = false; revivePending = false; jumpBuf = 0; lastWall = false; t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
@@ -1126,7 +1141,7 @@ html, body { background: #26222c !important; }
       $('shop-' + cat).innerHTML = SHOP[cat].map((p) => {
         const own = save.owned.includes(p.id), on = equipped(cat) === p.id, pv = pvState && pvState[cat] === p.id && !on;
         const tag = on ? 'Equipped' : own ? 'Owned' : `${p.cost.toLocaleString()} kWh`;
-        const sw = cat === 'paint' ? p.col : cat === 'design' || cat === 'map' ? p.sw : p.rgb ? `rgb(${p.rgb.join(',')})` : 'conic-gradient(#ff5a5a,#ffd36e,#7dff8a,#5aa8ff,#ff7ad9,#ff5a5a)';
+        const sw = cat === 'paint' ? p.col : cat === 'design' || cat === 'map' ? p.sw : smokeSw(p);
         return `<button type="button" class="paint${on ? ' on' : ''}${pv ? ' pv' : ''}${own ? '' : ' locked'}" data-cat="${cat}" data-id="${p.id}"><i style="background:${sw}"></i>${p.name}<small>${tag}</small></button>`;
       }).join('');
     }
@@ -1281,7 +1296,7 @@ html, body { background: #26222c !important; }
       const pr = $('cPrize');
       if (res.kwh) { pr.style.background = 'radial-gradient(circle,#c9f6ff,#5ce1ff 60%,#1b6f86)'; pr.textContent = res.kwh; $('cText').textContent = `+${res.kwh.toLocaleString()} kWh added to your bank.`; }
       else {
-        const p = res.p, sw = res.cat === 'paint' ? p.col : res.cat === 'design' ? p.sw : p.rgb ? `rgb(${p.rgb.join(',')})` : 'conic-gradient(#ff5a5a,#ffd36e,#7dff8a,#5aa8ff,#ff7ad9,#ff5a5a)';
+        const p = res.p, sw = res.cat === 'paint' ? p.col : res.cat === 'design' ? p.sw : smokeSw(p);
         pr.style.background = sw;
         $('cText').textContent = `New ${res.cat === 'smoke' ? 'jet smoke' : res.cat}: ${p.name}! Equip it in the Garage.`;
       }
@@ -1358,6 +1373,10 @@ html, body { background: #26222c !important; }
     for (let i = 0; i < n; i++) parts.push({
       x: pl.x + (Math.random() < 0.5 ? -0.62 : 0.62) + rnd(-0.15, 0.15), y: pl.ground + rnd(0.1, 0.5), z: (Math.random() < 0.5 ? 0.6 : 3.0) - Math.max(0, pl.y - pl.ground) * 0.15,
       vx: rnd(-2.5, 2.5), vy: rnd(0.2, 1.2), vz: rnd(-2, 1), life: rnd(0.7, 1.3), smoke: true, r: rnd(0.35, 0.6), c: smokeCss(),
+    });
+    if (starSmoke()) for (let i = 0; i < n; i++) parts.push({
+      x: pl.x + rnd(-0.9, 0.9), y: pl.ground + rnd(0.3, 1.4), z: rnd(0.4, 3.2), vx: rnd(-3, 3), vy: rnd(-0.5, 2), vz: rnd(-3, 0),
+      life: rnd(0.5, 1.0), star: true, r: rnd(0.14, 0.26), c: pick(STAR_COLS), tw: rnd(0, 6),
     });
   }
   // Flight: a cell trail through the sky marks the safe lane; the other lanes get flying cars and delivery drones
@@ -1535,6 +1554,8 @@ html, body { background: #26222c !important; }
     const dz = speed * dt;
     score += dz * 0.35 * multiplier();
     advance(dz, dt);
+    if (!tunnel && traveled > nextTunnel) { const s0 = traveled + FAR + 25; tunnel = { s: s0, e: s0 + rnd(170, 260) }; }
+    if (tunnel && traveled > tunnel.e + 12) { tunnel = null; nextTunnel = traveled + rnd(700, 1100); }
     // extra room after a wall so you can land and get set before the next row
     while (spawnZ < FAR) { spawnRow(spawnZ); spawnZ += 26 + speed * 0.28 + rnd(0, 12) + (lastWall ? speed * 0.75 : 0); }
     updPlayer(dt);
@@ -1662,6 +1683,7 @@ html, body { background: #26222c !important; }
   function updParts(dt) {
     for (const p of parts) {
       if (p.smoke) { p.life -= dt; p.vy *= 1 - Math.min(1, dt * 3); p.r += dt * 1.3; p.x += p.vx * dt; p.y = Math.max(0.15, p.y + p.vy * dt); p.z += (p.vz - speed) * dt; continue; }
+      if (p.star) { p.life -= dt; p.x += p.vx * dt; p.y = Math.max(0.1, p.y + p.vy * dt); p.z += (p.vz - speed) * dt; continue; }
       p.life -= dt; p.vy -= G * 0.6 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += (p.vz - speed) * dt; }
     parts = parts.filter((p) => p.life > 0 && p.y > -0.2);
   }
@@ -1681,7 +1703,13 @@ html, body { background: #26222c !important; }
 
     drawSky();
     drawRoad();
-    drawRoadside();
+    const zA = tunnel ? tunnel.s - traveled : 0, zB = tunnel ? tunnel.e - traveled : 0;
+    if (tunnel && zB > ZN && zA < FAR) {
+      // roadside beyond the tunnel, then the tunnel, then whatever stands in front of its mouth
+      drawRoadside((z, len) => z >= zB); drawTunnel(zA, zB); drawRoadside((z, len) => z + len < zA - 1);
+    } else drawRoadside();
+    const inTube = !!tunnel && zA < -1 && zB > 1;
+    if (inTube !== underground) { underground = inTube; $('weather').classList.toggle('under', inTube); }
 
     // anything the car is riding on or flying over gets painted underneath it, even when its back end sits behind the car
     const under = (o) => {
@@ -1729,6 +1757,13 @@ html, body { background: #26222c !important; }
     for (const p of parts) {
       if (p.z < ZN) continue;
       const [x, y, s] = P(p.x, p.y, p.z);
+      if (p.star) {
+        // a twinkling four-point star with a short tail streaking back the way it came
+        const q = P(p.x - p.vx * 0.06, p.y - p.vy * 0.06, p.z + 1.1), a = clamp(p.life * 1.6, 0, 1);
+        ctx.globalAlpha = a * 0.5; ctx.strokeStyle = p.c; ctx.lineWidth = Math.max(1, s * 0.05); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(q[0], q[1]); ctx.stroke();
+        ctx.globalAlpha = a; ctx.fillStyle = p.c; star4(x, y, p.r * s * (0.75 + 0.35 * Math.sin(T * 18 + p.tw)));
+        continue;
+      }
       if (p.smoke) { if (p.z < -1.2) continue; ctx.globalAlpha = clamp(p.life * 0.55, 0, 0.6) * clamp((p.z + 1.2) / 2, 0, 1); ctx.fillStyle = p.c || '#eceff5'; ctx.beginPath(); ctx.arc(x, y, p.r * s, 0, Math.PI * 2); ctx.fill(); continue; }
       ctx.fillStyle = p.col; ctx.globalAlpha = clamp(p.life * 2, 0, 1);
       const r = Math.max(1.5, s * 0.08); ctx.fillRect(x - r / 2, y - r / 2, r, r);
@@ -2075,7 +2110,7 @@ html, body { background: #26222c !important; }
     ctx.save(); ctx.translate(0, hyOff); ctx.fillStyle = hazeG; ctx.fillRect(0, HY - 6, W, H * 0.08 + 6); ctx.restore();
   }
 
-  function drawRoadside() {
+  function drawRoadside(keep) {
     const list = [];
     const PP = 28, op = traveled % PP;
     for (let z = FAR - ((FAR + op) % PP); z > ZN + 0.2; z -= PP) list.push(['pole', z]);
@@ -2091,6 +2126,7 @@ html, body { background: #26222c !important; }
     // building facades sit behind everything else on the sidewalk, so they get painted first
     list.sort((a, b) => (a[0] === 'bldg' ? 0 : 1) - (b[0] === 'bldg' ? 0 : 1) || b[1] - a[1]);
     for (const [k, z, bs, bn] of list) {
+      if (keep && !keep(z, k === 'bldg' ? 14.5 : 0.5)) continue;
       ctx.globalAlpha = clamp((FAR - z) / 35, 0, 1);
       if (k === 'board') { drawBillboard(bs, z, bn); continue; }
       if (k === 'wboard') { drawWantedSign(bs, z); continue; }
@@ -2399,6 +2435,92 @@ html, body { background: #26222c !important; }
     if (w > 0.35) { ctx.fillStyle = '#3a2208'; ctx.font = `700 ${Math.max(9, r * 1.05)}px Michroma, "Arial Black", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(o.ch, 0, r * 0.06); }
     ctx.restore();
   }
+  // ---------- tunnel: an eight-sided tube that sits on the road edges and clears the tallest jumps ----------
+  const TUBE = (() => { const cy = 4.2, R = 6.2, a0 = -Math.asin(cy / R), pts = []; for (let i = 0; i <= 8; i++) { const a = a0 + (Math.PI - 2 * a0) * i / 8; pts.push([Math.cos(a) * R, cy + Math.sin(a) * R]); } return pts; })();
+  const signs = {};
+  function signImg(mars) {
+    const key = mars ? 'mars' : 'nyc';
+    if (signs[key]) return signs[key];
+    const c = document.createElement('canvas'); c.width = 640; c.height = 120; const g = c.getContext('2d');
+    g.fillStyle = mars ? '#2a1610' : '#0d0e12'; g.fillRect(0, 0, 640, 120);
+    g.strokeStyle = mars ? '#ff8a3a' : '#f4f4f2'; g.lineWidth = 4; g.strokeRect(6, 6, 628, 108);
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = mars ? '#ffb070' : '#ffffff';
+    g.font = `400 ${mars ? 44 : 34}px Michroma, "Arial Black", sans-serif`; g.fillText(mars ? 'LAVA TUBE 7' : 'THE BORING COMPANY', 320, 50, 600);
+    g.font = '600 22px "Saira Semi Condensed", sans-serif'; g.fillStyle = mars ? '#e8c0a0' : '#5ce1ff';
+    g.fillText(mars ? 'MARS BASE  ·  ROADSTERS ONLY' : 'LOOP  ·  MANHATTAN TUNNEL', 320, 92);
+    return (signs[key] = c);
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { signs.nyc = signs.mars = null; });
+  function tubeLine(z) { TUBE.forEach(([x, y], i) => { const p = P(x, y, z); if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); }
+  function drawTunnel(zA, zB) {
+    const mars = onMars(), real = SET.real, z0 = Math.max(zA, ZN), z1 = Math.min(zB, FAR);
+    ctx.globalAlpha = 1;
+    if (zB > FAR) { ctx.beginPath(); tubeLine(FAR); ctx.closePath(); ctx.fillStyle = mars ? '#160a06' : '#06060b'; ctx.fill(); }
+    if (z1 > z0) {
+      const base = mars ? '#5a3224' : '#3e4149';
+      for (let i = 0; i < 8; i++) {
+        const [xa, ya] = TUBE[i], [xb, yb] = TUBE[i + 1], mid = (i + 0.5) / 8;
+        poly([[xa, ya, z0], [xb, yb, z0], [xb, yb, z1], [xa, ya, z1]], shade(base, 0.55 + 0.45 * Math.sin(mid * Math.PI)));
+      }
+      if (real) {
+        // darker toward the far end, like light falling off down a long bore
+        const n = P(0, 4.2, z0), f = P(0, 4.2, z1), g = ctx.createRadialGradient(f[0], f[1], 2, f[0], f[1], Math.max(W, H) * 0.7);
+        g.addColorStop(0, 'rgba(0,0,0,.55)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.save(); ctx.beginPath(); tubeLine(z0); ctx.closePath(); ctx.clip(); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+      }
+      // rings every 7 m: rainbow LED hoops in the Loop, steel ribs with amber work lights in the lava tube
+      const RING = 7, first = tunnel.s + Math.ceil((traveled + z0 - tunnel.s) / RING) * RING - traveled;
+      for (let zr = first, k = Math.round((first + traveled - tunnel.s) / RING); zr < z1; zr += RING, k++) {
+        const sc = P(0, 0, zr)[2], fade = clamp((FAR - zr) / 30, 0, 1);
+        ctx.globalAlpha = fade;
+        if (mars) {
+          ctx.strokeStyle = '#1e1410'; ctx.lineWidth = Math.max(1, sc * 0.22); ctx.beginPath(); tubeLine(zr); ctx.stroke();
+          for (const v of [TUBE[3], TUBE[5]]) { const l = P(v[0], v[1] - 0.2, zr); ctx.fillStyle = '#ffcf8a'; ctx.fillRect(l[0] - sc * 0.18, l[1] - sc * 0.08, sc * 0.36, sc * 0.16); glow(l[0], l[1], sc * (real ? 2.6 : 1.6), real ? 0.8 : 0.5); }
+          if (real) poly([[-4.4, 0.01, zr - 1.2], [4.4, 0.01, zr - 1.2], [4.4, 0.01, zr + 1.2], [-4.4, 0.01, zr + 1.2]], 'rgba(255,170,90,.08)');
+        } else {
+          const hue = (k * 32 + T * 70) % 360, col = `hsl(${hue.toFixed(0)},100%,62%)`;
+          if (real) { ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `hsla(${hue.toFixed(0)},100%,60%,.22)`; ctx.lineWidth = Math.max(3, sc * 0.9); ctx.beginPath(); tubeLine(zr); ctx.stroke(); ctx.globalCompositeOperation = 'source-over'; }
+          ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, sc * 0.13); ctx.beginPath(); tubeLine(zr); ctx.stroke();
+          if (real) poly([[-4.5, 0.01, zr - 1.4], [4.5, 0.01, zr - 1.4], [4.5, 0.01, zr + 1.4], [-4.5, 0.01, zr + 1.4]], `hsla(${hue.toFixed(0)},100%,60%,.1)`);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+    if (zA <= ZN + 0.3) return;
+    // the mouth: a concrete headwall under an elevated subway line in New York, a rocky cliff with an airlock frame on Mars
+    ctx.globalAlpha = clamp((FAR - zA) / 35, 0, 1);
+    ctx.beginPath();
+    if (mars) {
+      const o = P(-70, 0, zA); ctx.moveTo(o[0], o[1]);
+      for (let x = -70; x <= 70; x += 7) { const q = P(x, 13 + 7 * hash(Math.round(tunnel.s), x), zA); ctx.lineTo(q[0], q[1]); }
+      const e = P(70, 0, zA); ctx.lineTo(e[0], e[1]); ctx.closePath();
+    } else { const a = P(-70, 15, zA), b = P(70, 0, zA); ctx.rect(a[0], a[1], b[0] - a[0], b[1] - a[1]); }
+    tubeLine(zA); ctx.closePath();
+    let face = mars ? '#6a3424' : '#6b6672';
+    if (real) { const t = P(0, mars ? 20 : 15, zA), b = P(0, 0, zA), g = ctx.createLinearGradient(0, t[1], 0, b[1]); g.addColorStop(0, mars ? '#8a4a32' : '#7d7884'); g.addColorStop(1, mars ? '#3e1c12' : '#3b3741'); face = g; }
+    ctx.fillStyle = face; ctx.fill('evenodd');
+    const sc = P(0, 0, zA)[2];
+    ctx.strokeStyle = mars ? '#8a8f98' : '#a8a4ae'; ctx.lineWidth = Math.max(2, sc * 0.45); ctx.beginPath(); tubeLine(zA); ctx.stroke();
+    const sa = P(-5.6, 13.1, zA), sb = P(5.6, 10.9, zA), img = signImg(mars);
+    ctx.fillStyle = '#000'; ctx.fillRect(sa[0] - sc * 0.15, sa[1] - sc * 0.15, sb[0] - sa[0] + sc * 0.3, sb[1] - sa[1] + sc * 0.3);
+    ctx.drawImage(img, sa[0], sa[1], sb[0] - sa[0], sb[1] - sa[1]);
+    for (const lx of [-7.5, 7.5]) { const l = P(lx, 9, zA); ctx.fillStyle = mars ? '#ffcf8a' : '#fff3d6'; ctx.fillRect(l[0] - sc * 0.3, l[1] - sc * 0.15, sc * 0.6, sc * 0.3); glow(l[0], l[1], sc * 3, real ? 0.8 : 0.5); }
+    if (!mars) {
+      // elevated subway line across the top: green steel girders, and a silver train rolling past now and then
+      const ga = P(-70, 19, zA), gb = P(70, 15, zA);
+      ctx.fillStyle = '#2f4a3a'; ctx.fillRect(ga[0], ga[1], gb[0] - ga[0], gb[1] - ga[1]);
+      ctx.fillStyle = 'rgba(0,0,0,.35)'; for (let x = -70; x < 70; x += 4) { const q = P(x, 19, zA); ctx.fillRect(q[0], ga[1], Math.max(1, sc * 0.25), gb[1] - ga[1]); }
+      const tx = ((T * 22) % 220) - 110;
+      for (let c = 0; c < 5; c++) {
+        const x0 = tx + c * 13.5, a = P(x0, 23.4, zA), b = P(x0 + 13, 19.2, zA);
+        if (b[0] < 0 || a[0] > W) continue;
+        ctx.fillStyle = '#b9bec7'; ctx.fillRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
+        ctx.fillStyle = '#ffe9b8'; for (let wx = 0.8; wx < 12.5; wx += 1.6) { const w0 = P(x0 + wx, 22.4, zA), w1 = P(x0 + wx + 1, 21.3, zA); ctx.fillRect(w0[0], w0[1], w1[0] - w0[0], w1[1] - w0[1]); }
+        ctx.fillStyle = '#e8283f'; const st = P(x0, 20.4, zA), st2 = P(x0 + 13, 20.1, zA); ctx.fillRect(st[0], st[1], st2[0] - st[0], st2[1] - st[1]);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
   function pasteWanted(fx, pz, pw, ph) {
     const img = wantedAt(); if (!img || pz <= ZN + 0.5) return;
     const a = P(fx, 1.3 + ph, pz), b = P(fx, 1.3 + ph, pz + pw), c = P(fx, 1.3, pz);
@@ -2642,6 +2764,10 @@ html, body { background: #26222c !important; }
       const cr = b[2] * (0.55 + Math.random() * 0.15);
       ctx.fillStyle = `rgba(${sr},${sg},${sb},.7)`;
       ctx.beginPath(); ctx.ellipse(b[0], b[1] - cr * 0.25, cr * 1.4, cr * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      if (starSmoke()) for (let j = 0; j < 4; j++) {
+        const f = (T * 1.4 + j / 4 + sx * 0.37 + zz * 0.21) % 1, px = a[0] + (b[0] - a[0]) * f + Math.sin(T * 7 + j * 2) * w1 * 0.4, py = a[1] + (b[1] - a[1]) * f;
+        ctx.fillStyle = STAR_COLS[j]; star4(px, py, Math.max(2, b[2] * 0.2 * (0.7 + 0.5 * Math.sin(T * 16 + j * 3))));
+      }
       const hr = a[2] * 0.22, hg = ctx.createRadialGradient(a[0], a[1], 0, a[0], a[1], hr);
       hg.addColorStop(0, 'rgba(255,120,90,.95)'); hg.addColorStop(1, 'rgba(255,60,60,0)');
       ctx.fillStyle = hg; ctx.fillRect(a[0] - hr, a[1] - hr, hr * 2, hr * 2);
