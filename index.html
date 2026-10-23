@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '48';
+window.BUILD = '49';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -2485,7 +2485,7 @@ html, body { background: #26222c !important; }
     g.strokeStyle = mars ? '#ff8a3a' : '#f4f4f2'; g.lineWidth = 4; g.strokeRect(6, 6, 628, 108);
     g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = mars ? '#ffb070' : '#ffffff';
     g.font = `400 ${mars ? 44 : 34}px Michroma, "Arial Black", sans-serif`; g.fillText(mars ? 'LAVA TUBE 7' : 'THE BORING COMPANY', 320, 50, 600);
-    g.font = '600 22px "Saira Semi Condensed", sans-serif'; g.fillStyle = mars ? '#e8c0a0' : '#5ce1ff';
+    g.font = '600 22px "Saira Semi Condensed", sans-serif'; g.fillStyle = mars ? '#e8c0a0' : '#ff3b4b';
     g.fillText(mars ? 'MARS BASE  ·  ROADSTERS ONLY' : 'LOOP  ·  MANHATTAN TUNNEL', 320, 92);
     return (signs[key] = c);
   }
@@ -2496,7 +2496,7 @@ html, body { background: #26222c !important; }
     ctx.globalAlpha = 1;
     if (zB > FAR) { ctx.beginPath(); tubeLine(FAR); ctx.closePath(); ctx.fillStyle = mars ? '#160a06' : '#06060b'; ctx.fill(); }
     if (z1 > z0) {
-      const base = mars ? '#5a3224' : '#3e4149';
+      const base = mars ? '#5a3224' : '#1a1a20';
       for (let i = 0; i < 8; i++) {
         const [xa, ya] = TUBE[i], [xb, yb] = TUBE[i + 1], mid = (i + 0.5) / 8;
         poly([[xa, ya, z0], [xb, yb, z0], [xb, yb, z1], [xa, ya, z1]], shade(base, 0.55 + 0.45 * Math.sin(mid * Math.PI)));
@@ -2517,10 +2517,11 @@ html, body { background: #26222c !important; }
           for (const v of [TUBE[3], TUBE[5]]) { const l = P(v[0], v[1] - 0.2, zr); ctx.fillStyle = '#ffcf8a'; ctx.fillRect(l[0] - sc * 0.18, l[1] - sc * 0.08, sc * 0.36, sc * 0.16); glow(l[0], l[1], sc * (real ? 2.6 : 1.6), real ? 0.8 : 0.5); }
           if (real) poly([[-4.4, 0.01, zr - 1.2], [4.4, 0.01, zr - 1.2], [4.4, 0.01, zr + 1.2], [-4.4, 0.01, zr + 1.2]], 'rgba(255,170,90,.08)');
         } else {
-          const hue = (k * 32 + T * 70) % 360, col = `hsl(${hue.toFixed(0)},100%,62%)`;
-          if (real) { ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `hsla(${hue.toFixed(0)},100%,60%,.22)`; ctx.lineWidth = Math.max(3, sc * 0.9); ctx.beginPath(); tubeLine(zr); ctx.stroke(); ctx.globalCompositeOperation = 'source-over'; }
-          ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, sc * 0.13); ctx.beginPath(); tubeLine(zr); ctx.stroke();
-          if (real) poly([[-4.5, 0.01, zr - 1.4], [4.5, 0.01, zr - 1.4], [4.5, 0.01, zr + 1.4], [-4.5, 0.01, zr + 1.4]], `hsla(${hue.toFixed(0)},100%,60%,.1)`);
+          // neon red hoops on black, with a brighter pulse racing down the tunnel ahead of you
+          const pulse = Math.pow(0.5 + 0.5 * Math.sin(k * 0.8 - T * 7), 3), lum = 40 + 32 * pulse;
+          if (real || pulse > 0.4) { ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `hsla(355,100%,55%,${(0.12 + 0.3 * pulse).toFixed(2)})`; ctx.lineWidth = Math.max(3, sc * (0.6 + 0.6 * pulse)); ctx.beginPath(); tubeLine(zr); ctx.stroke(); ctx.globalCompositeOperation = 'source-over'; }
+          ctx.strokeStyle = `hsl(355,100%,${lum.toFixed(0)}%)`; ctx.lineWidth = Math.max(1, sc * 0.13); ctx.beginPath(); tubeLine(zr); ctx.stroke();
+          if (real) poly([[-4.5, 0.01, zr - 1.4], [4.5, 0.01, zr - 1.4], [4.5, 0.01, zr + 1.4], [-4.5, 0.01, zr + 1.4]], `hsla(355,100%,50%,${(0.06 + 0.1 * pulse).toFixed(2)})`);
         }
       }
       ctx.globalAlpha = 1;
