@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '31';
+window.BUILD = '32';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -836,15 +836,11 @@ html, body { background: #26222c !important; }
   addEventListener('pointercancel', () => { sw = null; });
 
   // ---------- audio ----------
-  let AC = null, muted = false, hum = null;
+  let AC = null, muted = false;
   function initAudio() {
     if (AC) return;
     try {
       AC = new (window.AudioContext || window.webkitAudioContext)();
-      const o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain();
-      o.type = 'sawtooth'; f.type = 'lowpass'; f.frequency.value = 700; g.gain.value = 0;
-      o.connect(f).connect(g).connect(AC.destination); o.start();
-      hum = { o, g };
     } catch (e) { AC = null; }
   }
   function tone(f, d, type = 'square', v = 0.04, slide = 0) {
@@ -909,7 +905,7 @@ html, body { background: #26222c !important; }
   // resuming runs a 3-2-1 countdown so you're not dropped straight into traffic
   let countT = 0;
   function togglePause() {
-    if (mode === 'play') { mode = 'paused'; show('pause'); $('tip').hidden = true; if (hum && AC) hum.g.gain.setTargetAtTime(0, AC.currentTime, 0.05); }
+    if (mode === 'play') { mode = 'paused'; show('pause'); $('tip').hidden = true; }
     else if (mode === 'paused') { mode = 'count'; countT = 3; show(null); setCount(3); }
   }
   function setCount(n) { const el = $('count'); el.textContent = n; el.hidden = false; el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick'); tone(n ? 520 : 880, 0.12, 'square', 0.04); }
@@ -1029,7 +1025,6 @@ html, body { background: #26222c !important; }
   // leaving a run early still banks the cells collected so far; only a finished run counts toward scores and stats
   function bankUnfinished() {
     if (mode === 'play' || mode === 'paused' || mode === 'dying') { save.bank += cells; save.cellsTotal += cells; persist(); }
-    if (hum && AC) hum.g.gain.setTargetAtTime(0, AC.currentTime, 0.05);
   }
   function restart() {
     bankUnfinished();
@@ -1110,7 +1105,6 @@ html, body { background: #26222c !important; }
     $('tip').hidden = true; if (tut) tut.i = 99;
     sparks(pl.x, 0.8, 3.5, 30, '#ffb84d');
     tone(90, 0.6, 'sawtooth', 0.09, 30);
-    if (hum) hum.g.gain.setTargetAtTime(0, AC.currentTime, 0.1);
   }
   // how long the patrol truck stays on your tail after a stumble; a second stumble inside this window gets you caught
   const STUMBLE = 7;
@@ -1266,10 +1260,6 @@ html, body { background: #26222c !important; }
     chaserZ += (chaseTo - chaserZ) * dt * (chaseTo > chaserZ ? 3.5 : 0.7);
     chaserX += ((pl.x < -0.5 ? pl.x + 2.4 : pl.x - 2.4) - chaserX) * Math.min(1, dt * 6);
     updParts(dt);
-    if (hum && !muted) {
-      hum.o.frequency.setTargetAtTime(55 + speed * 2.2, AC.currentTime, 0.1);
-      hum.g.gain.setTargetAtTime(0.018 * SET.sfx / 80, AC.currentTime, 0.2);
-    } else if (hum) hum.g.gain.setTargetAtTime(0, AC.currentTime, 0.05);
   }
 
   function advance(dz, dt) {
