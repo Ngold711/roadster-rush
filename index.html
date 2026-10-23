@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '36';
+window.BUILD = '37';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -188,6 +188,17 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 .buybar .btn { padding: 9px 14px; font-size: 12px; flex: none; }
 .buybar .btn:disabled { background: #3a3346; box-shadow: none; color: var(--muted); cursor: default; }
 .paint.pv { border-color: var(--cell); box-shadow: 0 0 0 1px var(--cell) inset; }
+.fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 55%, rgba(0,0,0,0) 45%, rgba(0,0,0,.55) 100%), linear-gradient(rgba(30,90,150,.22), rgba(30,90,150,0) 50%, rgba(255,130,60,.12)); }
+/* rain: a tall tile of streaks slid down on the compositor, so it costs nothing per frame */
+.fx .rain { position: absolute; left: -10%; right: -10%; top: -180px; height: calc(100% + 360px); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='180'%3E%3Cg stroke='%23d2dcf2' stroke-opacity='.38' stroke-width='1'%3E%3Cpath d='M12 4l-3 22M48 60l-3 22M90 18l-3 26M120 90l-3 22M30 120l-3 24M70 140l-3 22M104 150l-3 24M60 8l-2 18M132 40l-2 18M20 70l-2 18'/%3E%3C/g%3E%3C/svg%3E"); background-size: 140px 180px; animation: rainFall .42s linear infinite; }
+@keyframes rainFall { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-24px, 180px, 0); } }
+@media (prefers-reduced-motion: reduce) { .fx .rain { animation: none; opacity: .5; } }
+.gfxrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg button { padding: 7px 14px; border: 0; background: transparent; color: var(--muted); font: 600 13px var(--body); letter-spacing: .04em; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--red); color: #fff; }
+.seg button:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
 .headrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .btn.backtop { justify-self: auto; padding: 9px 14px; font-size: 12px; letter-spacing: .06em; flex: none; }
 /* the Garage header (title, Back, balance) stays pinned while the shop scrolls underneath */
@@ -243,6 +254,7 @@ html, body { background: #26222c !important; }
 
 <div id="game">
   <canvas id="cv" aria-label="Roadster Rush game view"></canvas>
+  <div class="fx" id="fx" hidden><div class="rain"></div></div>
 
   <div class="hud" id="hud" hidden>
     <div class="readout">
@@ -282,6 +294,7 @@ html, body { background: #26222c !important; }
         <span><i class="dot" style="background:#9be15d">A</i>Shield</span>
         <span><i class="dot" style="background:#ffb84d">2×</i>Double</span>
       </div>
+      <div class="gfxrow"><span class="label">Graphics</span><div class="seg" role="group" aria-label="Graphics style"><button type="button" id="gfxClassic">Classic</button><button type="button" id="gfxReal">Realistic</button></div></div>
       <div class="missions" id="missionsMenu"></div>
       <div class="install" id="installHint" hidden>To save your colors and scores, tap Safari's <b>Share</b> button, then <b>Add to Home Screen</b>, and play from the icon.</div>
       <div class="row">
@@ -653,7 +666,7 @@ html, body { background: #26222c !important; }
   const paintCol = () => (PAINTS.find((p) => p.id === save.paint) || PAINTS[0]).col;
   let best = save.top[0] || 0, runTwists = 0, runRoofs = 0, runWalls = 0, wallsWarned = 0, onRoof = false;
   if (save.music === undefined) save.music = true;
-  save.settings = Object.assign({ low: false, mus: 70, sfx: 80 }, save.settings || {});
+  save.settings = Object.assign({ low: false, mus: 70, sfx: 80, real: false }, save.settings || {});
   const SET = save.settings;
 
   // ---------- daily missions: 3 goals picked from the date, each paying bonus kWh once ----------
@@ -1088,6 +1101,12 @@ html, body { background: #26222c !important; }
   }
   let resetArmed = 0;
   $('settingsBtn').onclick = openSettings;
+  function showGfx() { $('gfxClassic').setAttribute('aria-pressed', String(!SET.real)); $('gfxReal').setAttribute('aria-pressed', String(SET.real)); $('fx').hidden = !SET.real; }
+  // switching style re-bakes the sky (the realistic one adds a moon and clouds)
+  function setGfx(real) { SET.real = real; persist(); bg = null; showGfx(); }
+  $('gfxClassic').onclick = () => setGfx(false);
+  $('gfxReal').onclick = () => setGfx(true);
+  showGfx();
   $('settingsBack').onclick = () => { renderMissions('missionsMenu'); show('menu'); };
   $('setLow').onchange = (e) => { SET.low = e.target.checked; persist(); resize(); };
   $('setMus').oninput = (e) => { SET.mus = +e.target.value; persist(); if (musGain) musGain.gain.value = 0.32 * SET.mus / 70; };
@@ -1564,6 +1583,19 @@ html, body { background: #26222c !important; }
         for (const [wx, wy] of lit) ctx.fillRect(x + wx, HY - h + wy, 2.5, 3);
       }
     });
+    if (SET.real) {
+      // moon with a soft halo, and low clouds catching the city glow
+      const mx = W * 0.2, my = HY * 0.28, mr = Math.min(W, H) * 0.035;
+      const halo = ctx.createRadialGradient(mx, my, mr, mx, my, mr * 7); halo.addColorStop(0, 'rgba(220,225,255,.28)'); halo.addColorStop(1, 'rgba(220,225,255,0)');
+      ctx.fillStyle = halo; ctx.fillRect(mx - mr * 7, my - mr * 7, mr * 14, mr * 14);
+      ctx.fillStyle = '#eef0f8'; ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(200,205,225,.35)'; ctx.beginPath(); ctx.arc(mx - mr * 0.3, my - mr * 0.2, mr * 0.28, 0, Math.PI * 2); ctx.arc(mx + mr * 0.35, my + mr * 0.25, mr * 0.18, 0, Math.PI * 2); ctx.fill();
+      for (let i = 0; i < 14; i++) {
+        const cx = (i * 0.137 % 1) * W * 1.2 - W * 0.1, cy = HY * (0.18 + (i * 0.29 % 1) * 0.55), rw = W * (0.18 + (i * 0.37 % 1) * 0.22), rh = rw * 0.22;
+        const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, rw); cg.addColorStop(0, 'rgba(120,80,130,.22)'); cg.addColorStop(1, 'rgba(120,80,130,0)');
+        ctx.save(); ctx.translate(cx, cy); ctx.scale(1, rh / rw); ctx.translate(-cx, -cy); ctx.fillStyle = cg; ctx.fillRect(cx - rw, cy - rw, rw * 2, rw * 2); ctx.restore();
+      }
+    }
     const gg = ctx.createLinearGradient(0, HY, 0, H);
     gg.addColorStop(0, '#4a4152'); gg.addColorStop(0.4, '#2c2633'); gg.addColorStop(1, '#16131c');
     ctx.fillStyle = gg; ctx.fillRect(0, HY, W, H - HY);
@@ -1625,7 +1657,9 @@ html, body { background: #26222c !important; }
   function drawRoad() {
     poly([[-11.5, 0, ZN], [-4.6, 0, ZN], [-4.6, 0, FAR], [-11.5, 0, FAR]], '#4b4654');
     poly([[4.6, 0, ZN], [11.5, 0, ZN], [11.5, 0, FAR], [4.6, 0, FAR]], '#4b4654');
-    poly([[-4.6, 0, ZN], [4.6, 0, ZN], [4.6, 0, FAR], [-4.6, 0, FAR]], '#26222c');
+    let roadFill = '#26222c';
+    if (SET.real) { const rg = ctx.createLinearGradient(0, HY + hyOff, 0, H); rg.addColorStop(0, '#4a3b52'); rg.addColorStop(0.25, '#1f1b26'); rg.addColorStop(1, '#0e0c12'); roadFill = rg; }
+    poly([[-4.6, 0, ZN], [4.6, 0, ZN], [4.6, 0, FAR], [-4.6, 0, FAR]], roadFill);
     const P8 = 8, off = traveled % P8;
     for (let z = -off - P8; z < FAR; z += P8) {
       const z0 = Math.max(z, ZN), z1 = z + P8 / 2;
@@ -1683,6 +1717,7 @@ html, body { background: #26222c !important; }
           ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.stroke();
           const r = Math.max(2, a[2] * 0.7);
           glow(c[0], c[1], r, 0.95);
+          if (SET.real) reflect(side * 4.2, z, a[2], warmStrip, 0.38);
         }
       }
     }
@@ -1691,11 +1726,24 @@ html, body { background: #26222c !important; }
 
   const hash = (a, b) => { const v = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return v - Math.floor(v); };
   const FACADES = ['#3b2f3f', '#2e3346', '#4a3533', '#34303d', '#283a3a'];
+  // a light's reflection on wet asphalt: a soft streak running from the road point toward the camera
+  const strip = (rgb) => { const c = document.createElement('canvas'); c.width = 8; c.height = 64; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, rgb + '1)'); gr.addColorStop(1, rgb + '0)'); g.fillStyle = gr; g.fillRect(0, 0, 8, 64); return c; };
+  const warmStrip = strip('rgba(255,205,130,'), redStrip = strip('rgba(255,40,60,');
+  function reflect(x, z, s, img, a) {
+    if (z <= ZN + 0.5) return;
+    const g0 = P(x, 0, z), pa = ctx.globalAlpha; ctx.globalAlpha = pa * a;
+    ctx.drawImage(img, g0[0] - Math.max(1, s * 0.16), g0[1], Math.max(2, s * 0.32), s * 2.4); ctx.globalAlpha = pa;
+  }
   function drawBuilding(side, z, n) {
     const z0 = z, z1 = z + 14.5;
     if (z1 <= ZN) return;
     const h = 9 + hash(n, side) * 24, fx = side * 11.5, col = FACADES[Math.floor(hash(side, n) * FACADES.length)];
     drawBox(side * 16, 0, h, z0, z1, 9, shade(col, 0.85), shade(col, 1.1), col);
+    if (SET.real && z0 > ZN) {
+      const zm = Math.max(z0, ZN + 0.5);
+      poly([[fx, 0, zm], [fx, h * 0.55, zm], [fx, h * 0.55, z1], [fx, 0, z1]], 'rgba(0,0,0,.22)');
+      poly([[fx, 0, zm], [fx, h * 0.22, zm], [fx, h * 0.22, z1], [fx, 0, z1]], 'rgba(0,0,0,.22)');
+    }
     // about half the buildings have a wanted poster pasted on the wall, mapped onto the receding facade
     if (z0 < 70 && hash(n * 7, side * 3) < 0.55) pasteWanted(side * 11.45, z0 + 4 + hash(n, side * 5) * 6, 1.4, 2.1);
     if (z0 > 75 || SET.low) return;
@@ -1789,6 +1837,13 @@ html, body { background: #26222c !important; }
     }
     if (!rr) return;
     sub(rr, 0, 0.72, 1, 1, '#141016');
+    if (SET.real) {
+      sub(rr, 0, 0, 1, 0.1, 'rgba(255,255,255,.22)');
+      const rw = (rr.r - rr.l) * 0.16, rl = (rr.b - rr.t) * 1.6;
+      const pa = ctx.globalAlpha; ctx.globalAlpha = pa * 0.4;
+      for (const fx of [0.12, 0.88]) ctx.drawImage(redStrip, rr.l + (rr.r - rr.l) * fx - rw / 2, rr.b, rw, rl);
+      ctx.globalAlpha = pa;
+    }
     if (roadster && save.design !== 'd:none') drawDesign(x, y, z, m, rr, col);
     if (roadster || m.bar) {
       sub(rr, 0, 0.14, 1, 0.26, brake ? '#ff5a64' : '#ff2a3a');
