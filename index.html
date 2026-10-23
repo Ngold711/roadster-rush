@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '25';
+window.BUILD = '26';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -172,6 +172,17 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 .combo.pop { animation: comboPop .25s ease-out; }
 @keyframes comboPop { from { transform: scale(1.35); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .callout.warn, .combo.pop { animation: none; } }
+.rbar { height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+.rbar i { display: block; height: 100%; width: 100%; background: var(--amber); }
+.set { display: flex; justify-content: space-between; align-items: center; gap: 14px; font-size: 15px; }
+.set small { display: block; font-size: 12px; color: var(--muted); }
+.set input[type=range] { width: 46%; accent-color: var(--red); }
+.set input[type=checkbox] { width: 24px; height: 24px; accent-color: var(--red); }
+.btn.danger { color: #ff8a95; border-color: rgba(255,90,100,.45); }
+.count { position: absolute; inset: 0; display: grid; place-items: center; font: 400 clamp(72px, 24vw, 140px) var(--display); color: var(--paper); text-shadow: 0 6px 30px rgba(0,0,0,.6); pointer-events: none; z-index: 8; }
+.count.tick { animation: countIn .9s ease-out both; }
+@keyframes countIn { from { transform: scale(1.6); opacity: 0; } 30% { transform: none; opacity: 1; } to { opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .count.tick { animation: none; } }
 .errbar { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); transform: translateX(-50%); max-width: calc(100% - 32px); padding: 6px 10px; border-radius: 4px; background: rgba(120, 10, 20, .9); color: #fff; font: 600 12px var(--body); pointer-events: none; z-index: 5; }
 .banked { font-size: 15px; color: var(--cell); font-weight: 600; }
 .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -257,6 +268,7 @@ html, body { background: #26222c !important; }
         <button class="btn" id="startBtn" type="button">Start driving</button>
         <button class="btn ghost" id="garageBtn" type="button">Garage</button>
         <button class="btn ghost" id="shareBtn" type="button">Share</button>
+        <button class="btn ghost" id="settingsBtn" type="button">Settings</button>
       </div>
     </div>
   </div>
@@ -314,6 +326,38 @@ html, body { background: #26222c !important; }
       </div>
     </div>
   </div>
+
+  <div class="screen" id="revive" hidden>
+    <div class="card">
+      <div>
+        <div class="eyebrow">Second chance</div>
+        <h2>Keep driving?</h2>
+      </div>
+      <p class="lede" id="reviveText"></p>
+      <div class="rbar"><i id="reviveBar"></i></div>
+      <div class="row">
+        <button class="btn" id="reviveYes" type="button">Keep driving</button>
+        <button class="btn ghost" id="reviveNo" type="button">No thanks</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="settings" hidden>
+    <div class="card">
+      <div>
+        <div class="eyebrow">Settings</div>
+        <h2>Options</h2>
+      </div>
+      <label class="set" for="setLow"><span>Low graphics<small>Fewer effects, smoother on older phones</small></span><input type="checkbox" id="setLow"></label>
+      <label class="set" for="setMus"><span>Music volume</span><input type="range" id="setMus" min="0" max="100" step="5"></label>
+      <label class="set" for="setSfx"><span>Sound effects</span><input type="range" id="setSfx" min="0" max="100" step="5"></label>
+      <button class="btn ghost danger" id="setReset" type="button">Reset all progress</button>
+      <div class="msg" id="setMsg" aria-live="polite"></div>
+      <button class="btn ghost" id="settingsBack" type="button">Back</button>
+    </div>
+  </div>
+
+  <div class="count" id="count" hidden></div>
 
   <div class="screen" id="over" hidden>
     <div class="card">
@@ -425,7 +469,7 @@ html, body { background: #26222c !important; }
   function resize() {
     const r = cv.getBoundingClientRect();
     W = Math.max(1, r.width); H = Math.max(1, r.height);
-    DPR = Math.min(1.5, window.devicePixelRatio || 1); // sharp enough on phones, and far fewer pixels to fill each frame
+    DPR = Math.min(SET.low ? 1 : 1.5, window.devicePixelRatio || 1); // sharp enough on phones, and far fewer pixels to fill each frame
     cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     F = Math.min(H * 0.95, W * 1.2);
@@ -441,7 +485,7 @@ html, body { background: #26222c !important; }
     r.addColorStop(0, 'rgba(255,226,170,1)'); r.addColorStop(0.25, 'rgba(255,190,110,.42)'); r.addColorStop(1, 'rgba(255,190,110,0)');
     g.fillStyle = r; g.fillRect(0, 0, 64, 64); return c;
   })();
-  function glow(x, y, r, a) { const pa = ctx.globalAlpha; ctx.globalAlpha = pa * a; ctx.drawImage(glowImg, x - r, y - r, r * 2, r * 2); ctx.globalAlpha = pa; }
+  function glow(x, y, r, a) { if (SET.low) return; const pa = ctx.globalAlpha; ctx.globalAlpha = pa * a; ctx.drawImage(glowImg, x - r, y - r, r * 2, r * 2); ctx.globalAlpha = pa; }
   function rnd(a, b) { return a + Math.random() * (b - a); }
   function ri(n) { return Math.floor(Math.random() * n); }
   function pick(a) { return a[ri(a.length)]; }
@@ -514,7 +558,7 @@ html, body { background: #26222c !important; }
   let mode = 'menu', objs = [], parts = [], pl, T = 0, t = 0, speed = 14, traveled = 0, score = 0, cells = 0;
   let spawnZ = 0, stumble = 0, invuln = 0, shake = 0, deathT = 0, caught = false, shield = false, chaserZ = -12, combo = 0, comboT = 0, introT = 0;
   const pw = { lud: 0, magnet: 0, dbl: 0, fly: 0 };
-  let tut = null, chaserX = -2.4, noShadow = false, introA = 0, zoom = 1, hyOff = 0, flightRocket = -99;
+  let tut = null, chaserX = -2.4, noShadow = false, introA = 0, zoom = 1, hyOff = 0, flightRocket = -99, jumpBuf = 0, reviveUsed = false, revivePending = false, reviveT = 0;
   // progress saved on this device: banked battery cells, owned paints, lifetime stats, top 5 scores
   const SAVE_KEY = 'roadster-rush-save';
   // shop catalog: priced so a good run (roughly 80-150 kWh) buys a first item in a few runs and the top items take many sessions
@@ -554,6 +598,8 @@ html, body { background: #26222c !important; }
   const paintCol = () => (PAINTS.find((p) => p.id === save.paint) || PAINTS[0]).col;
   let best = save.top[0] || 0, runTwists = 0, runRoofs = 0, runWalls = 0, wallsWarned = 0, onRoof = false;
   if (save.music === undefined) save.music = true;
+  save.settings = Object.assign({ low: false, mus: 70, sfx: 80 }, save.settings || {});
+  const SET = save.settings;
 
   // ---------- daily missions: 3 goals picked from the date, each paying bonus kWh once ----------
   const MISSIONS = [
@@ -624,7 +670,7 @@ html, body { background: #26222c !important; }
   function reset() {
     objs = []; parts = [];
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
-    t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
+    reviveUsed = false; revivePending = false; jumpBuf = 0; t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
     flightRocket = -99; caught = false; shield = false; chaserZ = -2.6; introT = 4; chaserX = -2.4; pw.lud = pw.magnet = pw.dbl = pw.fly = 0; combo = 0;
     cam.x = 0; cam.y = 3.6;
   }
@@ -722,8 +768,10 @@ html, body { background: #26222c !important; }
     const nl = clamp(pl.lane + d, 0, 2);
     if (nl !== pl.lane) { pl.fromLane = pl.lane; pl.lane = nl; pl.rollDir = d; tutDid('lane'); tone(320, 0.05, 'triangle', 0.025, 260); }
   }
+  // a jump pressed just before landing is remembered and fires the moment the wheels touch down
   function jump() {
     if (mode !== 'play') return;
+    if (!pl.grounded && !pl.boost && pw.fly <= 0) { jumpBuf = 0.25; return; }
     if (pl.grounded) { pl.vy = JUMPV; pl.grounded = false; tutDid('jump'); tone(380, 0.18, 'sine', 0.05, 760); puff(14); }
     else if (pl.boost && pw.fly <= 0) { pl.boost = false; pl.vy = TWISTV; tutDid('boost'); tone(240, 0.3, 'sawtooth', 0.04, 900); twist(); }
     else if (pw.fly > 0 && pl.rollT <= 0) twist();
@@ -779,6 +827,7 @@ html, body { background: #26222c !important; }
     const n = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
     o.type = type; o.frequency.setValueAtTime(f, n);
     if (slide) o.frequency.exponentialRampToValueAtTime(slide, n + d);
+    v *= SET.sfx / 80; if (v <= 0.0001) return;
     g.gain.setValueAtTime(v, n); g.gain.exponentialRampToValueAtTime(0.0001, n + d);
     o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d + 0.02);
   }
@@ -787,7 +836,7 @@ html, body { background: #26222c !important; }
   const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
   function musicSetup() {
     if (!AC || musGain) return;
-    musGain = AC.createGain(); musGain.gain.value = 0.32; musGain.connect(AC.destination);
+    musGain = AC.createGain(); musGain.gain.value = 0.32 * SET.mus / 70; musGain.connect(AC.destination);
     noiseBuf = AC.createBuffer(1, AC.sampleRate * 0.2, AC.sampleRate);
     const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   }
@@ -807,7 +856,7 @@ html, body { background: #26222c !important; }
     if (arp !== undefined) voice('square', mtof(root + 24 + arp), 0, t0, st * 1.2, 0.035, 2400);
   }
   setInterval(() => {
-    if (!AC || !save.music || mode !== 'play') { musNext = 0; return; }
+    if (!AC || !save.music || !SET.mus || mode !== 'play') { musNext = 0; return; }
     musicSetup();
     const tempo = 112 + Math.min(44, Math.max(0, (speed - 24) * 0.9)), st = 60 / tempo / 4;
     if (musNext < AC.currentTime) musNext = AC.currentTime + 0.05;
@@ -825,17 +874,40 @@ html, body { background: #26222c !important; }
   }
 
   // ---------- flow ----------
-  function show(id) { ['menu', 'pause', 'over', 'garage'].forEach((s) => { $(s).hidden = s !== id; }); }
+  function show(id) { ['menu', 'pause', 'over', 'garage', 'revive', 'settings'].forEach((s) => { $(s).hidden = s !== id; }); }
   function start() {
     initAudio();
     if (AC && AC.state === 'suspended') AC.resume();
     reset(); mode = 'intro'; introA = 0; show(null); $('hud').hidden = false; $('tip').hidden = true; $('toast').hidden = true; toastT = 0;
     cv.focus?.();
   }
+  // resuming runs a 3-2-1 countdown so you're not dropped straight into traffic
+  let countT = 0;
   function togglePause() {
-    if (mode === 'play') { mode = 'paused'; show('pause'); $('tip').hidden = true; }
-    else if (mode === 'paused') { mode = 'play'; show(null); showTip(); }
+    if (mode === 'play') { mode = 'paused'; show('pause'); $('tip').hidden = true; if (hum && AC) hum.g.gain.setTargetAtTime(0, AC.currentTime, 0.05); }
+    else if (mode === 'paused') { mode = 'count'; countT = 3; show(null); setCount(3); }
   }
+  function setCount(n) { const el = $('count'); el.textContent = n; el.hidden = false; el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick'); tone(n ? 520 : 880, 0.12, 'square', 0.04); }
+  // second chance: once per run, spend kWh (this run's first, then the bank) to get back on the road
+  const REVIVE_COST = 300, REVIVE_WAIT = 5;
+  function offerRevive() {
+    revivePending = true; reviveT = REVIVE_WAIT;
+    $('reviveText').textContent = `Spend ${REVIVE_COST} kWh to get back on the road. You have ${(save.bank + cells).toLocaleString()} kWh.`;
+    $('reviveYes').textContent = `Revive · ${REVIVE_COST}`;
+    show('revive');
+  }
+  function declineRevive() { revivePending = false; gameOver(); }
+  function doRevive() {
+    if (!revivePending) return;
+    let pay = REVIVE_COST; const fromRun = Math.min(cells, pay); cells -= fromRun; pay -= fromRun; save.bank -= pay; persist();
+    reviveUsed = true; revivePending = false; show(null);
+    mode = 'play'; deathT = 0; caught = false; stumble = 0; introT = 0; chaserZ = -14; invuln = 3; shake = 0;
+    objs = objs.filter((o) => o.z > 45); spawnZ = Math.max(spawnZ, 45);
+    Object.assign(pl, { y: 0, vy: 0, grounded: true, ground: 0, rollT: 0, roll: 0, boost: true });
+    toast('Back on the road!'); tone(660, 0.3, 'triangle', 0.05, 1320);
+  }
+  $('reviveYes').onclick = doRevive;
+  $('reviveNo').onclick = declineRevive;
   function gameOver() {
     mode = 'over'; $('tip').hidden = true;
     const s = Math.floor(score), km = traveled / 1000 * 4, isBest = s > best;
@@ -906,6 +978,24 @@ html, body { background: #26222c !important; }
   function openGarage(from) { garageFrom = from; renderGarage(); show('garage'); }
   $('garageBtn').onclick = () => openGarage('menu');
   $('overGarage').onclick = () => openGarage('over');
+  function openSettings() {
+    $('setLow').checked = SET.low; $('setMus').value = SET.mus; $('setSfx').value = SET.sfx; $('setMsg').textContent = ''; resetArmed = 0;
+    $('setReset').textContent = 'Reset all progress'; show('settings');
+  }
+  let resetArmed = 0;
+  $('settingsBtn').onclick = openSettings;
+  $('settingsBack').onclick = () => { renderMissions('missionsMenu'); show('menu'); };
+  $('setLow').onchange = (e) => { SET.low = e.target.checked; persist(); resize(); };
+  $('setMus').oninput = (e) => { SET.mus = +e.target.value; persist(); if (musGain) musGain.gain.value = 0.32 * SET.mus / 70; };
+  $('setSfx').oninput = (e) => { SET.sfx = +e.target.value; persist(); };
+  $('setSfx').onchange = () => tone(880, 0.1, 'square', 0.04);
+  $('setReset').onclick = () => {
+    // two taps within 3 seconds, so progress is never wiped by accident
+    if (Date.now() - resetArmed < 3000) { try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem('roadster-rush-best'); } catch (e) {} location.reload(); return; }
+    resetArmed = Date.now(); $('setReset').textContent = 'Tap again to erase everything';
+    $('setMsg').textContent = 'This deletes your kWh, colors, designs, stats and scores on this phone.';
+    setTimeout(() => { if (Date.now() - resetArmed >= 3000) $('setReset').textContent = 'Reset all progress'; }, 3100);
+  };
   $('garageBack').onclick = () => { renderMissions('missionsMenu'); show(garageFrom); };
 
   $('startBtn').onclick = start;
@@ -953,6 +1043,7 @@ html, body { background: #26222c !important; }
     for (let i = 0; i < n; i++) parts.push({ x, y, z, vx: rnd(-5, 5), vy: rnd(2, 9), vz: rnd(-4, 6), life: rnd(0.4, 0.9), col });
   }
   function puff(n) {
+    if (SET.low) n = Math.ceil(n / 2);
     for (let i = 0; i < n; i++) parts.push({
       x: pl.x + (Math.random() < 0.5 ? -0.62 : 0.62) + rnd(-0.15, 0.15), y: pl.ground + rnd(0.1, 0.5), z: (Math.random() < 0.5 ? 0.6 : 3.0) - Math.max(0, pl.y - pl.ground) * 0.15,
       vx: rnd(-2.5, 2.5), vy: rnd(0.2, 1.2), vz: rnd(-2, 1), life: rnd(0.7, 1.3), smoke: true, r: rnd(0.35, 0.6), c: smokeCss(),
@@ -1090,6 +1181,12 @@ html, body { background: #26222c !important; }
   function update(dt) {
     T += dt;
     if (mode === 'paused') return;
+    if (mode === 'count') {
+      const prev = Math.ceil(countT); countT -= dt; const now = Math.ceil(countT);
+      if (now !== prev && now > 0) setCount(now);
+      if (countT <= 0) { $('count').hidden = true; mode = 'play'; showTip(); tone(880, 0.15, 'square', 0.05); }
+      return;
+    }
     if (mode === 'intro') { updIntro(dt); return; }
     if (mode === 'menu' || mode === 'over') {
       speed = 14; traveled += speed * dt;
@@ -1107,7 +1204,11 @@ html, body { background: #26222c !important; }
       if (prev < 2.1 && deathT >= 2.1) { tone(2400, 0.05, 'square', 0.03); tone(1800, 0.06, 'square', 0.03); }
       if (prev < 2.35 && deathT >= 2.35) tone(110, 0.4, 'sawtooth', 0.06, 60);
       updParts(dt);
-      if (deathT > ARREST) gameOver();
+      if (deathT > ARREST) {
+        if (revivePending) { reviveT -= dt; $('reviveBar').style.width = Math.max(0, reviveT / REVIVE_WAIT * 100) + '%'; if (reviveT <= 0) declineRevive(); }
+        else if (!reviveUsed && save.bank + cells >= REVIVE_COST) offerRevive();
+        else gameOver();
+      }
       return;
     }
     t += dt;
@@ -1133,7 +1234,7 @@ html, body { background: #26222c !important; }
     updParts(dt);
     if (hum && !muted) {
       hum.o.frequency.setTargetAtTime(55 + speed * 2.2, AC.currentTime, 0.1);
-      hum.g.gain.setTargetAtTime(0.018, AC.currentTime, 0.2);
+      hum.g.gain.setTargetAtTime(0.018 * SET.sfx / 80, AC.currentTime, 0.2);
     } else if (hum) hum.g.gain.setTargetAtTime(0, AC.currentTime, 0.05);
   }
 
@@ -1194,6 +1295,8 @@ html, body { background: #26222c !important; }
       crash(); return;
     }
     if (pl.y <= ground) { pl.y = ground; pl.vy = 0; pl.grounded = true; pl.boost = true; pl.rollT = 0; }
+    jumpBuf = Math.max(0, jumpBuf - dt);
+    if (pl.grounded && jumpBuf > 0) { jumpBuf = 0; jump(); }
     if (pl.grounded && ground >= 3 && !onRoof) { onRoof = true; runRoofs++; } else if (ground < 3) onRoof = false;
     else pl.grounded = false;
     pl.ground = ground;
@@ -1480,7 +1583,7 @@ html, body { background: #26222c !important; }
     if (z1 <= ZN) return;
     const h = 9 + hash(n, side) * 24, fx = side * 11.5, col = FACADES[Math.floor(hash(side, n) * FACADES.length)];
     drawBox(side * 16, 0, h, z0, z1, 9, shade(col, 0.85), shade(col, 1.1), col);
-    if (z0 > 75) return;
+    if (z0 > 75 || SET.low) return;
     // all of a building's lit windows go into two paths (warm and cool) and fill in two calls
     const zs = Math.max(z0, ZN + 0.5), warm = new Path2D(), cool = new Path2D();
     for (let r = 0, wy = 1.6; wy < h - 1; r++, wy += 1.5) for (let c = 0, wz = z0 + 0.7; wz < z1 - 0.9; c++, wz += 1.65) {
