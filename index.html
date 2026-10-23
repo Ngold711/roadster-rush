@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '41';
+window.BUILD = '42';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -704,6 +704,7 @@ html, body { background: #26222c !important; }
   let best = save.top[0] || 0, runTwists = 0, runRoofs = 0, runWalls = 0, wallsWarned = 0, onRoof = false;
   if (save.music === undefined) save.music = true;
   save.settings = Object.assign({ low: false, mus: 70, sfx: 80, real: false }, save.settings || {});
+  save.settings.real = false; // every launch starts in Classic; Realistic is picked per session
   const SET = save.settings;
 
   // ---------- daily missions: 3 goals picked from the date, each paying bonus kWh once ----------
