@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '28';
+window.BUILD = '29';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -204,6 +204,16 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 @keyframes tipIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (prefers-reduced-motion: reduce) { .tip { animation: none; } }
 @media (pointer: coarse) { .key-hint { display: none; } .touch-hint { display: contents; } }
+@media (max-width: 520px) {
+  /* phones: every box sits dead center, and the menu buttons line up in an even grid */
+  .card { margin-inline: auto; }
+  /* six-column grid: the main button spans the row; two extras split it in halves, three in thirds */
+  .row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+  .row .btn { grid-column: span 2; justify-self: stretch; text-align: center; padding-inline: 6px; font-size: 12px; letter-spacing: .04em; }
+  .row .btn:first-child { grid-column: 1 / -1; font-size: 14px; letter-spacing: .08em; }
+  .row .btn:nth-child(2):last-child { grid-column: 1 / -1; }
+  .row .btn:nth-child(2):nth-last-child(2), .row .btn:nth-child(3):last-child { grid-column: span 3; }
+}
 @media (max-width: 520px) { .card { padding: 18px; gap: 14px; } .screen { align-items: flex-start; } #menu { align-items: center; padding-bottom: 26vh; } } /* on phones the start box sits mid-screen, other menus at the top, so the car stays in view */
 </style>
 <style>
@@ -377,7 +387,7 @@ html, body { background: #26222c !important; }
       <div class="row">
         <button class="btn" id="againBtn" type="button">Drive again</button>
         <button class="btn ghost" id="overGarage" type="button">Garage</button>
-        <button class="btn ghost" id="overShare" type="button">Share score</button>
+        <button class="btn ghost" id="overShare" type="button">Share</button>
         <button class="btn ghost" id="overHome" type="button">Home</button>
       </div>
     </div>
