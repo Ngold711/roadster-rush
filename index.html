@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '47';
+window.BUILD = '48';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -842,16 +842,18 @@ html, body { background: #26222c !important; }
   const smokeCss = () => { const c = smokeRGB(Math.random()); return `rgb(${c[0]},${c[1]},${c[2]})`; };
 
   // ---------- word hunt: each run hides one word, letters show up far apart; spell it before you crash ----------
-  const WORDS = ['PIZZA', 'ROCKET', 'GUITAR', 'PLANET', 'JUNGLE', 'CASTLE', 'DRAGON', 'PENCIL', 'BANANA', 'ORANGE',
-    'PIRATE', 'WIZARD', 'TURBO', 'GALAXY', 'COMET', 'THUNDER', 'DONUT', 'BURGER', 'TACOS', 'CHEESE',
-    'PUPPY', 'KITTEN', 'TIGER', 'ZEBRA', 'MONKEY', 'PANDA', 'SHARK', 'WHALE', 'EAGLE', 'FALCON',
-    'ROBOT', 'LASER', 'MAGNET', 'BATTERY', 'ENGINE', 'OCEAN', 'ISLAND', 'DESERT', 'VOLCANO', 'CANYON',
-    'RIVER', 'FOREST', 'GARDEN', 'BRIDGE', 'TUNNEL', 'STREET', 'SUBWAY', 'TICKET', 'MOVIE', 'CAMERA',
-    'PHOTO', 'MUSIC', 'PIANO', 'DRUMS', 'TRUMPET', 'VIOLIN', 'SOCCER', 'HOCKEY', 'TENNIS', 'KARATE',
-    'NINJA', 'KNIGHT', 'PRINCE', 'QUEEN', 'CROWN', 'JEWEL', 'DIAMOND', 'SILVER', 'MARBLE', 'PUZZLE',
-    'RIDDLE', 'SECRET', 'MYSTERY', 'TREASURE', 'COOKIE', 'CANDY', 'WAFFLE', 'PANCAKE', 'SPLASH', 'BUBBLE',
-    'RAINBOW', 'SUNSET', 'LIGHTNING', 'TORNADO', 'BLIZZARD', 'PENGUIN', 'DOLPHIN', 'OCTOPUS', 'LOBSTER', 'PARROT',
-    'MARS', 'ORBIT', 'PLAID', 'CYBER', 'STARSHIP', 'COFFEE', 'HOTDOG', 'POPCORN', 'SKATER', 'LEGEND'];
+  // 100 approved words: Tesla, Elon / SpaceX / X, Waymo, and Meta / Zuck
+  const WORDS = ['TESLA', 'ROADSTER', 'CYBERTRUCK', 'CYBERCAB', 'ROBOVAN', 'CYBERBEAST', 'PLAID', 'LUDICROUS', 'AUTOPILOT', 'OPTIMUS',
+    'POWERWALL', 'MEGAPACK', 'SUPERCHARGER', 'GIGAFACTORY', 'GIGAPRESS', 'FRUNK', 'SEMI', 'SOLARROOF', 'KILOWATT', 'BATTERY',
+    'ELECTRIC', 'ROBOTAXI', 'SENTRY', 'DOGMODE', 'CYBERQUAD', 'FREMONT', 'AUSTIN', 'SHANGHAI', 'BERLIN', 'PALOALTO',
+    'STAINLESS', 'HEATPUMP', 'DOJO', 'REGEN', 'FALCONWING',
+    'ELON', 'MUSK', 'SPACEX', 'STARSHIP', 'FALCON', 'DRAGON', 'RAPTOR', 'MERLIN', 'STARLINK', 'STARBASE',
+    'MECHAZILLA', 'BOOSTER', 'CHOPSTICKS', 'BOCACHICA', 'NEURALINK', 'BORING', 'HYPERLOOP', 'FLAMETHROWER', 'GROK', 'COLOSSUS',
+    'DOGECOIN', 'MARS', 'ORBIT', 'LAUNCH', 'ROCKET', 'TWITTER', 'PAYPAL', 'MEMES', 'OCCUPYMARS', 'TECHNOKING',
+    'WAYMO', 'LIDAR', 'JAGUAR', 'ZEEKR', 'FIREFLY', 'PACIFICA', 'ALPHABET', 'PHOENIX', 'SENSOR', 'DRIVERLESS',
+    'META', 'ZUCK', 'ZUCKERBERG', 'FACEBOOK', 'INSTAGRAM', 'WHATSAPP', 'THREADS', 'OCULUS', 'QUEST', 'METAVERSE',
+    'HORIZON', 'REELS', 'MESSENGER', 'LLAMA', 'RAYBAN', 'HOODIE', 'HARVARD', 'CAGEMATCH', 'JIUJITSU', 'AVATAR',
+    'THEFACEBOOK', 'POKE', 'LIKES', 'HACKATHON', 'SURFING'];
   let hunt = null;
   // tunnels: after a while on the road you dive into one now and then (a Boring Company Loop in New York, a lava tube on Mars)
   let tunnel = null, nextTunnel = 600, underground = false;
