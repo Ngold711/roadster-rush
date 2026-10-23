@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '49';
+window.BUILD = '50';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -714,7 +714,7 @@ html, body { background: #26222c !important; }
   let mode = 'menu', objs = [], parts = [], pl, T = 0, t = 0, speed = 14, traveled = 0, score = 0, cells = 0;
   let spawnZ = 0, stumble = 0, invuln = 0, shake = 0, deathT = 0, caught = false, shield = false, chaserZ = -12, combo = 0, comboT = 0, introT = 0;
   const pw = { lud: 0, magnet: 0, dbl: 0, fly: 0 };
-  let tut = null, chaserX = -2.4, noShadow = false, introA = 0, zoom = 1, hyOff = 0, flightRocket = -99, lastWall = false, jumpBuf = 0, reviveUsed = false, revivePending = false, reviveT = 0;
+  let tut = null, chaserX = -2.4, chaserY = 0, chaserVy = 0, noShadow = false, introA = 0, zoom = 1, hyOff = 0, flightRocket = -99, lastWall = false, jumpBuf = 0, reviveUsed = false, revivePending = false, reviveT = 0;
   // progress saved on this device: banked battery cells, owned paints, lifetime stats, top 5 scores
   const SAVE_KEY = 'roadster-rush-save';
   // shop catalog: a first color takes a solid evening of runs; the top items are long-term goals
@@ -871,7 +871,7 @@ html, body { background: #26222c !important; }
     renderHunt();
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
     reviveUsed = false; revivePending = false; jumpBuf = 0; lastWall = false; t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
-    flightRocket = -99; caught = false; shield = false; chaserZ = -2.6; introT = 4; chaserX = -2.4; pw.lud = pw.magnet = pw.dbl = pw.fly = 0; combo = 0;
+    flightRocket = -99; caught = false; shield = false; chaserZ = -2.6; introT = 4; chaserX = -2.4; chaserY = 0; chaserVy = 0; pw.lud = pw.magnet = pw.dbl = pw.fly = 0; combo = 0;
     cam.x = 0; cam.y = 3.6;
   }
   reset();
@@ -1536,6 +1536,7 @@ html, body { background: #26222c !important; }
       if (pl.y > pl.ground) { pw.fly = 0; pl.rollT = 0; pl.roll = 0; pl.vy -= G * dt; pl.y = Math.max(pl.ground, pl.y + pl.vy * dt); if (pl.y === pl.ground) { shake = Math.max(shake, 0.6); buzz(60); } }
       advance(0, dt);
       chaserZ += (-0.4 - chaserZ) * dt * 3;
+      updChaser(dt);
       if (prev < 0.4 && deathT >= 0.4) { tone(700, 0.35, 'sine', 0.04, 1100); tone(1100, 0.35, 'sine', 0.03, 700); }
       if (prev < 2.1 && deathT >= 2.1) { tone(2400, 0.05, 'square', 0.03); tone(1800, 0.06, 'square', 0.03); }
       if (prev < 2.35 && deathT >= 2.35) tone(110, 0.4, 'sawtooth', 0.06, 60);
@@ -1570,8 +1571,55 @@ html, body { background: #26222c !important; }
     introT = Math.max(0, introT - dt);
     const chaseTo = stumble > 0 ? 0.3 : introT > 0 ? -2.6 : -14;
     chaserZ += (chaseTo - chaserZ) * dt * (chaseTo > chaserZ ? 3.5 : 0.7);
-    chaserX += ((pl.x < -0.5 ? pl.x + 2.4 : pl.x - 2.4) - chaserX) * Math.min(1, dt * 6);
+    updChaser(dt);
     updParts(dt);
+  }
+
+  // the patrol Cybertruck drives for real: it looks ahead, swaps into a clear lane, rides up ramps,
+  // and jumps anything it can't get around, so it never passes through traffic or walls
+  const CH_LEN = 5.6, CH_W = 2.15;
+  let chLastZ = 0;
+  const chSolid = (o) => o.d && !o.smash && !o.sky && !o.gone && o.k !== 'cell' && o.k !== 'pow' && o.k !== 'letter' && o.k !== 'ring';
+  function chTop(o) { return o.k === 'ramp' ? clamp((chaserZ + CH_LEN - o.z) / o.d, 0, 1) * o.h : o.h; }
+  function updChaser(dt) {
+    // traffic closes in at road speed plus however fast it's surging forward to catch you
+    const surge = dt > 0 ? clamp((chaserZ - chLastZ) / dt, 0, 60) : 0; chLastZ = chaserZ;
+    const rel = speed + surge, look = Math.max(5, rel * 0.5), near = chaserZ + CH_LEN > -0.5 && chaserZ < CAR_LEN + 0.5;
+    const blocked = [false, false, false];
+    for (const o of objs) {
+      // a ramp lane is only open if it's already lined up to drive up the ramp
+      if (!chSolid(o) || ((o.k === 'ramp' || o.ramped) && Math.abs(chaserX - o.x) < 0.5)) continue;
+      if (o.z < chaserZ + CH_LEN + look && o.z + o.d > chaserZ - 0.5 && o.lane >= 0 && o.lane <= 2) blocked[o.lane] = true;
+    }
+    // ride beside the player, never in their lane while level with them
+    const want = pl.x < -0.5 ? pl.x + 2.4 : pl.x - 2.4;
+    // it can only head for a lane if every lane it has to cross on the way is clear too
+    const closed = (l) => blocked[l] || (near && l === pl.lane);
+    const cur = chaserX < -1.1 ? 0 : chaserX > 1.1 ? 2 : 1;
+    let best = -1, bestD = 1e9;
+    for (let l = 0; l < 3; l++) {
+      let ok = !closed(l);
+      for (let m = Math.min(l, cur) + 1; m < Math.max(l, cur); m++) if (closed(m)) ok = false;
+      if (!ok) continue;
+      const d = Math.abs(LANES[l] - want) + Math.abs(LANES[l] - chaserX) * 0.3;
+      if (d < bestD) { bestD = d; best = l; }
+    }
+    if (best >= 0) { const tx = LANES[best], st = 12 * dt, dx = tx - chaserX; chaserX += Math.abs(dx) <= st ? dx : Math.sign(dx) * st; }
+    // ground under it (trailer roofs, ramps), and a hop over whatever is coming up in its path
+    // a hop is sized for everything in its path a little further on too, so a Semi's tall cab behind its low deck is cleared in one go
+    let ground = 0, ahead = 0, tallest = 0;
+    const trig = chaserZ + CH_LEN + 3 + rel * 0.42, reach = trig + 12;
+    for (const o of objs) {
+      if (!chSolid(o) || Math.abs(o.x - chaserX) >= (CH_W + o.w) / 2 - 0.15) continue;
+      if (o.z < chaserZ + CH_LEN && o.z + o.d > chaserZ) { const top = chTop(o); if (chaserY >= top - (o.k === 'ramp' || o.ramped ? 1.4 : 0.6)) ground = Math.max(ground, top); else ahead = Math.max(ahead, o.h); }
+      else if (o.k !== 'ramp' && o.z >= chaserZ + CH_LEN && o.z < trig) ahead = Math.max(ahead, o.h);
+      if (o.k !== 'ramp' && o.z + o.d > chaserZ && o.z < reach) tallest = Math.max(tallest, o.h);
+    }
+    const onGround = chaserY <= ground + 0.01;
+    // on the way down it can boost again (it's a Tesla), so back-to-back hurdles don't catch it mid-air
+    if ((onGround || chaserVy < 0) && ahead > chaserY + 0.3) chaserVy = Math.sqrt(2 * G * (Math.max(ahead, tallest) + 0.8 - chaserY));
+    chaserVy -= G * dt; chaserY += chaserVy * dt;
+    if (chaserY <= ground) { chaserY = ground; chaserVy = 0; }
   }
 
   function advance(dz, dt) {
@@ -2929,7 +2977,7 @@ html, body { background: #26222c !important; }
     sub(rr, 0, 0.88, 1, 1, '#2a2f3a');
     lampGlow(rr, [0.1, 0.5, 0.9], 0.62);
   }
-  function drawChaser() { drawCyber(chaserX, 0, chaserZ, '#b4b8c0', true); }
+  function drawChaser() { drawCyber(chaserX, chaserY, chaserZ, '#b4b8c0', true); }
 
   // Semi tractor: tall white cab with a raked roof fairing and wraparound side glass
   function drawSemiCab(o) {
