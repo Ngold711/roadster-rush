@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '65';
+window.BUILD = '66';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -808,9 +808,10 @@ html, body { background: #26222c !important; }
       label: 'LEBRON', labelCol: '#ffb81c', num: '23', co: 'C A V S', coCol: '#ffb81c', trim: '#ffb81c', wide: 1.08, tall: 1.05 },
     { id: 'v:shaq', mood: 'laugh', caughtMood: 'shock', name: 'Shaq', cost: 100000, skin: '#5e3a24', tee: '#fdb927', jacket: '#fdb927', arms: '#5e3a24', legs: '#5e3a24', shorts: '#fdb927', shoes: '#f4f4f2', hair: '#1a100a', hairStyle: 'shaq',
       label: 'SHAQ', labelCol: '#552583', num: '34', co: 'L A K E R S', coCol: '#552583', trim: '#552583', wide: 1.25, tall: 1.18 },
-    // Conor McGregor: black UFC fight tee, gold title belt, tattooed forearms, slicked hair and a ginger beard
-    { id: 'v:conor', mood: 'smirk', caughtMood: 'laugh', name: 'Conor McGregor', cost: 90000, skin: '#f0c4a4', tee: '#141518', jacket: '#141518', arms: '#f0c4a4', legs: '#26282e', shoes: '#0d0e11', hair: '#6e3f22', beard: '#b4592c', hairStyle: 'conor',
-      label: 'McGREGOR', labelCol: '#f4f4f2', co: 'U F C', coCol: '#d20a0a', belt: true, tattoo: true, wide: 1.06 },
+    // Conor McGregor, fight night: shirtless and barefoot, gorilla-eating-a-heart chest piece and tiger on the stomach,
+    // inked arms, green UFC shorts with McGREGOR on the waistband, gold title belt, slicked hair and a ginger beard
+    { id: 'v:conor', mood: 'smirk', caughtMood: 'laugh', name: 'Conor McGregor', cost: 90000, skin: '#f0c4a4', tee: '#f0c4a4', jacket: '#f0c4a4', arms: '#f0c4a4', legs: '#f0c4a4', shoes: '#e4b494', hair: '#6e3f22', beard: '#b4592c', hairStyle: 'conor',
+      label: '', co: '', fighter: true, belt: true, tattoo: true, wide: 1.06 },
   ];
   const rarity = (cost) => (cost >= 30000 ? 'legendary' : cost >= 12000 ? 'epic' : cost >= 5000 ? 'rare' : 'common');
   const SHOP = { paint: PAINTS, design: DESIGNS, smoke: SMOKES, map: MAPS, driver: DRIVERS };
@@ -3117,11 +3118,35 @@ html, body { background: #26222c !important; }
     RW(-0.22 + sw, 0, 0.21, 0.08, D.shoes); RW(0.02 - sw, 0, 0.21, 0.08, D.shoes);
     RW(-0.3, 0.88 + bob, 0.6, 0.66, D.jacket);
     RW(-0.18, 0.9 + bob, 0.36, 0.64, TEE);
+    if (D.fighter) {
+      const ink = '#2c3a42', I = (dx, dy, w, h) => RW(dx, dy + bob, w, h, ink);
+      // green UFC fight shorts with white and orange side panels, McGREGOR on the waistband, UFC on the leg
+      RW(-0.22, 0.48, 0.44, 0.44, '#1d8a3c'); RW(-0.22, 0.48, 0.05, 0.44, '#f4f4f2'); RW(-0.17, 0.48, 0.03, 0.44, '#f08a24');
+      RW(0.17, 0.48, 0.05, 0.44, '#f4f4f2'); RW(0.14, 0.48, 0.03, 0.44, '#f08a24'); RW(-0.22, 0.84, 0.44, 0.08, '#111214');
+      // pecs and abs shading
+      RW(-0.2, 1.3 + bob, 0.19, 0.012, 'rgba(120,60,40,.35)'); RW(0.01, 1.3 + bob, 0.19, 0.012, 'rgba(120,60,40,.35)'); RW(-0.005, 1.0 + bob, 0.01, 0.3, 'rgba(120,60,40,.25)');
+      // chest piece: a gorilla head with a crown, a heart in its jaws
+      ctx.fillStyle = ink; ctx.beginPath(); ctx.ellipse(fx, fy - (1.38 + bob) * u, 0.12 * wk * u, 0.09 * u, 0, 0, Math.PI * 2); ctx.fill();
+      I(-0.07, 1.46, 0.14, 0.03); I(-0.07, 1.49, 0.025, 0.03); I(-0.012, 1.49, 0.025, 0.035); I(0.045, 1.49, 0.025, 0.03);
+      RW(-0.06, 1.39 + bob, 0.03, 0.02, '#f0c4a4'); RW(0.03, 1.39 + bob, 0.03, 0.02, '#f0c4a4');
+      ctx.fillStyle = '#b3262e'; ctx.beginPath(); const hx = fx, hy2 = fy - (1.31 + bob) * u, hr = 0.035 * u;
+      ctx.arc(hx - hr * 0.5, hy2, hr * 0.55, Math.PI, 0); ctx.arc(hx + hr * 0.5, hy2, hr * 0.55, Math.PI, 0); ctx.lineTo(hx, hy2 + hr * 1.1); ctx.closePath(); ctx.fill();
+      // stomach: tiger head with stripes
+      ctx.fillStyle = ink; ctx.beginPath(); ctx.ellipse(fx, fy - (1.1 + bob) * u, 0.1 * wk * u, 0.075 * u, 0, 0, Math.PI * 2); ctx.fill();
+      for (const sx2 of [-0.06, -0.02, 0.02, 0.06]) RW(sx2 - 0.008, 1.12 + bob, 0.016, 0.05, '#f0c4a4');
+      RW(-0.045, 1.09 + bob, 0.025, 0.015, '#e8d070'); RW(0.02, 1.09 + bob, 0.025, 0.015, '#e8d070');
+      if (u > 40) {
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#f4f4f2'; ctx.font = `700 ${0.06 * u}px "Saira Semi Condensed", sans-serif`; ctx.fillText('McGREGOR', fx, fy - 0.88 * u, 0.4 * wk * u);
+        ctx.fillStyle = '#ffffff'; ctx.font = `900 ${0.12 * u}px "Arial Black", Michroma, sans-serif`; ctx.fillText('UFC', fx - 0.06 * wk * u, fy - 0.66 * u, 0.2 * wk * u);
+      }
+    }
     if (D.belt) {
-      // gold championship belt round the waist with a big centre plate
-      RW(-0.31, 0.86 + bob, 0.62, 0.11, '#c99a2e'); RW(-0.31, 0.95 + bob, 0.62, 0.02, '#f2d27a');
-      ctx.fillStyle = '#f2d27a'; ctx.beginPath(); ctx.ellipse(fx, fy - (0.915 + bob) * u, 0.11 * u, 0.085 * u, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#b8860b'; ctx.beginPath(); ctx.ellipse(fx, fy - (0.915 + bob) * u, 0.07 * u, 0.05 * u, 0, 0, Math.PI * 2); ctx.fill();
+      // gold championship belt round the waist, UFC on the centre plate
+      RW(-0.31, 0.93 + bob, 0.62, 0.1, '#c99a2e'); RW(-0.31, 1.01 + bob, 0.62, 0.02, '#f2d27a');
+      ctx.fillStyle = '#f2d27a'; ctx.beginPath(); ctx.ellipse(fx, fy - (0.98 + bob) * u, 0.12 * u, 0.09 * u, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#b8860b'; ctx.beginPath(); ctx.ellipse(fx, fy - (0.98 + bob) * u, 0.085 * u, 0.06 * u, 0, 0, Math.PI * 2); ctx.fill();
+      if (u > 40) { ctx.fillStyle = '#fff3c4'; ctx.font = `900 ${0.05 * u}px "Arial Black", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('UFC', fx, fy - (0.98 + bob) * u); }
     }
     if (D.trim) { RW(-0.3, 1.5 + bob, 0.6, 0.04, D.trim); RW(-0.3, 0.88 + bob, 0.04, 0.66, D.trim); RW(0.26, 0.88 + bob, 0.04, 0.66, D.trim); }
     if (D.tie) { R(-0.035, 0.98 + bob, 0.07, 0.5, D.tie); R(-0.05, 1.43 + bob, 0.1, 0.07, D.tie); }
@@ -3133,10 +3158,10 @@ html, body { background: #26222c !important; }
         if (D.tie) { ctx.lineJoin = 'round'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(2, 0.035 * u); ctx.strokeText(str, fx, yy, maxW); }
         ctx.fillText(str, fx, yy, maxW);
       };
-      ctx.fillStyle = D.labelCol; tieTxt(D.label, fy - (1.335 + bob) * u, D.tie ? 0.13 : 0.11, 0.34 * wk * u);
+      if (D.label) { ctx.fillStyle = D.labelCol; tieTxt(D.label, fy - (1.335 + bob) * u, D.tie ? 0.13 : 0.11, 0.34 * wk * u); }
       if (D.logo === 'openai') openaiLogo(fx, fy - (1.17 + bob) * u, 0.075 * u, '#f4f4f2', Math.max(1, 0.012 * u));
       if (D.num) { ctx.fillStyle = D.labelCol; ctx.font = `700 ${0.2 * u}px Michroma, "Arial Black", sans-serif`; ctx.fillText(D.num, fx, fy - (1.15 + bob) * u); }
-      ctx.fillStyle = D.coCol; tieTxt(D.co, fy - ((D.belt ? 1.12 : 1.0) + bob) * u, D.tie ? 0.09 : D.belt ? 0.09 : 0.072);
+      if (D.co) { ctx.fillStyle = D.coCol; tieTxt(D.co, fy - (1.0 + bob) * u, D.tie ? 0.09 : 0.072); }
     }
     R(-0.07, 1.42 + bob, 0.14, 0.1, SKIN);
     if (D.tie) {
@@ -3165,9 +3190,8 @@ html, body { background: #26222c !important; }
       RW(-0.42, 0.92 + bob - sw, 0.12, 0.6, JACKET); RW(0.3, 0.92 + bob + sw, 0.12, 0.6, JACKET);
       RW(-0.41, 0.84 + bob - sw, 0.1, 0.09, SKIN); RW(0.31, 0.84 + bob + sw, 0.1, 0.09, SKIN);
       if (D.tattoo) {
-        // short black sleeves and inked forearms
-        RW(-0.43, 1.32 + bob - sw, 0.14, 0.2, D.tee); RW(0.29, 1.32 + bob + sw, 0.14, 0.2, D.tee);
-        for (const [ax, s2] of [[-0.41, -sw], [0.31, sw]]) { RW(ax + 0.015, 1.0 + bob + s2, 0.07, 0.07, '#3a4a52'); RW(ax + 0.02, 1.12 + bob + s2, 0.05, 0.12, '#3a4a52'); }
+        // inked arms: sleeve patches from shoulder to wrist
+        for (const [ax, s2] of [[-0.42, -sw], [0.3, sw]]) { RW(ax + 0.01, 1.36 + bob + s2, 0.1, 0.12, '#2c3a42'); RW(ax + 0.02, 1.2 + bob + s2, 0.06, 0.1, '#2c3a42'); RW(ax + 0.015, 1.0 + bob + s2, 0.08, 0.12, '#2c3a42'); }
       }
     }
     drawHead(ctx, fx, fy, u, D, 1.72 + bob, pose.cuffed ? D.caughtMood : D.mood);
