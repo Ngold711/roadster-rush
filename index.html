@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '63';
+window.BUILD = '64';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -983,12 +983,12 @@ html, body { background: #26222c !important; }
           objs.push({ k: 'semicab', lane: l, x, z: z + 3.2, d: 4.2, w: 2.2, h: 3.4 });
           break;
         case 'pod':
-          objs.push({ k: 'pod', lane: l, x, z, d: 11, w: 2.1, h: 3.2, band: pick(POD_BANDS), photo: Math.random() < 0.5, pi: ri(PHOTO_SRC.length) });
+          objs.push({ k: 'pod', lane: l, x, z, d: 11, w: 2.1, h: 3.2, band: pick(POD_BANDS), photo: Math.random() < 0.25, pi: ri(PHOTO_SRC.length) });
           objs.push({ k: 'semicab', lane: l, x, z: z + 11, d: 4.2, w: 2.2, h: 3.4 });
           break;
         case 'ramp':
           objs.push({ k: 'ramp', lane: l, x, z, d: 5, w: 2.1, h: 3.2 });
-          objs.push({ k: 'pod', lane: l, x, z: z + 5, d: 11, w: 2.1, h: 3.2, band: pick(POD_BANDS), photo: Math.random() < 0.5, pi: ri(PHOTO_SRC.length), ramped: true });
+          objs.push({ k: 'pod', lane: l, x, z: z + 5, d: 11, w: 2.1, h: 3.2, band: pick(POD_BANDS), photo: Math.random() < 0.25, pi: ri(PHOTO_SRC.length), ramped: true });
           objs.push({ k: 'semicab', lane: l, x, z: z + 16, d: 4.2, w: 2.2, h: 3.4 });
           break;
       }
@@ -2347,7 +2347,8 @@ html, body { background: #26222c !important; }
     for (let z = FAR - ((FAR + og) % PG); z > ZN - PG; z -= PG) { const n = Math.round((z + traveled) / PG); list.push(['bldg', z, -1, n]); list.push(['bldg', z, 1, n]); }
     const PR = 21, orr = traveled % PR;
     for (let z = FAR - ((FAR + orr) % PR); z > ZN + 0.2; z -= PR) list.push(['post', z]);
-    const PB = 120, ob = traveled % PB;
+    // campaign billboards and wanted signs alternate, spaced well apart so the street isn't crowded
+    const PB = 220, ob = traveled % PB;
     for (let z = FAR - ((FAR + ob) % PB); z > ZN + 0.2; z -= PB) { const n = Math.round((z + traveled) / PB); list.push(['board', z, n % 2 ? 1 : -1, n]); }
     // extra WANTED billboards halfway between the campaign billboards, on the other side of the street
     const ow = (traveled + PB / 2) % PB;
@@ -2372,7 +2373,7 @@ html, body { background: #26222c !important; }
           const r = Math.max(2, a[2] * 0.7);
           glow(c[0], c[1], r, 0.95);
           if (SET.real && weather === 'rain') reflect(side * 4.2, z, a[2], warmStrip, 0.38);
-          if (side === (bn % 2 ? 1 : -1) && z < 90) drawMissFlyer(side * 5.6, z, bn);
+          if (bn % 3 === 0 && side === (bn % 2 ? 1 : -1) && z < 90) drawMissFlyer(side * 5.6, z, bn);
         }
       }
     }
@@ -2396,7 +2397,7 @@ html, body { background: #26222c !important; }
     const h = 9 + hash(n, side) * 24, fx = side * 11.5, col = FACADES[Math.floor(hash(side, n) * FACADES.length)];
     drawBox(side * 16, 0, h, z0, z1, 9, shade(col, 0.85), shade(col, 1.1), col);
     // about half the buildings have a wanted poster pasted on the wall, mapped onto the receding facade
-    if (z0 < 70 && hash(n * 7, side * 3) < 0.55) pasteWanted(side * 11.45, z0 + 4 + hash(n, side * 5) * 6, 1.4, 2.1);
+    if (z0 < 70 && hash(n * 7, side * 3) < 0.17) pasteWanted(side * 11.45, z0 + 4 + hash(n, side * 5) * 6, 1.4, 2.1);
     if (z0 > 75 || SET.low) return;
     // all of a building's lit windows go into two paths (warm and cool) and fill in two calls
     const zs = Math.max(z0, ZN + 0.5), warm = new Path2D(), cool = new Path2D();
@@ -2538,7 +2539,7 @@ html, body { background: #26222c !important; }
     }
     ctx.fillStyle = 'rgba(14,12,18,.9)'; ctx.fill(pillars);
     ctx.fillStyle = style === 2 ? '#d9ecff' : '#ffcf86'; ctx.fill(shops);
-    if (z0 < 70 && hash(n * 7, side * 3) < 0.55) pasteWanted(side * 11.45, z0 + 4 + hash(n, side * 5) * 6, 1.4, 2.1);
+    if (z0 < 70 && hash(n * 7, side * 3) < 0.17) pasteWanted(side * 11.45, z0 + 4 + hash(n, side * 5) * 6, 1.4, 2.1);
     for (const [za, zb, i] of lits) {
       const zA = Math.max(za, zs);
       poly([[fx, 0.01, zA], [fx - side * 2, 0.01, zA], [fx - side * 2, 0.01, zb], [fx, 0.01, zb]], style === 2 ? 'rgba(200,225,255,.12)' : 'rgba(255,190,110,.14)');
@@ -2582,7 +2583,7 @@ html, body { background: #26222c !important; }
       for (let wz = z0 + 3.4; wz < z1 - 1; wz += 3.8) if (wz > zs) { const c = P(fx, 2.6, wz + 0.4); glow(c[0], c[1], c[2] * 1.1, 0.45); }
       const lamp = P(fx, 2.5, z0 + 1.9); if (z0 + 1.9 > ZN + 0.5) { ctx.fillStyle = '#7dff8a'; ctx.fillRect(lamp[0] - lamp[2] * 0.06, lamp[1] - lamp[2] * 0.06, lamp[2] * 0.12, lamp[2] * 0.12); }
     }
-    if (z0 < 70 && hash(n * 7, side * 3) < 0.45) pasteWanted(side * 11.45, z0 + 4 + hash(n, side * 5) * 6, 1.4, 2.1);
+    if (z0 < 70 && hash(n * 7, side * 3) < 0.15) pasteWanted(side * 11.45, z0 + 4 + hash(n, side * 5) * 6, 1.4, 2.1);
   }
   // glass greenhouse dome: a sphere's outline is a circle from any angle, so it's drawn in screen space
   function drawDome(side, z0) {
