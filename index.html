@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '60';
+window.BUILD = '61';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -3065,12 +3065,16 @@ html, body { background: #26222c !important; }
     if (D.tie) { R(-0.035, 0.98 + bob, 0.07, 0.5, D.tie); R(-0.05, 1.43 + bob, 0.1, 0.07, D.tie); }
     if (u > 40) {
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = D.labelCol; ctx.font = `700 ${0.11 * u}px "Saira Semi Condensed", sans-serif`;
-      ctx.fillText(D.label, fx, fy - (1.335 + bob) * u, 0.34 * wk * u);
+      // over a tie the lettering gets a thick white outline (and a bit more size) so it reads on top of the red
+      const tieTxt = (str, yy, size, maxW) => {
+        ctx.font = `700 ${size * u}px "Saira Semi Condensed", sans-serif`;
+        if (D.tie) { ctx.lineJoin = 'round'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(2, 0.035 * u); ctx.strokeText(str, fx, yy, maxW); }
+        ctx.fillText(str, fx, yy, maxW);
+      };
+      ctx.fillStyle = D.labelCol; tieTxt(D.label, fy - (1.335 + bob) * u, D.tie ? 0.13 : 0.11, 0.34 * wk * u);
       if (D.logo === 'openai') openaiLogo(fx, fy - (1.17 + bob) * u, 0.075 * u, '#f4f4f2', Math.max(1, 0.012 * u));
       if (D.num) { ctx.fillStyle = D.labelCol; ctx.font = `700 ${0.2 * u}px Michroma, "Arial Black", sans-serif`; ctx.fillText(D.num, fx, fy - (1.15 + bob) * u); }
-      ctx.fillStyle = D.coCol; ctx.font = `700 ${0.072 * u}px "Saira Semi Condensed", sans-serif`;
-      ctx.fillText(D.co, fx, fy - (1.0 + bob) * u);
+      ctx.fillStyle = D.coCol; tieTxt(D.co, fy - (1.0 + bob) * u, D.tie ? 0.09 : 0.072);
     }
     R(-0.07, 1.42 + bob, 0.14, 0.1, SKIN);
     if (D.tie) {
