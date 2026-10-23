@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '59';
+window.BUILD = '60';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -760,16 +760,16 @@ html, body { background: #26222c !important; }
   ];
   // drivers: same car and gameplay, a different person in the intro, the arrest, the cockpit and the HUD picture
   const DRIVERS = [
-    { id: 'v:elon', name: 'Elon', cost: 0, skin: '#efc4a8', tee: '#16181d', jacket: '#2b2e36', legs: '#232a3a', shoes: '#0d0e11', hair: '#4a3324', hairStyle: 'elon',
+    { id: 'v:elon', mood: 'smirk', caughtMood: 'shock', name: 'Elon', cost: 0, skin: '#efc4a8', tee: '#16181d', jacket: '#2b2e36', legs: '#232a3a', shoes: '#0d0e11', hair: '#4a3324', hairStyle: 'elon',
       label: 'ELON', labelCol: '#f4f4f2', co: 'T E S L A', coCol: '#e8283f' },
-    { id: 'v:sam', name: 'Sam Altman', cost: 60000, skin: '#f1c9ad', tee: '#202329', jacket: '#202329', legs: '#34405a', shoes: '#e9e9ea', hair: '#5b4332', hairStyle: 'sam',
+    { id: 'v:sam', mood: 'smile', caughtMood: 'flat', name: 'Sam Altman', cost: 60000, skin: '#f1c9ad', tee: '#202329', jacket: '#202329', legs: '#34405a', shoes: '#e9e9ea', hair: '#5b4332', hairStyle: 'sam',
       label: 'ALTMAN', labelCol: '#f4f4f2', co: 'O P E N A I', coCol: '#f4f4f2', logo: 'openai' },
-    { id: 'v:trump', name: 'Donald Trump', cost: 80000, skin: '#f0b98c', tee: '#ffffff', jacket: '#1c2442', legs: '#1c2442', shoes: '#0d0e11', hair: '#f0cf6e', hairStyle: 'trump',
+    { id: 'v:trump', mood: 'grin', caughtMood: 'pout', name: 'Donald Trump', cost: 80000, skin: '#f0b98c', tee: '#ffffff', jacket: '#1c2442', legs: '#1c2442', shoes: '#0d0e11', hair: '#f0cf6e', hairStyle: 'trump',
       label: 'TRUMP', labelCol: '#1c2442', co: 'U S A', coCol: '#1c2442', tie: '#c8202e', wide: 1.12 },
     // LeBron in a Cavs wine-and-gold #23 with headband and beard; Shaq in Lakers gold #34, bald with a goatee, and a head taller than everyone
-    { id: 'v:lebron', name: 'LeBron James', cost: 100000, skin: '#8a5636', tee: '#6f263d', jacket: '#6f263d', arms: '#8a5636', legs: '#8a5636', shorts: '#6f263d', shoes: '#f4f4f2', hair: '#1c120c', hairStyle: 'lebron',
+    { id: 'v:lebron', mood: 'grin', caughtMood: 'frown', name: 'LeBron James', cost: 100000, skin: '#8a5636', tee: '#6f263d', jacket: '#6f263d', arms: '#8a5636', legs: '#8a5636', shorts: '#6f263d', shoes: '#f4f4f2', hair: '#1c120c', hairStyle: 'lebron',
       label: 'LEBRON', labelCol: '#ffb81c', num: '23', co: 'C A V S', coCol: '#ffb81c', trim: '#ffb81c', wide: 1.08, tall: 1.05 },
-    { id: 'v:shaq', name: 'Shaq', cost: 100000, skin: '#5e3a24', tee: '#fdb927', jacket: '#fdb927', arms: '#5e3a24', legs: '#5e3a24', shorts: '#fdb927', shoes: '#f4f4f2', hair: '#1a100a', hairStyle: 'shaq',
+    { id: 'v:shaq', mood: 'laugh', caughtMood: 'shock', name: 'Shaq', cost: 100000, skin: '#5e3a24', tee: '#fdb927', jacket: '#fdb927', arms: '#5e3a24', legs: '#5e3a24', shorts: '#fdb927', shoes: '#f4f4f2', hair: '#1a100a', hairStyle: 'shaq',
       label: 'SHAQ', labelCol: '#552583', num: '34', co: 'L A K E R S', coCol: '#552583', trim: '#552583', wide: 1.25, tall: 1.18 },
   ];
   const rarity = (cost) => (cost >= 30000 ? 'legendary' : cost >= 12000 ? 'epic' : cost >= 5000 ? 'rare' : 'common');
@@ -3073,6 +3073,12 @@ html, body { background: #26222c !important; }
       ctx.fillText(D.co, fx, fy - (1.0 + bob) * u);
     }
     R(-0.07, 1.42 + bob, 0.14, 0.1, SKIN);
+    if (D.tie) {
+      // white collar points and the tie knot sit over the neck
+      ctx.fillStyle = TEE; ctx.beginPath(); ctx.moveTo(fx - 0.11 * u, fy - (1.53 + bob) * u); ctx.lineTo(fx, fy - (1.43 + bob) * u); ctx.lineTo(fx - 0.02 * u, fy - (1.5 + bob) * u); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(fx + 0.11 * u, fy - (1.53 + bob) * u); ctx.lineTo(fx, fy - (1.43 + bob) * u); ctx.lineTo(fx + 0.02 * u, fy - (1.5 + bob) * u); ctx.closePath(); ctx.fill();
+      R(-0.045, 1.42 + bob, 0.09, 0.09, D.tie);
+    }
     if (pose.thumbs) {
       for (const m of [-1, 1]) {
         RW(m < 0 ? -0.42 : 0.3, 1.08 + bob, 0.12, 0.42, JACKET);
@@ -3093,10 +3099,10 @@ html, body { background: #26222c !important; }
       RW(-0.42, 0.92 + bob - sw, 0.12, 0.6, JACKET); RW(0.3, 0.92 + bob + sw, 0.12, 0.6, JACKET);
       RW(-0.41, 0.84 + bob - sw, 0.1, 0.09, SKIN); RW(0.31, 0.84 + bob + sw, 0.1, 0.09, SKIN);
     }
-    drawHead(ctx, fx, fy, u, D, 1.72 + bob);
+    drawHead(ctx, fx, fy, u, D, 1.72 + bob, pose.cuffed ? D.caughtMood : D.mood);
   }
   // face and hair, shared by the in-game figure and the little HUD / garage portrait
-  function drawHead(g, fx, fy, u, D, hy) {
+  function drawHead(g, fx, fy, u, D, hy, mood = D.mood) {
     const Y = (v) => fy - v * u, X = (v) => fx + v * u, SKIN = D.skin;
     const R = (dx, dy, w, h, c) => { g.fillStyle = c; g.fillRect(fx + dx * u, fy - (dy + h) * u, w * u, h * u); };
     const C = (dx, dy, r, c) => { g.fillStyle = c; g.beginPath(); g.arc(fx + dx * u, fy - dy * u, r * u, 0, Math.PI * 2); g.fill(); };
@@ -3145,10 +3151,19 @@ html, body { background: #26222c !important; }
     if (dark) { C(-0.055, hy, 0.026, '#f4efe8'); C(0.055, hy, 0.026, '#f4efe8'); }
     C(-0.055, hy, 0.017, D.hairStyle === 'sam' ? '#3a5a78' : '#2a1a10'); C(0.055, hy, 0.017, D.hairStyle === 'sam' ? '#3a5a78' : '#2a1a10');
     R(-0.012, hy - 0.065, 0.024, 0.055, 'rgba(0,0,0,.12)');
-    g.strokeStyle = dark ? '#e9d6c8' : '#7a3b2e'; g.lineWidth = Math.max(1, u * 0.016); g.lineCap = 'round'; g.beginPath();
-    if (D.hairStyle === 'trump') { g.moveTo(X(-0.045), Y(hy - 0.11)); g.quadraticCurveTo(X(0), Y(hy - 0.085), X(0.045), Y(hy - 0.11)); }
-    else { g.moveTo(X(-0.05), Y(hy - 0.105)); g.quadraticCurveTo(X(0.01), Y(hy - 0.13), X(0.068), Y(hy - 0.085)); }
-    g.stroke();
+    // mouth: each driver has their own look, and a different reaction when they're cuffed
+    const lip = dark ? '#e9d6c8' : '#7a3b2e', inside = '#3a1612';
+    g.lineWidth = Math.max(1, u * 0.016); g.lineCap = 'round'; g.strokeStyle = lip;
+    if (mood === 'smile') { g.beginPath(); g.moveTo(X(-0.06), Y(hy - 0.095)); g.quadraticCurveTo(X(0), Y(hy - 0.15), X(0.06), Y(hy - 0.095)); g.stroke(); }
+    else if (mood === 'grin' || mood === 'laugh') {
+      const d = mood === 'laugh' ? 0.075 : 0.05;
+      g.fillStyle = inside; g.beginPath(); g.moveTo(X(-0.065), Y(hy - 0.09)); g.lineTo(X(0.065), Y(hy - 0.09)); g.quadraticCurveTo(X(0), Y(hy - 0.09 - d * 2), X(-0.065), Y(hy - 0.09)); g.fill();
+      g.fillStyle = '#f7f4ee'; g.fillRect(X(-0.05), Y(hy - 0.09), 0.1 * u, 0.02 * u);
+    } else if (mood === 'shock') { g.fillStyle = inside; g.beginPath(); g.ellipse(fx, Y(hy - 0.115), 0.028 * u, 0.036 * u, 0, 0, Math.PI * 2); g.fill(); }
+    else if (mood === 'pout') { g.fillStyle = '#c9727a'; g.beginPath(); g.ellipse(fx, Y(hy - 0.11), 0.034 * u, 0.022 * u, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = inside; g.beginPath(); g.ellipse(fx, Y(hy - 0.11), 0.012 * u, 0.009 * u, 0, 0, Math.PI * 2); g.fill(); }
+    else if (mood === 'flat') { g.beginPath(); g.moveTo(X(-0.05), Y(hy - 0.11)); g.lineTo(X(0.05), Y(hy - 0.11)); g.stroke(); }
+    else if (mood === 'frown') { g.beginPath(); g.moveTo(X(-0.05), Y(hy - 0.12)); g.quadraticCurveTo(X(0), Y(hy - 0.085), X(0.05), Y(hy - 0.12)); g.stroke(); }
+    else { g.beginPath(); g.moveTo(X(-0.05), Y(hy - 0.105)); g.quadraticCurveTo(X(0.01), Y(hy - 0.13), X(0.068), Y(hy - 0.085)); g.stroke(); }
   }
   // OpenAI mark: six interlocking rounded links around a hexagon
   function openaiLogo(cx, cy, r, col, lw) {
@@ -3169,6 +3184,7 @@ html, body { background: #26222c !important; }
     if (D.trim) { g.fillStyle = D.trim; g.fillRect(fx - 0.23 * u, fy - 1.5 * u, 0.46 * u, 0.04 * u); }
     if (D.tie) { g.fillStyle = D.tie; g.fillRect(fx - 0.035 * u, fy - 1.49 * u, 0.07 * u, 0.5 * u); }
     g.fillStyle = D.skin; g.fillRect(fx - 0.07 * u, fy - 1.56 * u, 0.14 * u, 0.1 * u);
+    if (D.tie) { g.fillStyle = D.tie; g.fillRect(fx - 0.045 * u, fy - 1.52 * u, 0.09 * u, 0.06 * u); }
     drawHead(g, fx, fy, u, D, 1.72);
     return (avatars[D.id] = c.toDataURL());
   }
