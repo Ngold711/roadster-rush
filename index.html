@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '20';
+window.BUILD = '21';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -152,6 +152,22 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 @media (prefers-reduced-motion: reduce) { .splash *, .splash .bar i { animation: none !important; } }
 .titlerow { display: flex; align-items: center; gap: 14px; }
 .titlerow img { width: 56px; height: 56px; border-radius: 13px; flex: none; box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 8px 24px rgba(232,40,63,.35); }
+.missions { display: grid; gap: 6px; }
+.missions .mh { display: flex; justify-content: space-between; align-items: baseline; }
+.mission { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; font-size: 14px; }
+.mission .mbar { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.12); overflow: hidden; }
+.mission .mbar i { display: block; height: 100%; background: var(--amber); }
+.mission .mr { font-size: 12px; font-weight: 700; color: var(--cell); font-variant-numeric: tabular-nums; }
+.mission.done { color: var(--muted); }
+.mission.done .mbar i { background: #9be15d; }
+.mission.done .mr { color: #9be15d; }
+.callout { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); padding: 8px 16px; border-radius: 4px; background: var(--panel); border: 1px solid var(--line); font: 600 15px var(--body); color: var(--paper); pointer-events: none; z-index: 6; text-align: center; white-space: nowrap; }
+.callout.warn { top: 24%; font: 400 clamp(22px, 6vw, 30px) var(--display); letter-spacing: .08em; color: #ffb84d; border-color: rgba(255,184,77,.6); animation: warnBlink .45s steps(2, start) infinite; }
+@keyframes warnBlink { to { visibility: hidden; } }
+.combo { position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 150px); font: 400 clamp(18px, 4.6vw, 24px) var(--display); color: var(--cell); text-shadow: 0 2px 0 rgba(0,0,0,.45); pointer-events: none; z-index: 5; transform-origin: right center; white-space: nowrap; }
+.combo.pop { animation: comboPop .25s ease-out; }
+@keyframes comboPop { from { transform: scale(1.35); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .callout.warn, .combo.pop { animation: none; } }
 .errbar { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); transform: translateX(-50%); max-width: calc(100% - 32px); padding: 6px 10px; border-radius: 4px; background: rgba(120, 10, 20, .9); color: #fff; font: 600 12px var(--body); pointer-events: none; z-index: 5; }
 .banked { font-size: 15px; color: var(--cell); font-weight: 600; }
 .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -173,7 +189,7 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 @keyframes tipIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (prefers-reduced-motion: reduce) { .tip { animation: none; } }
 @media (pointer: coarse) { .key-hint { display: none; } .touch-hint { display: contents; } }
-@media (max-width: 520px) { .card { padding: 18px; gap: 14px; } .screen { align-items: flex-start; } #menu { align-items: center; padding-bottom: 18vh; } } /* on phones the start box sits mid-screen, other menus at the top, so the car stays in view */
+@media (max-width: 520px) { .card { padding: 18px; gap: 14px; } .screen { align-items: flex-start; } #menu { align-items: center; padding-bottom: 26vh; } } /* on phones the start box sits mid-screen, other menus at the top, so the car stays in view */
 </style>
 <style>
 /* home-screen app: the game fills the whole screen, under the status bar and home bar; only the HUD and menus keep clear of them */
@@ -203,6 +219,7 @@ html, body { background: #26222c !important; }
       <div class="tools">
         <button class="icon-btn" id="hudShare" type="button" aria-label="Share the game"><svg width="16" height="18" viewBox="0 0 16 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 11V1.5M4.5 5 8 1.5 11.5 5"/><path d="M5 8H2.5v8.5h11V8H11"/></svg></button>
         <button class="icon-btn" id="muteBtn" type="button" aria-label="Mute sound">SND</button>
+        <button class="icon-btn" id="musicBtn" type="button" aria-label="Turn music off">MUS</button>
         <button class="icon-btn" id="pauseBtn" type="button" aria-label="Pause">II</button>
         <button class="icon-btn" id="hudRestart" type="button" aria-label="Restart run"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M12.5 1.5v3h-3"/></svg></button>
         <button class="icon-btn" id="hudHome" type="button" aria-label="Home screen"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5 8 2l6 5.5"/><path d="M3.5 6.5v7.5h9V6.5"/><path d="M6.5 14v-4h3v4"/></svg></button>
@@ -230,6 +247,7 @@ html, body { background: #26222c !important; }
         <span><i class="dot" style="background:#9be15d">A</i>Shield</span>
         <span><i class="dot" style="background:#ffb84d">2×</i>Double</span>
       </div>
+      <div class="missions" id="missionsMenu"></div>
       <div class="install" id="installHint" hidden>To save your colors and scores, tap Safari's <b>Share</b> button, then <b>Add to Home Screen</b>, and play from the icon.</div>
       <div class="row">
         <button class="btn" id="startBtn" type="button">Start driving</button>
@@ -262,6 +280,9 @@ html, body { background: #26222c !important; }
   </div>
 
   <div class="errbar" id="errbar" hidden></div>
+  <div class="callout warn" id="wallWarn" hidden>↑↑ Twist</div>
+  <div class="callout" id="toast" hidden></div>
+  <div class="combo" id="comboTag" hidden></div>
 
   <div class="splash" id="splash" role="img" aria-label="Roadster Rush">
     <div class="splash-in">
@@ -303,6 +324,7 @@ html, body { background: #26222c !important; }
         <div class="stat"><span class="label">Distance</span><b id="oDist">0.00 km</b></div>
       </div>
       <div class="banked" id="oBanked"></div>
+      <div class="missions" id="missionsOver"></div>
       <div class="top5"><span class="label">Top scores</span><ol id="oTop"></ol></div>
       <div class="row">
         <button class="btn" id="againBtn" type="button">Drive again</button>
@@ -499,7 +521,63 @@ html, body { background: #26222c !important; }
   for (const id of ['d:none', 's:white']) if (!save.owned.includes(id)) save.owned.push(id);
   function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
   const paintCol = () => (PAINTS.find((p) => p.id === save.paint) || PAINTS[0]).col;
-  let best = save.top[0] || 0, runTwists = 0;
+  let best = save.top[0] || 0, runTwists = 0, runRoofs = 0, runWalls = 0, wallsWarned = 0, onRoof = false;
+  if (save.music === undefined) save.music = true;
+
+  // ---------- daily missions: 3 goals picked from the date, each paying bonus kWh once ----------
+  const MISSIONS = [
+    { id: 'twist', text: 'Twist 5 times in one run', goal: 5, reward: 200, run: () => runTwists },
+    { id: 'cells', text: 'Collect 150 kWh in one run', goal: 150, reward: 250, run: () => cells },
+    { id: 'dist', text: 'Drive 3 km in one run', goal: 3, reward: 250, run: () => traveled / 1000 * 4, fmt: (v) => v.toFixed(1) },
+    { id: 'roof', text: 'Ride 3 trailer roofs in one run', goal: 3, reward: 300, run: () => runRoofs },
+    { id: 'walls', text: 'Twist over 3 walls in one run', goal: 3, reward: 350, run: () => runWalls },
+    { id: 'score', text: 'Score 3,000 in one run', goal: 3000, reward: 300, run: () => score, fmt: (v) => Math.floor(v).toLocaleString() },
+    { id: 'pows', text: 'Grab 4 power-ups today', goal: 4, reward: 200, ev: 'pow' },
+    { id: 'runs', text: 'Finish 5 runs today', goal: 5, reward: 150, ev: 'run' },
+  ];
+  function today() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
+  function dailyMissions() {
+    const day = today();
+    if (!save.missions || save.missions.day !== day) {
+      let h = 0; for (const ch of day) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      const pool = MISSIONS.map((m) => m.id), list = [];
+      while (list.length < 3) { h = (h * 1103515245 + 12345) >>> 0; const id = pool.splice(h % pool.length, 1)[0]; list.push({ id, prog: 0, done: false }); }
+      save.missions = { day, list }; persist();
+    }
+    return save.missions.list;
+  }
+  function completeMission(m, def) {
+    m.done = true; m.prog = def.goal; save.bank += def.reward; persist();
+    toast(`Mission done: +${def.reward} kWh`); tone(990, 0.35, 'triangle', 0.05, 1980); buzz(40);
+  }
+  function missionEvent(ev) {
+    for (const m of dailyMissions()) { const def = MISSIONS.find((d) => d.id === m.id); if (!m.done && def.ev === ev && ++m.prog >= def.goal) completeMission(m, def); }
+    persist();
+  }
+  let missionT = 0;
+  function missionTick(dt) {
+    if ((missionT -= dt) > 0) return; missionT = 0.25;
+    for (const m of dailyMissions()) {
+      const def = MISSIONS.find((d) => d.id === m.id);
+      if (m.done || !def.run) continue;
+      const v = def.run(); if (v > m.prog) m.prog = v;
+      if (v >= def.goal) completeMission(m, def);
+    }
+  }
+  function renderMissions(id) {
+    const rows = dailyMissions().map((m) => {
+      const def = MISSIONS.find((d) => d.id === m.id), f = def.fmt || ((v) => Math.floor(v));
+      const pct = Math.min(100, m.prog / def.goal * 100);
+      return `<div class="mission${m.done ? ' done' : ''}"><span>${def.text}</span><span class="mr">${m.done ? 'Done ✓' : '+' + def.reward + ' kWh'}</span><span class="mbar"><i style="width:${pct.toFixed(0)}%"></i></span></div>`;
+    }).join('');
+    $(id).innerHTML = `<div class="mh"><span class="label">Daily missions</span><span class="label">${m0done()}/3</span></div>` + rows;
+  }
+  const m0done = () => dailyMissions().filter((m) => m.done).length;
+
+  // ---------- feedback helpers ----------
+  let toastT = 0;
+  function toast(text) { const el = $('toast'); el.textContent = text; el.hidden = false; toastT = 2.2; }
+  function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
   function hsl2rgb(h, sa, l) {
     const k = (n) => (n + h / 30) % 12, a = sa * Math.min(l, 1 - l);
     const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
@@ -515,7 +593,7 @@ html, body { background: #26222c !important; }
   function reset() {
     objs = []; parts = [];
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
-    t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
+    t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
     caught = false; shield = false; chaserZ = -2.6; introT = 4; chaserX = -2.4; pw.lud = pw.magnet = pw.dbl = pw.fly = 0; combo = 0;
     cam.x = 0; cam.y = 3.6;
   }
@@ -524,10 +602,12 @@ html, body { background: #26222c !important; }
   function multiplier() { return Math.min(5, 1 + Math.floor(t / 40)) * (pw.dbl > 0 ? 2 : 1); }
 
   function spawnRow(z) {
-    const diff = Math.min(1, t / 100);
+    // ramps quickly at first, then keeps creeping up for long runs
+    const diff = Math.min(1, (1 - Math.exp(-t / 90)) + t / 1200);
     // construction wall across every lane: too tall for a plain jump, only a twist (or Flight) gets you over
     if (t > 12 && Math.random() < 0.1 + diff * 0.06) {
-      for (let l = 0; l < 3; l++) objs.push({ k: 'wall', lane: l, x: LANES[l], z: z + 2, d: 0.8, w: 2.2, h: 3.6 });
+      const warn = wallsWarned++ < 3;
+      for (let l = 0; l < 3; l++) objs.push({ k: 'wall', lane: l, x: LANES[l], z: z + 2, d: 0.8, w: 2.2, h: 3.6, warn });
       const cl = ri(3);
       for (let i = 0; i < 8; i++) { const zc = z - 6 + i * 2.2, q = (zc - (z + 2.4)) / 8; objs.push({ k: 'cell', lane: cl, x: LANES[cl], z: zc, y: 0.8 + Math.max(0, 4.2 * (1 - q * q)) }); }
       return;
@@ -671,6 +751,42 @@ html, body { background: #26222c !important; }
     g.gain.setValueAtTime(v, n); g.gain.exponentialRampToValueAtTime(0.0001, n + d);
     o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d + 0.02);
   }
+  // ---------- music: a small synth groove (kick, hat, bass, arp) that speeds up with the car ----------
+  let musNext = 0, musStep = 0, musGain = null, noiseBuf = null;
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  function musicSetup() {
+    if (!AC || musGain) return;
+    musGain = AC.createGain(); musGain.gain.value = 0.32; musGain.connect(AC.destination);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 0.2, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  function voice(type, f0, f1, t0, dur, vol, filt) {
+    const o = AC.createOscillator(), g = AC.createGain(); o.type = type;
+    o.frequency.setValueAtTime(f0, t0); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+    g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    let node = o; if (filt) { const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = filt; node = o.connect(f); }
+    node.connect(g).connect(musGain); o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  function musicStep(step, t0, st) {
+    const roots = [45, 45, 48, 43], root = roots[Math.floor(step / 16) % 4], s16 = step % 16;
+    if (s16 % 4 === 0) voice('sine', 150, 45, t0, 0.14, 0.7);
+    if (s16 % 4 === 2) { const n = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); n.buffer = noiseBuf; f.type = 'highpass'; f.frequency.value = 7000; g.gain.setValueAtTime(0.12, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05); n.connect(f).connect(g).connect(musGain); n.start(t0); n.stop(t0 + 0.06); }
+    if (s16 % 2 === 0) voice('sawtooth', mtof(root + (s16 === 6 || s16 === 14 ? 12 : 0)), 0, t0, st * 1.7, 0.16, 520);
+    const arp = { 0: 0, 3: 3, 6: 7, 10: 10, 12: 7 }[s16];
+    if (arp !== undefined) voice('square', mtof(root + 24 + arp), 0, t0, st * 1.2, 0.035, 2400);
+  }
+  setInterval(() => {
+    if (!AC || !save.music || mode !== 'play') { musNext = 0; return; }
+    musicSetup();
+    const tempo = 112 + Math.min(44, Math.max(0, (speed - 24) * 0.9)), st = 60 / tempo / 4;
+    if (musNext < AC.currentTime) musNext = AC.currentTime + 0.05;
+    while (musNext < AC.currentTime + 0.15) { musicStep(musStep, musNext, st); musNext += st; musStep = (musStep + 1) % 64; }
+  }, 40);
+  function toggleMusic() {
+    save.music = !save.music; persist();
+    $('musicBtn').textContent = save.music ? 'MUS' : 'OFF';
+    $('musicBtn').setAttribute('aria-label', save.music ? 'Turn music off' : 'Turn music on');
+  }
   function toggleMute() {
     muted = !muted;
     $('muteBtn').textContent = muted ? 'OFF' : 'SND';
@@ -682,7 +798,7 @@ html, body { background: #26222c !important; }
   function start() {
     initAudio();
     if (AC && AC.state === 'suspended') AC.resume();
-    reset(); mode = 'intro'; introA = 0; show(null); $('hud').hidden = false; $('tip').hidden = true;
+    reset(); mode = 'intro'; introA = 0; show(null); $('hud').hidden = false; $('tip').hidden = true; $('toast').hidden = true; toastT = 0;
     cv.focus?.();
   }
   function togglePause() {
@@ -692,6 +808,7 @@ html, body { background: #26222c !important; }
   function gameOver() {
     mode = 'over'; $('tip').hidden = true;
     const s = Math.floor(score), km = traveled / 1000 * 4, isBest = s > best;
+    missionEvent('run');
     save.runs++; save.dist += km; save.longest = Math.max(save.longest, km);
     save.cellsTotal += cells; save.bank += cells; save.twistsBest = Math.max(save.twistsBest, runTwists);
     save.top = [...save.top, s].sort((x, y) => y - x).slice(0, 5);
@@ -706,6 +823,8 @@ html, body { background: #26222c !important; }
     $('oBanked').textContent = cells ? `+${cells} kWh banked · ${save.bank.toLocaleString()} kWh to spend in the Garage` : `${save.bank.toLocaleString()} kWh to spend in the Garage`;
     let marked = false;
     $('oTop').innerHTML = save.top.map((v) => { const mine = !marked && v === s && s > 0; if (mine) marked = true; return `<li class="${mine ? 'new' : ''}">${v.toLocaleString()}</li>`; }).join('');
+    renderMissions('missionsOver');
+    $('wallWarn').hidden = true; $('comboTag').hidden = true; $('toast').hidden = true;
     show('over');
   }
   const equipped = (cat) => (cat === 'paint' ? save.paint : save[cat]);
@@ -752,10 +871,11 @@ html, body { background: #26222c !important; }
   // in Safari on an iPhone (not the home-screen app), suggest installing so progress is kept
   if (navigator.standalone === false && /github\.io$/.test(location.hostname)) $('installHint').hidden = false;
   let garageFrom = 'menu';
+  renderMissions('missionsMenu');
   function openGarage(from) { garageFrom = from; renderGarage(); show('garage'); }
   $('garageBtn').onclick = () => openGarage('menu');
   $('overGarage').onclick = () => openGarage('over');
-  $('garageBack').onclick = () => show(garageFrom);
+  $('garageBack').onclick = () => { renderMissions('missionsMenu'); show(garageFrom); };
 
   $('startBtn').onclick = start;
   // leaving a run early still banks the cells collected so far; only a finished run counts toward scores and stats
@@ -773,6 +893,8 @@ html, body { background: #26222c !important; }
     bankUnfinished();
     reset(); mode = 'menu';
     $('hud').hidden = true; $('tip').hidden = true;
+    renderMissions('missionsMenu');
+    $('wallWarn').hidden = true; $('comboTag').hidden = true; $('toast').hidden = true;
     show('menu');
   }
   $('againBtn').onclick = restart;
@@ -784,6 +906,8 @@ html, body { background: #26222c !important; }
   $('resumeBtn').onclick = togglePause;
   $('pauseBtn').onclick = togglePause;
   $('muteBtn').onclick = toggleMute;
+  $('musicBtn').onclick = toggleMusic;
+  if (!save.music) { $('musicBtn').textContent = 'OFF'; $('musicBtn').setAttribute('aria-label', 'Turn music on'); }
   // launch splash: fades out on its own after the charge bar fills; any tap or key skips it
   let splashT = setTimeout(hideSplash, 2100);
   function hideSplash() { clearTimeout(splashT); const sp = $('splash'); if (!sp || sp.classList.contains('out')) return; sp.classList.add('out'); setTimeout(() => { sp.hidden = true; }, 520); }
@@ -817,7 +941,7 @@ html, body { background: #26222c !important; }
   }
   function crash() {
     if (mode !== 'play') return;
-    mode = 'dying'; deathT = 0; shake = 0.7;
+    mode = 'dying'; deathT = 0; shake = 1.1; buzz([120, 60, 180]);
     $('tip').hidden = true; if (tut) tut.i = 99;
     sparks(pl.x, 0.8, 3.5, 30, '#ffb84d');
     tone(90, 0.6, 'sawtooth', 0.09, 30);
@@ -826,7 +950,7 @@ html, body { background: #26222c !important; }
   function sideHit(o) {
     pl.lane = pl.fromLane; pl.x = pl.prevX;
     sparks((pl.x + o.x) / 2, 0.7, 1.8, 16, '#ffd27a');
-    shake = 0.3; tone(180, 0.15, 'square', 0.05, 90);
+    shake = 0.5; buzz(70); tone(180, 0.15, 'square', 0.05, 90);
     if (stumble > 0) { caught = true; crash(); } else stumble = 7;
   }
 
@@ -938,7 +1062,8 @@ html, body { background: #26222c !important; }
       return;
     }
     t += dt;
-    const base = Math.min(62, 26 + t * 0.42);
+    // gentler start, most of the speed-up in the first few minutes, then a slow climb that never quite stops
+    const base = Math.min(80, 24 + 30 * (1 - Math.exp(-t / 75)) + t * 0.04);
     speed = base * (pw.lud > 0 ? 1.65 : 1);
     const dz = speed * dt;
     score += dz * 0.35 * multiplier();
@@ -950,6 +1075,7 @@ html, body { background: #26222c !important; }
     invuln = Math.max(0, invuln - dt);
     stumble = Math.max(0, stumble - dt);
     comboT -= dt; if (comboT <= 0) combo = 0;
+    missionTick(dt);
     // like the inspector: tails you at the start, falls back, and closes right in when you clip something
     introT = Math.max(0, introT - dt);
     const chaseTo = stumble > 0 ? 0.3 : introT > 0 ? -2.6 : -14;
@@ -966,6 +1092,7 @@ html, body { background: #26222c !important; }
     traveled += dz; spawnZ -= dz;
     for (const o of objs) {
       o.z -= dz;
+      if (o.k === 'wall' && o.lane === 1 && !o.passed && !o.smash && o.z + o.d < 0 && mode === 'play') { o.passed = true; runWalls++; }
       if (o.smash) { const m = o.smash; m.age += dt; m.vy -= G * dt; m.sx += m.vx * dt; m.sy += m.vy * dt; }
       if (o.k === 'cell' && pw.magnet > 0 && o.z < 28 && o.z > -1 && mode === 'play') {
         const k = Math.min(1, dt * 9);
@@ -1003,6 +1130,7 @@ html, body { background: #26222c !important; }
       crash(); return;
     }
     if (pl.y <= ground) { pl.y = ground; pl.vy = 0; pl.grounded = true; pl.boost = true; pl.rollT = 0; }
+    if (pl.grounded && ground >= 3 && !onRoof) { onRoof = true; runRoofs++; } else if (ground < 3) onRoof = false;
     else pl.grounded = false;
     pl.ground = ground;
     if (pl.rollT > 0) {
@@ -1021,7 +1149,9 @@ html, body { background: #26222c !important; }
   function collect(o) {
     o.gone = true;
     if (o.k === 'cell') {
-      cells++; combo++; comboT = 0.6;
+      cells++; combo++; comboT = 1.0;
+      // every 10 cells in a row pays a growing bonus
+      if (combo % 10 === 0) { const bonus = combo / 2; cells += bonus; toast(`Combo ×${combo}: +${bonus} kWh`); tone(1320, 0.2, 'triangle', 0.04, 1760); }
       score += 10 * multiplier();
       tone(880 + Math.min(combo, 12) * 45, 0.07, 'square', 0.03);
       sparks(o.x, o.y, o.z, 4, '#5ce1ff');
@@ -1029,6 +1159,7 @@ html, body { background: #26222c !important; }
       const p = POW[o.p];
       if (o.p === 'shield') shield = true; else pw[o.p] = p.dur;
       if (o.p === 'fly') skyCells();
+      shake = Math.max(shake, 0.18); buzz(25); missionEvent('pow');
       tone(520, 0.3, 'triangle', 0.06, 1400);
       sparks(o.x, o.y, o.z, 12, p.col);
     }
@@ -1052,7 +1183,7 @@ html, body { background: #26222c !important; }
     cam.x += (tx - cam.x) * 0.12; cam.y += (ty - cam.y) * 0.1;
 
     ctx.save();
-    if (shake > 0) { ctx.translate(rnd(-1, 1) * shake * 14, rnd(-1, 1) * shake * 10); shake = Math.max(0, shake - 0.03); }
+    if (shake > 0) { const k = shake * shake; ctx.translate(rnd(-1, 1) * k * 26, rnd(-1, 1) * k * 18); shake = Math.max(0, shake - 0.035); }
 
     drawSky();
     drawRoad();
@@ -1698,6 +1829,11 @@ html, body { background: #26222c !important; }
     const html = chips.join('');
     if (html !== lastHud) { $('chips').innerHTML = html; lastHud = html; }
     $('score').textContent = Math.floor(score).toLocaleString();
+    const tag = $('comboTag');
+    if (combo >= 3 && mode === 'play') { const txt = `Combo ×${combo}`; if (tag.textContent !== txt) { tag.textContent = txt; tag.classList.remove('pop'); void tag.offsetWidth; tag.classList.add('pop'); } tag.hidden = false; } else tag.hidden = true;
+    const ww = mode === 'play' && objs.some((o) => o.warn && o.lane === 1 && o.z > CAR_LEN && o.z < CAR_LEN + speed * 1.4);
+    $('wallWarn').hidden = !ww;
+    if (toastT > 0) { toastT -= 1 / 60; if (toastT <= 0) $('toast').hidden = true; }
     $('cells').textContent = cells;
     $('dist').textContent = (traveled / 1000 * 4).toFixed(2) + ' km';
   }
