@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '27';
+window.BUILD = '28';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -558,7 +558,7 @@ html, body { background: #26222c !important; }
   let mode = 'menu', objs = [], parts = [], pl, T = 0, t = 0, speed = 14, traveled = 0, score = 0, cells = 0;
   let spawnZ = 0, stumble = 0, invuln = 0, shake = 0, deathT = 0, caught = false, shield = false, chaserZ = -12, combo = 0, comboT = 0, introT = 0;
   const pw = { lud: 0, magnet: 0, dbl: 0, fly: 0 };
-  let tut = null, chaserX = -2.4, noShadow = false, introA = 0, zoom = 1, hyOff = 0, flightRocket = -99, jumpBuf = 0, reviveUsed = false, revivePending = false, reviveT = 0;
+  let tut = null, chaserX = -2.4, noShadow = false, introA = 0, zoom = 1, hyOff = 0, flightRocket = -99, lastWall = false, jumpBuf = 0, reviveUsed = false, revivePending = false, reviveT = 0;
   // progress saved on this device: banked battery cells, owned paints, lifetime stats, top 5 scores
   const SAVE_KEY = 'roadster-rush-save';
   // shop catalog: priced so a good run (roughly 80-150 kWh) buys a first item in a few runs and the top items take many sessions
@@ -670,7 +670,7 @@ html, body { background: #26222c !important; }
   function reset() {
     objs = []; parts = [];
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
-    reviveUsed = false; revivePending = false; jumpBuf = 0; t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
+    reviveUsed = false; revivePending = false; jumpBuf = 0; lastWall = false; t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
     flightRocket = -99; caught = false; shield = false; chaserZ = -2.6; introT = 4; chaserX = -2.4; pw.lud = pw.magnet = pw.dbl = pw.fly = 0; combo = 0;
     cam.x = 0; cam.y = 3.6;
   }
@@ -681,8 +681,11 @@ html, body { background: #26222c !important; }
   function spawnRow(z) {
     // ramps quickly at first, then keeps creeping up for long runs
     const diff = Math.min(1, (1 - Math.exp(-t / 90)) + t / 1200);
-    // construction wall across every lane: too tall for a plain jump, only a twist (or Flight) gets you over
-    if (t > 12 && Math.random() < 0.1 + diff * 0.06) {
+    // construction wall across every lane: too tall for a plain jump, only a twist (or Flight) gets you over.
+    // Never two in a row: one jump-and-twist covers ~55 units, so a second wall that close can't be cleared.
+    const afterWall = lastWall; lastWall = false;
+    if (!afterWall && t > 12 && Math.random() < 0.1 + diff * 0.06) {
+      lastWall = true;
       const warn = wallsWarned++ < 3;
       for (let l = 0; l < 3; l++) objs.push({ k: 'wall', lane: l, x: LANES[l], z: z + 2, d: 0.8, w: 2.2, h: 3.6, warn });
       const cl = ri(3);
@@ -1224,7 +1227,8 @@ html, body { background: #26222c !important; }
     const dz = speed * dt;
     score += dz * 0.35 * multiplier();
     advance(dz, dt);
-    while (spawnZ < FAR) { spawnRow(spawnZ); spawnZ += 26 + speed * 0.28 + rnd(0, 12); }
+    // extra room after a wall so you can land and get set before the next row
+    while (spawnZ < FAR) { spawnRow(spawnZ); spawnZ += 26 + speed * 0.28 + rnd(0, 12) + (lastWall ? speed * 0.75 : 0); }
     updPlayer(dt);
     tutTick(dt);
     for (const k in pw) pw[k] = Math.max(0, pw[k] - dt);
