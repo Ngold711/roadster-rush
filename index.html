@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '45';
+window.BUILD = '46';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -2222,18 +2222,23 @@ html, body { background: #26222c !important; }
     return c;
   }
   const FACADE_TEX = [0, 1, 2].map((st) => [0, 1, 2].map((v) => bakeFacade(st, v)));
-  // map a facade texture onto the receding wall in thin vertical strips, each one an affine draw;
-  // strips get wider with distance, where perspective barely bends them
+  // map a facade texture onto the receding wall with true perspective: the wall is cut into thin columns of
+  // screen pixels, each column is one depth, so every row of windows stays a straight line as you drive
   function wallTex(img, fx, z0, zs, z1, yTop) {
-    const base = ctx.getTransform(), sy = (img.height / TPX - yTop) * TPX, vh = (yTop - 3.3) * TPX;
-    for (let za = zs; za < z1 - 0.01;) {
-      const zb = Math.min(z1, za + Math.max(0.5, (za - cam.z) * 0.12));
-      const a = P(fx, yTop, za), b = P(fx, yTop, zb), c = P(fx, 3.3, za), uw = (zb - za) * TPX;
-      ctx.setTransform(base); ctx.transform(b[0] - a[0], b[1] - a[1], c[0] - a[0], c[1] - a[1], a[0], a[1]);
-      ctx.drawImage(img, (za - z0) * TPX, sy, uw + 0.6, vh, 0, 0, 1 + 0.6 / uw, 1);
-      za = zb;
+    const f = F * zoom, dx = fx - cam.x, cy = HY + hyOff, sy = (img.height / TPX - yTop) * TPX, vh = (yTop - 3.3) * TPX;
+    const X = (z) => W / 2 + dx * f / (z - cam.z), Z = (x) => cam.z + dx * f / (x - W / 2);
+    let xa = X(zs), xb = X(z1);
+    if (xa > xb) [xa, xb] = [xb, xa];
+    xa = Math.max(xa, 0); xb = Math.min(xb, W);
+    if (xb - xa < 1) return;
+    const step = SET.low ? 4 : 2.5, maxU = img.width - 1;
+    for (let x = xa; x < xb; x += step) {
+      const x1 = Math.min(xb, x + step), za = Z(x), zb = Z(x1), zm = (za + zb) / 2;
+      if (!(zm > ZN)) continue;
+      const s = f / (zm - cam.z), top = cy + (cam.y - yTop) * s, bot = cy + (cam.y - 3.3) * s;
+      const u0 = clamp((Math.min(za, zb) - z0) * TPX, 0, maxU), uw = Math.max(0.5, Math.min(maxU - u0, Math.abs(zb - za) * TPX));
+      ctx.drawImage(img, u0, sy, uw, vh, x, top, x1 - x + 0.4, bot - top);
     }
-    ctx.setTransform(base);
   }
   function drawBuildingReal(side, z0, z1, n) {
     const k = hash(n * 3, side * 11), style = k < 0.42 ? 0 : k < 0.75 ? 1 : 2; // 0 brick, 1 limestone, 2 glass
@@ -2420,11 +2425,11 @@ html, body { background: #26222c !important; }
     if (o.z <= ZN) return;
     const [sx, sy, s] = P(o.x, o.y + Math.sin(T * 2.2) * 0.15, o.z), r = s * 0.95, w = Math.max(0.14, Math.abs(Math.cos(T * 2.6)));
     // the beam fades out as the token gets close, so it never washes over the car
-    const fade = clamp((o.z - 6) / 25, 0, 1);
+    const fade = clamp((o.z - 18) / 30, 0, 1);
     if (fade > 0) {
       const g0 = P(o.x, 0, o.z), bt = sy - r * 5, beam = ctx.createLinearGradient(0, bt, 0, g0[1]);
       beam.addColorStop(0, 'rgba(255,211,110,0)'); beam.addColorStop(1, `rgba(255,211,110,${(0.38 * fade).toFixed(3)})`);
-      ctx.fillStyle = beam; ctx.fillRect(sx - r * 0.4, bt, r * 0.8, g0[1] - bt);
+      ctx.fillStyle = beam; ctx.fillRect(sx - r * 0.25, bt, r * 0.5, g0[1] - bt);
     }
     glow(sx, sy, r * 2.6, 0.55);
     ctx.save(); ctx.translate(sx, sy); ctx.scale(w, 1);
