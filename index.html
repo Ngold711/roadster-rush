@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '38';
+window.BUILD = '39';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -191,9 +191,17 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 .fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden;
   background: radial-gradient(ellipse at 50% 55%, rgba(0,0,0,0) 45%, rgba(0,0,0,.55) 100%), linear-gradient(rgba(30,90,150,.22), rgba(30,90,150,0) 50%, rgba(255,130,60,.12)); }
 /* rain: a tall tile of streaks slid down on the compositor, so it costs nothing per frame */
-.fx .rain { position: absolute; left: -10%; right: -10%; top: -180px; height: calc(100% + 360px); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='180'%3E%3Cg stroke='%23d2dcf2' stroke-opacity='.38' stroke-width='1'%3E%3Cpath d='M12 4l-3 22M48 60l-3 22M90 18l-3 26M120 90l-3 22M30 120l-3 24M70 140l-3 22M104 150l-3 24M60 8l-2 18M132 40l-2 18M20 70l-2 18'/%3E%3C/g%3E%3C/svg%3E"); background-size: 140px 180px; animation: rainFall .42s linear infinite; }
+.weather { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.weather .rain, .weather .snow { opacity: 0; transition: opacity 3s ease; }
+.weather.is-rain .rain, .weather.is-snow .snow { opacity: 1; }
+.weather .rain { position: absolute; left: -10%; right: -10%; top: -180px; height: calc(100% + 360px); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='180'%3E%3Cg stroke='%23d2dcf2' stroke-opacity='.38' stroke-width='1'%3E%3Cpath d='M12 4l-3 22M48 60l-3 22M90 18l-3 26M120 90l-3 22M30 120l-3 24M70 140l-3 22M104 150l-3 24M60 8l-2 18M132 40l-2 18M20 70l-2 18'/%3E%3C/g%3E%3C/svg%3E"); background-size: 140px 180px; animation: rainFall .42s linear infinite; }
 @keyframes rainFall { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-24px, 180px, 0); } }
-@media (prefers-reduced-motion: reduce) { .fx .rain { animation: none; opacity: .5; } }
+/* snow: two tiles of soft flakes drifting at different speeds */
+.weather .snow { position: absolute; left: -10%; right: -10%; top: -200px; height: calc(100% + 400px);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='200'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='14' cy='20' r='2.2' opacity='.9'/%3E%3Ccircle cx='70' cy='60' r='1.6' opacity='.8'/%3E%3Ccircle cx='120' cy='30' r='2.6' opacity='.85'/%3E%3Ccircle cx='40' cy='120' r='1.8' opacity='.75'/%3E%3Ccircle cx='100' cy='150' r='2.2' opacity='.9'/%3E%3Ccircle cx='146' cy='110' r='1.5' opacity='.7'/%3E%3Ccircle cx='60' cy='180' r='2.4' opacity='.85'/%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='110'%3E%3Cg fill='%23fff' opacity='.55'%3E%3Ccircle cx='10' cy='14' r='1.1'/%3E%3Ccircle cx='54' cy='40' r='.9'/%3E%3Ccircle cx='30' cy='80' r='1.2'/%3E%3Ccircle cx='76' cy='96' r='1'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 160px 200px, 90px 110px; animation: snowFall 5s linear infinite; }
+@keyframes snowFall { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(30px, 200px, 0); } }
+@media (prefers-reduced-motion: reduce) { .weather .rain, .weather .snow { animation: none; } }
 .gfxrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
 .seg button { padding: 7px 14px; border: 0; background: transparent; color: var(--muted); font: 600 13px var(--body); letter-spacing: .04em; cursor: pointer; }
@@ -254,7 +262,8 @@ html, body { background: #26222c !important; }
 
 <div id="game">
   <canvas id="cv" aria-label="Roadster Rush game view"></canvas>
-  <div class="fx" id="fx" hidden><div class="rain"></div></div>
+  <div class="fx" id="fx" hidden></div>
+  <div class="weather" id="weather"><div class="rain"></div><div class="snow"></div></div>
 
   <div class="hud" id="hud" hidden>
     <div class="readout">
@@ -945,7 +954,7 @@ html, body { background: #26222c !important; }
   function start() {
     initAudio();
     if (AC && AC.state === 'suspended') AC.resume();
-    reset(); mode = 'intro'; introA = 0; show(null); $('hud').hidden = false; $('tip').hidden = true; $('toast').hidden = true; toastT = 0;
+    reset(); rollWeather(); mode = 'intro'; introA = 0; show(null); $('hud').hidden = false; $('tip').hidden = true; $('toast').hidden = true; toastT = 0;
     cv.focus?.();
   }
   // resuming runs a 3-2-1 countdown so you're not dropped straight into traffic
@@ -1101,6 +1110,11 @@ html, body { background: #26222c !important; }
   }
   let resetArmed = 0;
   $('settingsBtn').onclick = openSettings;
+  // ---------- weather: picked at random each run and changing on its own mid-run; no setting for it ----------
+  let weather = 'clear', weatherT = 0, snowAmt = 0;
+  function setWeather(w) { weather = w; $('weather').className = 'weather is-' + w; }
+  function rollWeather() { const r = Math.random(); setWeather(r < 0.45 ? 'clear' : r < 0.8 ? 'rain' : 'snow'); weatherT = 40 + Math.random() * 45; }
+  rollWeather();
   function showGfx() { $('gfxClassic').setAttribute('aria-pressed', String(!SET.real)); $('gfxReal').setAttribute('aria-pressed', String(SET.real)); $('fx').hidden = !SET.real; }
   // switching style re-bakes the sky (the realistic one adds a moon and clouds)
   function setGfx(real) { SET.real = real; persist(); bg = null; showGfx(); }
@@ -1341,6 +1355,7 @@ html, body { background: #26222c !important; }
       return;
     }
     t += dt;
+    if ((weatherT -= dt) <= 0) rollWeather();
     // gentler start, most of the speed-up in the first few minutes, then a slow climb that never quite stops
     const base = Math.min(80, 24 + 30 * (1 - Math.exp(-t / 75)) + t * 0.04);
     speed = base * (pw.lud > 0 ? 1.65 : 1);
@@ -1758,8 +1773,10 @@ html, body { background: #26222c !important; }
 
 
   function drawRoad() {
-    poly([[-11.5, 0, ZN], [-4.6, 0, ZN], [-4.6, 0, FAR], [-11.5, 0, FAR]], '#4b4654');
-    poly([[4.6, 0, ZN], [11.5, 0, ZN], [11.5, 0, FAR], [4.6, 0, FAR]], '#4b4654');
+    snowAmt += ((weather === 'snow' ? 1 : 0) - snowAmt) * 0.004;
+    const walk = snowAmt > 0.01 ? `rgb(${Math.round(75 + 130 * snowAmt)},${Math.round(70 + 138 * snowAmt)},${Math.round(84 + 132 * snowAmt)})` : '#4b4654';
+    poly([[-11.5, 0, ZN], [-4.6, 0, ZN], [-4.6, 0, FAR], [-11.5, 0, FAR]], walk);
+    poly([[4.6, 0, ZN], [11.5, 0, ZN], [11.5, 0, FAR], [4.6, 0, FAR]], walk);
     let roadFill = '#26222c';
     if (SET.real) { const rg = ctx.createLinearGradient(0, HY + hyOff, 0, H); rg.addColorStop(0, '#4a3b52'); rg.addColorStop(0.25, '#1f1b26'); rg.addColorStop(1, '#0e0c12'); roadFill = rg; }
     poly([[-4.6, 0, ZN], [4.6, 0, ZN], [4.6, 0, FAR], [-4.6, 0, FAR]], roadFill);
@@ -1820,7 +1837,7 @@ html, body { background: #26222c !important; }
           ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.stroke();
           const r = Math.max(2, a[2] * 0.7);
           glow(c[0], c[1], r, 0.95);
-          if (SET.real) reflect(side * 4.2, z, a[2], warmStrip, 0.38);
+          if (SET.real && weather === 'rain') reflect(side * 4.2, z, a[2], warmStrip, 0.38);
         }
       }
     }
@@ -1943,8 +1960,8 @@ html, body { background: #26222c !important; }
     if (SET.real) {
       sub(rr, 0, 0, 1, 0.1, 'rgba(255,255,255,.22)');
       const rw = (rr.r - rr.l) * 0.16, rl = (rr.b - rr.t) * 1.6;
-      const pa = ctx.globalAlpha; ctx.globalAlpha = pa * 0.4;
-      for (const fx of [0.12, 0.88]) ctx.drawImage(redStrip, rr.l + (rr.r - rr.l) * fx - rw / 2, rr.b, rw, rl);
+      const pa = ctx.globalAlpha; ctx.globalAlpha = pa * (weather === 'rain' ? 0.4 : 0);
+      if (weather === 'rain') for (const fx of [0.12, 0.88]) ctx.drawImage(redStrip, rr.l + (rr.r - rr.l) * fx - rw / 2, rr.b, rw, rl);
       ctx.globalAlpha = pa;
     }
     if (roadster && save.design !== 'd:none') drawDesign(x, y, z, m, rr, col);
