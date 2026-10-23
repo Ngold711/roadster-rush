@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '52';
+window.BUILD = '53';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -194,6 +194,10 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 .weather { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .weather .rain, .weather .snow { opacity: 0; transition: opacity 3s ease; }
 .weather { transition: opacity .5s ease; }
+/* sunrise on long runs: a warm soft-light wash over the whole street, faded in from the canvas loop */
+.dawn { position: absolute; inset: 0; pointer-events: none; opacity: 0; mix-blend-mode: soft-light;
+  background: linear-gradient(rgba(150,190,255,.85), rgba(255,180,130,.85) 45%, rgba(255,215,175,.55)); }
+.dawn.mars { background: linear-gradient(rgba(255,205,160,.85), rgba(255,160,100,.85) 45%, rgba(255,200,150,.55)); }
 .weather.under { opacity: 0; }
 .weather.is-rain .rain, .weather.is-snow .snow { opacity: 1; }
 .weather .rain { position: absolute; left: -10%; right: -10%; top: -180px; height: calc(100% + 360px); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='180'%3E%3Cg stroke='%23d2dcf2' stroke-opacity='.38' stroke-width='1'%3E%3Cpath d='M12 4l-3 22M48 60l-3 22M90 18l-3 26M120 90l-3 22M30 120l-3 24M70 140l-3 22M104 150l-3 24M60 8l-2 18M132 40l-2 18M20 70l-2 18'/%3E%3C/g%3E%3C/svg%3E"); background-size: 140px 180px; animation: rainFall .42s linear infinite; }
@@ -292,6 +296,7 @@ html, body { background: #26222c !important; }
 <div id="game">
   <canvas id="cv" aria-label="Roadster Rush game view"></canvas>
   <div class="fx" id="fx" hidden></div>
+  <div class="dawn" id="dawn"></div>
   <div class="weather" id="weather"><div class="rain"></div><div class="snow"></div><div class="dust"></div></div>
 
   <div class="hud" id="hud" hidden>
@@ -857,6 +862,8 @@ html, body { background: #26222c !important; }
     'THEFACEBOOK', 'POKE', 'LIKES', 'HACKATHON', 'SURFING'];
   let hunt = null;
   // tunnels: after a while on the road you dive into one now and then (a Boring Company Loop in New York, a lava tube on Mars)
+  // dawn: 0 at night, 1 once the sun is up; starts about 75 s into a run and is full by about 4 minutes
+  let dawnK = 0, dawnShown = -1, dawnTold = false;
   let tunnel = null, nextTunnel = 600, underground = false, lastHue = 355;
   // each Loop tunnel glows one neon color, picked fresh (never the same twice in a row)
   const NEON = [355, 215, 188, 130, 278, 318, 22, 52];
@@ -870,7 +877,7 @@ html, body { background: #26222c !important; }
   function reset() {
     objs = []; parts = [];
     hunt = { word: pick(WORDS), got: 0, next: rnd(400, 600), out: false, done: false };
-    tunnel = null; nextTunnel = rnd(550, 750);
+    tunnel = null; nextTunnel = rnd(550, 750); dawnK = 0; dawnTold = false;
     renderHunt();
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
     reviveUsed = false; revivePending = false; jumpBuf = 0; lastWall = false; t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
@@ -1762,6 +1769,12 @@ html, body { background: #26222c !important; }
     } else drawRoadside();
     const inTube = !!tunnel && zA < -1 && zB > 1;
     if (inTube !== underground) { underground = inTube; $('weather').classList.toggle('under', inTube); }
+    const playing = mode === 'play' || mode === 'paused' || mode === 'count' || mode === 'dying' || mode === 'over';
+    const dk = playing ? clamp((t - 75) / 165, 0, 1) : 0;
+    dawnK = dk * dk * (3 - 2 * dk);
+    if (dawnK > 0 && !dawnTold && mode === 'play') { dawnTold = true; toast('The sun is coming up'); }
+    const op = Math.round(dawnK * (underground ? 0.25 : 0.75) * 100) / 100;
+    if (op !== dawnShown) { dawnShown = op; const d = $('dawn'); d.style.opacity = op; d.classList.toggle('mars', onMars()); }
 
     // anything the car is riding on or flying over gets painted underneath it, even when its back end sits behind the car
     const under = (o) => {
@@ -2154,6 +2167,17 @@ html, body { background: #26222c !important; }
     else if (!SET.real && Math.floor(T * 1.5) % 2) {
       const k = H / 800; ctx.fillStyle = '#ff3b3b';
       for (const m of landmarks) { const top = m.type === 'wtc' ? 360 : m.type === 'esb' ? 290 : 295; ctx.fillRect(m.x - 1.5 * k, HY + hyOff + 1 - top * k - 3, 3 * k, 3); }
+    }
+    if (dawnK > 0) {
+      // sunrise: lighten the sky with a screen blend, blue overhead and warm at the horizon
+      const mars = onMars(), hz = HY + hyOff, g = ctx.createLinearGradient(0, 0, 0, hz + 2), k = dawnK;
+      g.addColorStop(0, mars ? `rgba(150,110,90,${0.6 * k})` : `rgba(70,110,190,${0.75 * k})`);
+      g.addColorStop(0.6, mars ? `rgba(210,150,110,${0.6 * k})` : `rgba(160,125,175,${0.6 * k})`);
+      g.addColorStop(1, mars ? `rgba(255,190,140,${0.8 * k})` : `rgba(255,160,100,${0.85 * k})`);
+      ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = g; ctx.fillRect(0, 0, W, hz + 2);
+      const sx = W * 0.6, sg = ctx.createRadialGradient(sx, hz, 0, sx, hz, W * 0.6);
+      sg.addColorStop(0, `rgba(255,210,150,${0.55 * k})`); sg.addColorStop(1, 'rgba(255,210,150,0)');
+      ctx.fillStyle = sg; ctx.fillRect(0, 0, W, hz + 2); ctx.restore();
     }
     drawRocket();
   }
