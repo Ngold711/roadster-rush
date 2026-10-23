@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '26';
+window.BUILD = '27';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -71,7 +71,7 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .score { font-family: var(--display); font-size: clamp(22px, 4.2vw, 34px); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; text-shadow: 0 2px 0 rgba(0,0,0,.45); }
 .label { font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 3px; background: var(--panel); border: 1px solid var(--line); font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+.chip { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 3px; background: var(--panel); border: 1px solid var(--line); font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
 .chip .bar { width: 44px; height: 4px; background: rgba(255,255,255,.15); border-radius: 2px; overflow: hidden; }
 .chip .bar i { display: block; height: 100%; background: currentColor; }
 .chip.mult { color: var(--amber); }
@@ -1085,11 +1085,17 @@ html, body { background: #26222c !important; }
     tone(90, 0.6, 'sawtooth', 0.09, 30);
     if (hum) hum.g.gain.setTargetAtTime(0, AC.currentTime, 0.1);
   }
+  // how long the patrol truck stays on your tail after a stumble; a second stumble inside this window gets you caught
+  const STUMBLE = 7;
+  function bump(o) {
+    smash(o); shake = 0.55; buzz(70); tone(160, 0.18, 'square', 0.05, 80);
+    if (stumble > 0) { caught = true; crash(); } else { stumble = STUMBLE; toast('The cop is on you!'); }
+  }
   function sideHit(o) {
     pl.lane = pl.fromLane; pl.x = pl.prevX;
     sparks((pl.x + o.x) / 2, 0.7, 1.8, 16, '#ffd27a');
     shake = 0.5; buzz(70); tone(180, 0.15, 'square', 0.05, 90);
-    if (stumble > 0) { caught = true; crash(); } else stumble = 7;
+    if (stumble > 0) { caught = true; crash(); } else stumble = STUMBLE;
   }
 
   // ---------- update ----------
@@ -1292,6 +1298,8 @@ html, body { background: #26222c !important; }
       if (pw.lud > 0 || invuln > 0) { smash(o); continue; }
       if (shield) { shield = false; invuln = 1.2; smash(o); continue; }
       if (Math.abs(pl.prevX - o.x) >= reach) { sideHit(o); if (mode !== 'play') return; continue; }
+      // like Subway Surfers' small hurdles: plowing into a low barrier knocks it away and brings the cop close, but you keep driving
+      if (o.k === 'barrier') { bump(o); if (mode !== 'play') return; continue; }
       crash(); return;
     }
     if (pl.y <= ground) { pl.y = ground; pl.vy = 0; pl.grounded = true; pl.boost = true; pl.rollT = 0; }
@@ -2035,7 +2043,7 @@ html, body { background: #26222c !important; }
     for (const k of ['fly', 'lud', 'magnet', 'dbl']) if (pw[k] > 0)
       chips.push(`<span class="chip" style="color:${POW[k].col}">${POW[k].name}<span class="bar"><i style="width:${(pw[k] / POW[k].dur * 100).toFixed(0)}%"></i></span></span>`);
     if (shield) chips.push(`<span class="chip" style="color:${POW.shield.col}">Autopilot armed</span>`);
-    if (stumble > 0) chips.push(`<span class="chip" style="color:#ff6b75">Patrol on your tail</span>`);
+    if (stumble > 0) chips.push(`<span class="chip" style="color:#ff6b75">Patrol on your tail<span class="bar"><i style="width:${(stumble / STUMBLE * 100).toFixed(0)}%"></i></span></span>`);
     const html = chips.join('');
     if (html !== lastHud) { $('chips').innerHTML = html; lastHud = html; }
     $('score').textContent = Math.floor(score).toLocaleString();
