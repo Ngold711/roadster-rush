@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '51';
+window.BUILD = '52';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -769,15 +769,16 @@ html, body { background: #26222c !important; }
   const SET = save.settings;
 
   // ---------- daily missions: 3 goals picked from the date, each paying bonus kWh once ----------
+  // goals are tough on purpose: most take a long, clean run (or a full day of play) to finish
   const MISSIONS = [
-    { id: 'twist', text: 'Twist 5 times in one run', goal: 5, reward: 100, run: () => runTwists },
-    { id: 'cells', text: 'Collect 150 kWh in one run', goal: 150, reward: 125, run: () => cells },
-    { id: 'dist', text: 'Drive 3 km in one run', goal: 3, reward: 125, run: () => traveled / 1000 * 4, fmt: (v) => v.toFixed(1) },
-    { id: 'roof', text: 'Ride 3 trailer roofs in one run', goal: 3, reward: 150, run: () => runRoofs },
-    { id: 'walls', text: 'Twist over 3 walls in one run', goal: 3, reward: 175, run: () => runWalls },
-    { id: 'score', text: 'Score 3,000 in one run', goal: 3000, reward: 150, run: () => score, fmt: (v) => Math.floor(v).toLocaleString() },
-    { id: 'pows', text: 'Grab 4 power-ups today', goal: 4, reward: 100, ev: 'pow' },
-    { id: 'runs', text: 'Finish 5 runs today', goal: 5, reward: 75, ev: 'run' },
+    { id: 'twist', text: 'Twist 12 times in one run', goal: 12, reward: 150, run: () => runTwists },
+    { id: 'cells', text: 'Collect 300 kWh in one run', goal: 300, reward: 175, run: () => cells },
+    { id: 'dist', text: 'Drive 6 km in one run', goal: 6, reward: 175, run: () => traveled / 1000 * 4, fmt: (v) => v.toFixed(1) },
+    { id: 'roof', text: 'Ride 6 trailer roofs in one run', goal: 6, reward: 200, run: () => runRoofs },
+    { id: 'walls', text: 'Twist over 5 walls in one run', goal: 5, reward: 225, run: () => runWalls },
+    { id: 'score', text: 'Score 8,000 in one run', goal: 8000, reward: 200, run: () => score, fmt: (v) => Math.floor(v).toLocaleString() },
+    { id: 'pows', text: 'Grab 10 power-ups today', goal: 10, reward: 150, ev: 'pow' },
+    { id: 'runs', text: 'Finish 10 runs today', goal: 10, reward: 125, ev: 'run' },
   ];
   function today() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
   function dailyMissions() {
