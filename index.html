@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '35';
+window.BUILD = '36';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -182,6 +182,12 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 .count.tick { animation: countIn .9s ease-out both; }
 @keyframes countIn { from { transform: scale(1.6); opacity: 0; } 30% { transform: none; opacity: 1; } to { opacity: .2; } }
 @media (prefers-reduced-motion: reduce) { .count.tick { animation: none; } }
+.preview { display: block; width: 100%; height: 150px; border-radius: 4px; background: #140c1d; }
+@media (max-height: 700px) { .preview { height: 120px; } }
+.buybar { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 40px; font-size: 14px; font-weight: 600; }
+.buybar .btn { padding: 9px 14px; font-size: 12px; flex: none; }
+.buybar .btn:disabled { background: #3a3346; box-shadow: none; color: var(--muted); cursor: default; }
+.paint.pv { border-color: var(--cell); box-shadow: 0 0 0 1px var(--cell) inset; }
 .headrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .btn.backtop { justify-self: auto; padding: 9px 14px; font-size: 12px; letter-spacing: .06em; flex: none; }
 /* the Garage header (title, Back, balance) stays pinned while the shop scrolls underneath */
@@ -298,6 +304,8 @@ html, body { background: #26222c !important; }
           <button class="btn ghost backtop" id="garageBackTop" type="button">← Back</button>
         </div>
         <div class="bank"><span class="batt" aria-hidden="true"></span><b id="gBank">0</b>kWh to spend</div>
+        <canvas class="preview" id="preview" aria-label="Preview of your roadster"></canvas>
+        <div class="buybar"><span id="pvName">Tap a paint, design or smoke to try it on</span><button class="btn" id="pvBtn" type="button" hidden>Buy</button></div>
       </div>
       <div id="shop">
         <div class="label">Paint</div>
@@ -409,7 +417,7 @@ html, body { background: #26222c !important; }
 <script>
 (() => {
   const cv = document.getElementById('cv');
-  const ctx = cv.getContext('2d');
+  let ctx = cv.getContext('2d');
   window.__cx = ctx;
   const $ = (id) => document.getElementById(id);
 
@@ -977,29 +985,75 @@ html, body { background: #26222c !important; }
     show('over');
   }
   const equipped = (cat) => (cat === 'paint' ? save.paint : save[cat]);
+  // what the preview car is wearing (starts as what's equipped) and the item last tapped, which the buy bar acts on
+  let pvState = null, pvItem = null, pvRaf = 0;
   function renderGarage(msg = '') {
     $('gBank').textContent = save.bank.toLocaleString();
     for (const cat of ['paint', 'design', 'smoke']) {
       $('shop-' + cat).innerHTML = SHOP[cat].map((p) => {
-        const own = save.owned.includes(p.id), on = equipped(cat) === p.id;
+        const own = save.owned.includes(p.id), on = equipped(cat) === p.id, pv = pvState && pvState[cat] === p.id && !on;
         const tag = on ? 'Equipped' : own ? 'Owned' : `${p.cost.toLocaleString()} kWh`;
         const sw = cat === 'paint' ? p.col : cat === 'design' ? p.sw : p.rgb ? `rgb(${p.rgb.join(',')})` : 'conic-gradient(#ff5a5a,#ffd36e,#7dff8a,#5aa8ff,#ff7ad9,#ff5a5a)';
-        return `<button type="button" class="paint${on ? ' on' : ''}${own ? '' : ' locked'}" data-cat="${cat}" data-id="${p.id}"><i style="background:${sw}"></i>${p.name}<small>${tag}</small></button>`;
+        return `<button type="button" class="paint${on ? ' on' : ''}${pv ? ' pv' : ''}${own ? '' : ' locked'}" data-cat="${cat}" data-id="${p.id}"><i style="background:${sw}"></i>${p.name}<small>${tag}</small></button>`;
       }).join('');
     }
     $('gMsg').textContent = msg;
+    renderBuyBar();
     const st = [['Runs', save.runs.toLocaleString()], ['Best score', (save.top[0] || 0).toLocaleString()], ['Total distance', save.dist.toFixed(1) + ' km'], ['Longest run', save.longest.toFixed(2) + ' km'], ['Cells collected', save.cellsTotal.toLocaleString()], ['Most twists', save.twistsBest]];
     $('gStats').innerHTML = st.map(([k, v]) => `<div class="stat"><span class="label">${k}</span><b>${v}</b></div>`).join('');
   }
+  function renderBuyBar() {
+    const btn = $('pvBtn');
+    if (!pvItem) { $('pvName').textContent = 'Tap a paint, design or smoke to try it on'; btn.hidden = true; return; }
+    const p = SHOP[pvItem.cat].find((q) => q.id === pvItem.id), own = save.owned.includes(p.id), on = equipped(pvItem.cat) === p.id;
+    $('pvName').textContent = p.name;
+    btn.hidden = false;
+    if (on) { btn.textContent = 'Equipped'; btn.disabled = true; }
+    else if (own) { btn.textContent = 'Equip'; btn.disabled = false; }
+    else if (save.bank >= p.cost) { btn.textContent = `Buy · ${p.cost.toLocaleString()}`; btn.disabled = false; }
+    else { btn.textContent = `Need ${(p.cost - save.bank).toLocaleString()} more`; btn.disabled = true; }
+  }
   $('shop').addEventListener('click', (e) => {
     const b = e.target.closest('.paint'); if (!b) return;
-    const cat = b.dataset.cat, p = SHOP[cat].find((q) => q.id === b.dataset.id);
+    pvItem = { cat: b.dataset.cat, id: b.dataset.id }; pvState[pvItem.cat] = pvItem.id;
+    renderGarage();
+  });
+  $('pvBtn').addEventListener('click', () => {
+    if (!pvItem) return;
+    const cat = pvItem.cat, p = SHOP[cat].find((q) => q.id === pvItem.id);
     const wear = () => { if (cat === 'paint') save.paint = p.id; else save[cat] = p.id; };
     if (save.owned.includes(p.id)) { wear(); persist(); renderGarage(`${p.name} equipped`); }
     else if (save.bank >= p.cost) { save.bank -= p.cost; save.owned.push(p.id); wear(); persist(); renderGarage(`Bought ${p.name}`); tone(660, 0.25, 'triangle', 0.05, 1320); }
-    else renderGarage(`You need ${(p.cost - save.bank).toLocaleString()} more kWh for ${p.name}`);
     pl.col = paintCol();
   });
+  // live preview: the scene renderer is pointed at the small canvas for a moment to draw the car hovering on its jets
+  function drawPreview() {
+    const pc = $('preview'), r = pc.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+    const pw = Math.max(1, r.width), ph = Math.max(1, r.height);
+    if (pc.width !== Math.round(pw * dpr) || pc.height !== Math.round(ph * dpr)) { pc.width = Math.round(pw * dpr); pc.height = Math.round(ph * dpr); }
+    const pctx = pc.getContext('2d'); pctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const keep = { ctx, W, H, HY, F, cx: cam.x, cy: cam.y, zoom, hyOff, T, pl, design: save.design, smoke: save.smoke };
+    try {
+      ctx = pctx; W = pw; H = ph; zoom = 1; hyOff = 0; T = performance.now() / 1000;
+      F = Math.min(pw * 2.0, ph * 3.4); cam.x = 0; cam.y = 3.0;
+      HY = ph * 0.5 - 1.25 * (F / 7);
+      const g = pctx.createRadialGradient(pw / 2, ph * 0.45, 8, pw / 2, ph * 0.45, pw * 0.65);
+      g.addColorStop(0, '#3e2856'); g.addColorStop(1, '#140c1d'); pctx.fillStyle = g; pctx.fillRect(0, 0, pw, ph);
+      save.design = pvState.design; save.smoke = pvState.smoke;
+      const y = 1.05 + Math.sin(T * 2) * 0.08;
+      pl = Object.assign({}, keep.pl, { x: 0, y, ground: y - 0.35, grounded: false, rollT: 0, lean: 0, col: (PAINTS.find((q) => q.id === pvState.paint) || PAINTS[0]).col });
+      if (save.design === 'd:glow') drawUnderglow();
+      pl.ground = -3; drawThrust();
+      drawCar(0, y, 0, pl.col, ROADSTER, false, null);
+    } finally {
+      ({ ctx, W, H, HY, F, zoom, hyOff, T, pl } = keep); cam.x = keep.cx; cam.y = keep.cy; save.design = keep.design; save.smoke = keep.smoke;
+    }
+  }
+  function previewLoop() {
+    if ($('garage').hidden) { pvRaf = 0; return; }
+    try { drawPreview(); } catch (e) { console.error(e); }
+    pvRaf = requestAnimationFrame(previewLoop);
+  }
   // share sheet on phones; copies the link where sharing isn't available
   const SHARE_URL = 'https://ngold711.github.io/roadster-rush/';
   async function shareGame(btn, text) {
@@ -1021,7 +1075,11 @@ html, body { background: #26222c !important; }
   if (navigator.standalone === false && /github\.io$/.test(location.hostname)) $('installHint').hidden = false;
   let garageFrom = 'menu';
   renderMissions('missionsMenu');
-  function openGarage(from) { garageFrom = from; renderGarage(); show('garage'); }
+  function openGarage(from) {
+    garageFrom = from; pvState = { paint: save.paint, design: save.design, smoke: save.smoke }; pvItem = null;
+    renderGarage(); show('garage');
+    if (!pvRaf) pvRaf = requestAnimationFrame(previewLoop);
+  }
   $('garageBtn').onclick = () => openGarage('menu');
   $('overGarage').onclick = () => openGarage('over');
   function openSettings() {
