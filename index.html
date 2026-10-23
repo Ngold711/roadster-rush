@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '55';
+window.BUILD = '56';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -365,7 +365,7 @@ html, body { background: #26222c !important; }
         </div>
         <div class="bank"><span class="batt" aria-hidden="true"></span><b id="gBank">0</b>kWh to spend</div>
         <canvas class="preview" id="preview" aria-label="Preview of your roadster"></canvas>
-        <div class="buybar"><span id="pvName">Tap a paint, design, smoke or map to try it on</span><button class="btn" id="pvBtn" type="button" hidden>Buy</button></div>
+        <div class="buybar"><span id="pvName">Tap anything to try it on</span><button class="btn" id="pvBtn" type="button" hidden>Buy</button></div>
       </div>
       <div id="shop">
         <div class="label">Paint</div>
@@ -374,6 +374,8 @@ html, body { background: #26222c !important; }
         <div class="paints" id="shop-design"></div>
         <div class="label">Jet smoke</div>
         <div class="paints" id="shop-smoke"></div>
+        <div class="label">Drivers</div>
+        <div class="paints" id="shop-driver"></div>
         <div class="label">Maps</div>
         <div class="paints" id="shop-map"></div>
       </div>
@@ -756,11 +758,24 @@ html, body { background: #26222c !important; }
     { id: 'm:nyc', name: 'New York', cost: 0, sw: 'linear-gradient(#241a44 40%,#d3664a)' },
     { id: 'm:mars', name: 'Mars Base', cost: 50000, sw: 'radial-gradient(circle at 35% 35%,#f4a070,#b5482a 55%,#4a1810)' },
   ];
-  const SHOP = { paint: PAINTS, design: DESIGNS, smoke: SMOKES, map: MAPS };
-  const save = { bank: 0, owned: ['pearl', 'd:none', 's:white', 'm:nyc'], paint: 'pearl', design: 'd:none', smoke: 's:white', map: 'm:nyc', crates: 0, runs: 0, dist: 0, longest: 0, cellsTotal: 0, twistsBest: 0, top: [] };
+  // drivers: same car and gameplay, a different person in the intro, the arrest, the cockpit and the HUD picture
+  const DRIVERS = [
+    { id: 'v:elon', name: 'Elon', cost: 0, skin: '#efc4a8', tee: '#16181d', jacket: '#2b2e36', legs: '#232a3a', shoes: '#0d0e11', hair: '#4a3324', hairStyle: 'elon',
+      label: 'ELON', labelCol: '#f4f4f2', co: 'T E S L A', coCol: '#e8283f' },
+    { id: 'v:sam', name: 'Sam Altman', cost: 20000, skin: '#f1c9ad', tee: '#202329', jacket: '#202329', legs: '#34405a', shoes: '#e9e9ea', hair: '#5b4332', hairStyle: 'sam',
+      label: 'SAM ALTMAN', labelCol: '#f4f4f2', co: 'O P E N A I', coCol: '#f4f4f2', logo: 'openai' },
+    { id: 'v:trump', name: 'Donald Trump', cost: 30000, skin: '#f0b98c', tee: '#ffffff', jacket: '#1c2442', legs: '#1c2442', shoes: '#0d0e11', hair: '#f0cf6e', hairStyle: 'trump',
+      label: 'TRUMP', labelCol: '#1c2442', co: 'U S A', coCol: '#1c2442', tie: '#c8202e', wide: 1.12 },
+  ];
+  const SHOP = { paint: PAINTS, design: DESIGNS, smoke: SMOKES, map: MAPS, driver: DRIVERS };
+  const save = { bank: 0, owned: ['pearl', 'd:none', 's:white', 'm:nyc', 'v:elon'], paint: 'pearl', design: 'd:none', smoke: 's:white', map: 'm:nyc', driver: 'v:elon', crates: 0, runs: 0, dist: 0, longest: 0, cellsTotal: 0, twistsBest: 0, top: [] };
   try { Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch (e) {}
   try { const old = +localStorage.getItem('roadster-rush-best') || 0; if (old && !save.top.length) save.top = [old]; } catch (e) {}
-  for (const id of ['d:none', 's:white', 'm:nyc']) if (!save.owned.includes(id)) save.owned.push(id);
+  for (const id of ['d:none', 's:white', 'm:nyc', 'v:elon']) if (!save.owned.includes(id)) save.owned.push(id);
+  if (!save.driver || !save.owned.includes(save.driver)) save.driver = 'v:elon';
+  // the garage preview can show a driver you're only trying on
+  let pvDriver = null;
+  const driverOf = () => DRIVERS.find((d) => d.id === (pvDriver || save.driver)) || DRIVERS[0];
   if (!save.map || !save.owned.includes(save.map)) save.map = 'm:nyc';
   // Rainbow smoke was replaced by Shooting Stars: anyone who had it gets the new one
   if (save.owned.includes('s:rainbow')) save.owned = save.owned.map((id) => (id === 's:rainbow' ? 's:stars' : id));
@@ -1093,7 +1108,7 @@ html, body { background: #26222c !important; }
   function start() {
     initAudio();
     if (AC && AC.state === 'suspended') AC.resume();
-    reset(); rollWeather(); mode = 'intro'; introA = 0; show(null); $('hud').hidden = false; $('tip').hidden = true; $('toast').hidden = true; toastT = 0;
+    reset(); rollWeather(); setHudAvatar(); mode = 'intro'; introA = 0; show(null); $('hud').hidden = false; $('tip').hidden = true; $('toast').hidden = true; toastT = 0;
     cv.focus?.();
   }
   // resuming runs a 3-2-1 countdown so you're not dropped straight into traffic
@@ -1153,11 +1168,11 @@ html, body { background: #26222c !important; }
   let pvState = null, pvItem = null, pvRaf = 0;
   function renderGarage(msg = '') {
     $('gBank').textContent = save.bank.toLocaleString();
-    for (const cat of ['paint', 'design', 'smoke', 'map']) {
+    for (const cat of ['paint', 'design', 'smoke', 'driver', 'map']) {
       $('shop-' + cat).innerHTML = SHOP[cat].map((p) => {
         const own = save.owned.includes(p.id), on = equipped(cat) === p.id, pv = pvState && pvState[cat] === p.id && !on;
         const tag = on ? 'Equipped' : own ? 'Owned' : `${p.cost.toLocaleString()} kWh`;
-        const sw = cat === 'paint' ? p.col : cat === 'design' || cat === 'map' ? p.sw : smokeSw(p);
+        const sw = cat === 'paint' ? p.col : cat === 'design' || cat === 'map' ? p.sw : cat === 'driver' ? `url(${avatarURL(p)}) center/cover` : smokeSw(p);
         return `<button type="button" class="paint${on ? ' on' : ''}${pv ? ' pv' : ''}${own ? '' : ' locked'}" data-cat="${cat}" data-id="${p.id}"><i style="background:${sw}"></i>${p.name}<small>${tag}</small></button>`;
       }).join('');
     }
@@ -1168,7 +1183,7 @@ html, body { background: #26222c !important; }
   }
   function renderBuyBar() {
     const btn = $('pvBtn');
-    if (!pvItem) { $('pvName').textContent = 'Tap a paint, design, smoke or map to try it on'; btn.hidden = true; return; }
+    if (!pvItem) { $('pvName').textContent = 'Tap anything to try it on'; btn.hidden = true; return; }
     const p = SHOP[pvItem.cat].find((q) => q.id === pvItem.id), own = save.owned.includes(p.id), on = equipped(pvItem.cat) === p.id;
     $('pvName').textContent = p.name;
     btn.hidden = false;
@@ -1190,6 +1205,7 @@ html, body { background: #26222c !important; }
     else if (save.bank >= p.cost) { save.bank -= p.cost; save.owned.push(p.id); wear(); persist(); renderGarage(`Bought ${p.name}`); tone(660, 0.25, 'triangle', 0.05, 1320); }
     pl.col = paintCol();
     if (cat === 'map') mapChanged();
+    if (cat === 'driver') setHudAvatar();
   });
   // live preview: the scene renderer is pointed at the small canvas for a moment to draw the car hovering on its jets
   function drawPreview() {
@@ -1208,8 +1224,11 @@ html, body { background: #26222c !important; }
       pl = Object.assign({}, keep.pl, { x: 0, y, ground: y - 0.35, grounded: false, rollT: 0, lean: 0, col: (PAINTS.find((q) => q.id === pvState.paint) || PAINTS[0]).col });
       if (save.design === 'd:glow') drawUnderglow();
       pl.ground = -3; drawThrust();
+      pvDriver = pvState.driver;
       drawCar(0, y, 0, pl.col, ROADSTER, false, null);
+      if (pvItem && pvItem.cat === 'driver') drawMan(-1.75, 0.15, 1.2, {});
     } finally {
+      pvDriver = null;
       ({ ctx, W, H, HY, F, zoom, hyOff, T, pl } = keep); cam.x = keep.cx; cam.y = keep.cy; save.design = keep.design; save.smoke = keep.smoke;
     }
   }
@@ -1240,7 +1259,7 @@ html, body { background: #26222c !important; }
   let garageFrom = 'menu';
   renderMissions('missionsMenu');
   function openGarage(from) {
-    garageFrom = from; pvState = { paint: save.paint, design: save.design, smoke: save.smoke, map: save.map }; pvItem = null;
+    garageFrom = from; pvState = { paint: save.paint, design: save.design, smoke: save.smoke, map: save.map, driver: save.driver }; pvItem = null;
     renderGarage(); show('garage');
     if (!pvRaf) pvRaf = requestAnimationFrame(previewLoop);
   }
@@ -1277,7 +1296,7 @@ html, body { background: #26222c !important; }
   // ---------- Cyber Crate: kWh, or something from the garage you don't own yet (pricier items are rarer) ----------
   function rollCrate() {
     const pool = [];
-    for (const cat of ['paint', 'design', 'smoke']) for (const p of SHOP[cat]) if (p.cost > 0 && !save.owned.includes(p.id)) pool.push({ cat, p, w: 1 / p.cost });
+    for (const cat of ['paint', 'design', 'smoke', 'driver']) for (const p of SHOP[cat]) if (p.cost > 0 && !save.owned.includes(p.id)) pool.push({ cat, p, w: 1 / p.cost });
     if (pool.length && Math.random() < 0.4) {
       let r = Math.random() * pool.reduce((a, q) => a + q.w, 0), it = pool[0];
       for (const q of pool) { r -= q.w; if (r <= 0) { it = q; break; } }
@@ -1311,7 +1330,7 @@ html, body { background: #26222c !important; }
       const pr = $('cPrize');
       if (res.kwh) { pr.style.background = 'radial-gradient(circle,#c9f6ff,#5ce1ff 60%,#1b6f86)'; pr.textContent = res.kwh; $('cText').textContent = `+${res.kwh.toLocaleString()} kWh added to your bank.`; }
       else {
-        const p = res.p, sw = res.cat === 'paint' ? p.col : res.cat === 'design' ? p.sw : smokeSw(p);
+        const p = res.p, sw = res.cat === 'paint' ? p.col : res.cat === 'design' ? p.sw : res.cat === 'driver' ? `url(${avatarURL(p)}) center/cover` : smokeSw(p);
         pr.style.background = sw;
         $('cText').textContent = `New ${res.cat === 'smoke' ? 'jet smoke' : res.cat}: ${p.name}! Equip it in the Garage.`;
       }
@@ -2825,7 +2844,7 @@ html, body { background: #26222c !important; }
     }
     if (roadster && mode !== 'intro' && !(mode === 'dying' && deathT > 0.6) && z + 1.9 > ZN) {
       const hd = P(x - 0.3, y + cabTop - 0.14, z + 1.9), hr = hd[2] * 0.15;
-      ctx.fillStyle = '#4a3324'; ctx.beginPath(); ctx.ellipse(hd[0], hd[1], hr * 0.9, hr * 0.8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = driverOf().hair; ctx.beginPath(); ctx.ellipse(hd[0], hd[1], hr * 0.9, hr * 0.8, 0, 0, Math.PI * 2); ctx.fill();
     }
     if (z + slope > ZN) {
       const zs = z + slope, zc = z + cab0, edge = shade(col, roadster ? 1.1 : 1.0);
@@ -3007,67 +3026,117 @@ html, body { background: #26222c !important; }
     sub(rr, 0, 0.74, 1, 1, '#1c1f26');
     lampGlow(rr, [0.1, 0.5, 0.9], 0.09);
   }
-  // the driver: tall cartoon tech-founder type in a black tee, black jacket and dark jeans, short swept-back hair
+  // the driver, in the style of whoever is equipped: name across the chest and company low on the shirt
   function drawMan(x, y, z, pose) {
     if (z <= ZN) return;
-    const [fx, fy, u] = P(x, y, z);
-    const SKIN = '#efc4a8', TEE = '#16181d', JACKET = '#2b2e36', JEANS = '#232a3a', HAIR = '#4a3324';
+    const D = driverOf(), [fx, fy, u0] = P(x, y, z), u = u0, wk = D.wide || 1;
+    const SKIN = D.skin, TEE = D.tee, JACKET = D.jacket, JEANS = D.legs;
     const R = (dx, dy, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(fx + dx * u, fy - (dy + h) * u, w * u, h * u); };
-    const C = (dx, dy, r, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(fx + dx * u, fy - dy * u, r * u, 0, Math.PI * 2); ctx.fill(); };
-    if (y <= 0.05) { ctx.fillStyle = 'rgba(10,4,14,.4)'; ctx.beginPath(); ctx.ellipse(fx, fy, 0.38 * u, 0.08 * u, 0, 0, Math.PI * 2); ctx.fill(); }
+    const RW = (dx, dy, w, h, c) => R(dx * wk, dy, w * wk, h, c);
+    if (y <= 0.05 || y === 0.15) { ctx.fillStyle = 'rgba(10,4,14,.4)'; ctx.beginPath(); ctx.ellipse(fx, fy, 0.38 * u, 0.08 * u, 0, 0, Math.PI * 2); ctx.fill(); }
     const sw = pose.walk ? Math.sin(pose.walk) * 0.07 : 0;
     const bob = pose.walk ? Math.abs(Math.sin(pose.walk)) * 0.03 : 0;
-    R(-0.19 + sw, 0, 0.16, 0.92, JEANS); R(0.03 - sw, 0, 0.16, 0.92, JEANS);
-    R(-0.22 + sw, 0, 0.21, 0.08, '#0d0e11'); R(0.02 - sw, 0, 0.21, 0.08, '#0d0e11');
-    R(-0.3, 0.88 + bob, 0.6, 0.66, JACKET);
-    R(-0.18, 0.9 + bob, 0.36, 0.64, TEE);
+    RW(-0.19 + sw, 0, 0.16, 0.92, JEANS); RW(0.03 - sw, 0, 0.16, 0.92, JEANS);
+    RW(-0.22 + sw, 0, 0.21, 0.08, D.shoes); RW(0.02 - sw, 0, 0.21, 0.08, D.shoes);
+    RW(-0.3, 0.88 + bob, 0.6, 0.66, JACKET);
+    RW(-0.18, 0.9 + bob, 0.36, 0.64, TEE);
+    if (D.tie) { R(-0.035, 0.98 + bob, 0.07, 0.5, D.tie); R(-0.05, 1.43 + bob, 0.1, 0.07, D.tie); }
     if (u > 40) {
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#f4f4f2'; ctx.font = `700 ${0.11 * u}px "Saira Semi Condensed", sans-serif`;
-      ctx.fillText('ELON', fx, fy - (1.335 + bob) * u);
-      ctx.fillStyle = '#e8283f'; ctx.font = `700 ${0.072 * u}px "Saira Semi Condensed", sans-serif`;
-      ctx.fillText('T E S L A', fx, fy - (1.0 + bob) * u);
+      ctx.fillStyle = D.labelCol; ctx.font = `700 ${0.11 * u}px "Saira Semi Condensed", sans-serif`;
+      ctx.fillText(D.label, fx, fy - (1.335 + bob) * u, 0.34 * wk * u);
+      if (D.logo === 'openai') openaiLogo(fx, fy - (1.17 + bob) * u, 0.075 * u, '#f4f4f2', Math.max(1, 0.012 * u));
+      ctx.fillStyle = D.coCol; ctx.font = `700 ${0.072 * u}px "Saira Semi Condensed", sans-serif`;
+      ctx.fillText(D.co, fx, fy - (1.0 + bob) * u);
     }
     R(-0.07, 1.42 + bob, 0.14, 0.1, SKIN);
     if (pose.thumbs) {
       for (const m of [-1, 1]) {
-        R(m < 0 ? -0.42 : 0.3, 1.08 + bob, 0.12, 0.42, JACKET);
-        R(m < 0 ? -0.34 : 0.14, 1.08 + bob, 0.2, 0.1, JACKET);
+        RW(m < 0 ? -0.42 : 0.3, 1.08 + bob, 0.12, 0.42, JACKET);
+        RW(m < 0 ? -0.34 : 0.14, 1.08 + bob, 0.2, 0.1, JACKET);
         R(m < 0 ? -0.17 : 0.06, 1.06 + bob, 0.11, 0.12, SKIN);
         R(m < 0 ? -0.14 : 0.09, 1.18 + bob, 0.045, 0.1, SKIN);
       }
     } else if (pose.cuffed) {
-      R(-0.4, 0.98 + bob, 0.12, 0.5, JACKET); R(0.28, 0.98 + bob, 0.12, 0.5, JACKET);
+      RW(-0.4, 0.98 + bob, 0.12, 0.5, JACKET); RW(0.28, 0.98 + bob, 0.12, 0.5, JACKET);
       R(-0.3, 0.9, 0.2, 0.12, JACKET); R(0.1, 0.9, 0.2, 0.12, JACKET);
       R(-0.1, 0.88, 0.2, 0.11, SKIN);
       ctx.strokeStyle = '#d6dae2'; ctx.lineWidth = Math.max(1.5, u * 0.022);
       for (const cx of [-0.06, 0.06]) { ctx.beginPath(); ctx.arc(fx + cx * u, fy - 0.935 * u, 0.04 * u, 0, Math.PI * 2); ctx.stroke(); }
     } else if (pose.hop || pose.up) {
-      R(-0.44, 1.3, 0.12, 0.38, JACKET); R(0.32, 1.3, 0.12, 0.38, JACKET);
-      R(-0.44, 1.66, 0.12, 0.08, SKIN); R(0.32, 1.66, 0.12, 0.08, SKIN);
+      RW(-0.44, 1.3, 0.12, 0.38, JACKET); RW(0.32, 1.3, 0.12, 0.38, JACKET);
+      RW(-0.44, 1.66, 0.12, 0.08, SKIN); RW(0.32, 1.66, 0.12, 0.08, SKIN);
     } else {
-      R(-0.42, 0.92 + bob - sw, 0.12, 0.6, JACKET); R(0.3, 0.92 + bob + sw, 0.12, 0.6, JACKET);
-      R(-0.41, 0.84 + bob - sw, 0.1, 0.09, SKIN); R(0.31, 0.84 + bob + sw, 0.1, 0.09, SKIN);
+      RW(-0.42, 0.92 + bob - sw, 0.12, 0.6, JACKET); RW(0.3, 0.92 + bob + sw, 0.12, 0.6, JACKET);
+      RW(-0.41, 0.84 + bob - sw, 0.1, 0.09, SKIN); RW(0.31, 0.84 + bob + sw, 0.1, 0.09, SKIN);
     }
-    const hy = 1.72 + bob, Y = (v) => fy - v * u, X = (v) => fx + v * u;
-    C(-0.155, hy, 0.032, SKIN); C(0.155, hy, 0.032, SKIN);
-    ctx.fillStyle = SKIN; ctx.beginPath(); ctx.ellipse(fx, Y(hy), 0.155 * u, 0.19 * u, 0, 0, Math.PI * 2); ctx.fill();
-    R(-0.13, hy - 0.17, 0.26, 0.12, SKIN);
-    // swept-back hair with receding temples and a peak in the middle
-    ctx.fillStyle = HAIR; ctx.beginPath();
-    ctx.moveTo(X(-0.162), Y(hy + 0.03));
-    ctx.quadraticCurveTo(X(-0.18), Y(hy + 0.21), X(-0.04), Y(hy + 0.225));
-    ctx.quadraticCurveTo(X(0.13), Y(hy + 0.23), X(0.165), Y(hy + 0.05));
-    ctx.lineTo(X(0.125), Y(hy + 0.1));
-    ctx.quadraticCurveTo(X(0.07), Y(hy + 0.16), X(0.005), Y(hy + 0.125));
-    ctx.quadraticCurveTo(X(-0.07), Y(hy + 0.16), X(-0.125), Y(hy + 0.1));
-    ctx.closePath(); ctx.fill();
-    R(-0.095, hy + 0.035, 0.07, 0.017, '#3a2618'); R(0.025, hy + 0.035, 0.07, 0.017, '#3a2618');
-    C(-0.055, hy, 0.017, '#2a1a10'); C(0.055, hy, 0.017, '#2a1a10');
-    R(-0.012, hy - 0.065, 0.024, 0.055, '#dcae92');
-    ctx.strokeStyle = '#7a3b2e'; ctx.lineWidth = Math.max(1, u * 0.016); ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(X(-0.05), Y(hy - 0.105)); ctx.quadraticCurveTo(X(0.01), Y(hy - 0.13), X(0.068), Y(hy - 0.085)); ctx.stroke();
+    drawHead(ctx, fx, fy, u, D, 1.72 + bob);
   }
+  // face and hair, shared by the in-game figure and the little HUD / garage portrait
+  function drawHead(g, fx, fy, u, D, hy) {
+    const Y = (v) => fy - v * u, X = (v) => fx + v * u, SKIN = D.skin;
+    const R = (dx, dy, w, h, c) => { g.fillStyle = c; g.fillRect(fx + dx * u, fy - (dy + h) * u, w * u, h * u); };
+    const C = (dx, dy, r, c) => { g.fillStyle = c; g.beginPath(); g.arc(fx + dx * u, fy - dy * u, r * u, 0, Math.PI * 2); g.fill(); };
+    C(-0.155, hy, 0.032, SKIN); C(0.155, hy, 0.032, SKIN);
+    g.fillStyle = SKIN; g.beginPath(); g.ellipse(fx, Y(hy), 0.155 * u, 0.19 * u, 0, 0, Math.PI * 2); g.fill();
+    R(-0.13, hy - 0.17, 0.26, 0.12, SKIN);
+    g.fillStyle = D.hair; g.beginPath();
+    if (D.hairStyle === 'trump') {
+      // big swept-over blond hair, high in front and combed across to one side
+      g.moveTo(X(-0.17), Y(hy + 0.0));
+      g.quadraticCurveTo(X(-0.21), Y(hy + 0.27), X(0.0), Y(hy + 0.27));
+      g.quadraticCurveTo(X(0.24), Y(hy + 0.27), X(0.215), Y(hy + 0.1));
+      g.lineTo(X(0.17), Y(hy + 0.02));
+      g.quadraticCurveTo(X(0.16), Y(hy + 0.13), X(0.02), Y(hy + 0.14));
+      g.quadraticCurveTo(X(-0.1), Y(hy + 0.16), X(-0.14), Y(hy + 0.1));
+      g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.ellipse(X(0.02), Y(hy + 0.22), 0.11 * u, 0.025 * u, -0.15, 0, Math.PI * 2); g.fill();
+    } else if (D.hairStyle === 'sam') {
+      // short, neat brown hair with a soft straight fringe
+      g.ellipse(fx, Y(hy + 0.07), 0.168 * u, 0.16 * u, 0, Math.PI, 2 * Math.PI); g.fill();
+      R(-0.16, hy + 0.06, 0.32, 0.06, D.hair);
+      R(-0.165, hy - 0.02, 0.03, 0.1, D.hair); R(0.135, hy - 0.02, 0.03, 0.1, D.hair);
+    } else {
+      // swept-back hair with receding temples and a peak in the middle
+      g.moveTo(X(-0.162), Y(hy + 0.03));
+      g.quadraticCurveTo(X(-0.18), Y(hy + 0.21), X(-0.04), Y(hy + 0.225));
+      g.quadraticCurveTo(X(0.13), Y(hy + 0.23), X(0.165), Y(hy + 0.05));
+      g.lineTo(X(0.125), Y(hy + 0.1));
+      g.quadraticCurveTo(X(0.07), Y(hy + 0.16), X(0.005), Y(hy + 0.125));
+      g.quadraticCurveTo(X(-0.07), Y(hy + 0.16), X(-0.125), Y(hy + 0.1));
+      g.closePath(); g.fill();
+    }
+    const brow = D.hairStyle === 'trump' ? '#d9b25a' : '#3a2618';
+    R(-0.095, hy + 0.035, 0.07, 0.017, brow); R(0.025, hy + 0.035, 0.07, 0.017, brow);
+    C(-0.055, hy, 0.017, D.hairStyle === 'sam' ? '#3a5a78' : '#2a1a10'); C(0.055, hy, 0.017, D.hairStyle === 'sam' ? '#3a5a78' : '#2a1a10');
+    R(-0.012, hy - 0.065, 0.024, 0.055, 'rgba(0,0,0,.12)');
+    g.strokeStyle = '#7a3b2e'; g.lineWidth = Math.max(1, u * 0.016); g.lineCap = 'round'; g.beginPath();
+    if (D.hairStyle === 'trump') { g.moveTo(X(-0.045), Y(hy - 0.11)); g.quadraticCurveTo(X(0), Y(hy - 0.085), X(0.045), Y(hy - 0.11)); }
+    else { g.moveTo(X(-0.05), Y(hy - 0.105)); g.quadraticCurveTo(X(0.01), Y(hy - 0.13), X(0.068), Y(hy - 0.085)); }
+    g.stroke();
+  }
+  // OpenAI mark: six interlocking rounded links around a hexagon
+  function openaiLogo(cx, cy, r, col, lw) {
+    ctx.save(); ctx.translate(cx, cy); ctx.strokeStyle = col; ctx.lineWidth = lw;
+    for (let i = 0; i < 6; i++) { ctx.rotate(Math.PI / 3); ctx.beginPath(); ctx.ellipse(r * 0.42, 0, r * 0.22, r * 0.55, 0, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.restore();
+  }
+  // round driver portrait (HUD and garage tile), cached per driver
+  const avatars = {};
+  function avatarURL(D) {
+    if (avatars[D.id]) return avatars[D.id];
+    const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+    g.fillStyle = '#2a1d36'; g.fillRect(0, 0, 128, 128);
+    const u = 200, fx = 64, fy = 64 + 1.72 * u - 6;
+    g.fillStyle = D.jacket; g.fillRect(fx - 0.33 * u, fy - 1.5 * u, 0.66 * u, 0.6 * u);
+    g.fillStyle = D.tee; g.fillRect(fx - 0.14 * u, fy - 1.5 * u, 0.28 * u, 0.6 * u);
+    if (D.tie) { g.fillStyle = D.tie; g.fillRect(fx - 0.035 * u, fy - 1.49 * u, 0.07 * u, 0.5 * u); }
+    g.fillStyle = D.skin; g.fillRect(fx - 0.07 * u, fy - 1.56 * u, 0.14 * u, 0.1 * u);
+    drawHead(g, fx, fy, u, D, 1.72);
+    return (avatars[D.id] = c.toDataURL());
+  }
+  function setHudAvatar() { const im = document.querySelector('.driver img'); if (im) im.src = avatarURL(driverOf()); }
+  setHudAvatar();
   // Robovan: long, low-slung silver people-mover with a wraparound dark glass band and a thin light bar
   function drawVan(o) {
     const x = o.x + (o.smash ? o.smash.sx : 0), y = o.smash ? o.smash.sy : 0, z = o.z;
