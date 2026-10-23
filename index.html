@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '23';
+window.BUILD = '24';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -514,7 +514,7 @@ html, body { background: #26222c !important; }
   let mode = 'menu', objs = [], parts = [], pl, T = 0, t = 0, speed = 14, traveled = 0, score = 0, cells = 0;
   let spawnZ = 0, stumble = 0, invuln = 0, shake = 0, deathT = 0, caught = false, shield = false, chaserZ = -12, combo = 0, comboT = 0, introT = 0;
   const pw = { lud: 0, magnet: 0, dbl: 0, fly: 0 };
-  let tut = null, chaserX = -2.4, noShadow = false, introA = 0, zoom = 1, hyOff = 0;
+  let tut = null, chaserX = -2.4, noShadow = false, introA = 0, zoom = 1, hyOff = 0, flightRocket = -99;
   // progress saved on this device: banked battery cells, owned paints, lifetime stats, top 5 scores
   const SAVE_KEY = 'roadster-rush-save';
   // shop catalog: priced so a good run (roughly 80-150 kWh) buys a first item in a few runs and the top items take many sessions
@@ -625,7 +625,7 @@ html, body { background: #26222c !important; }
     objs = []; parts = [];
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
     t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
-    caught = false; shield = false; chaserZ = -2.6; introT = 4; chaserX = -2.4; pw.lud = pw.magnet = pw.dbl = pw.fly = 0; combo = 0;
+    flightRocket = -99; caught = false; shield = false; chaserZ = -2.6; introT = 4; chaserX = -2.4; pw.lud = pw.magnet = pw.dbl = pw.fly = 0; combo = 0;
     cam.x = 0; cam.y = 3.6;
   }
   reset();
@@ -958,13 +958,30 @@ html, body { background: #26222c !important; }
       vx: rnd(-2.5, 2.5), vy: rnd(0.2, 1.2), vz: rnd(-2, 1), life: rnd(0.7, 1.3), smoke: true, r: rnd(0.35, 0.6), c: smokeCss(),
     });
   }
+  // Flight: a cell trail through the sky marks the safe lane; the other lanes get flying cars, drones and news helicopters
   function skyCells() {
-    let lane = pl.lane;
+    let lane = pl.lane; const path = [];
     for (let i = 0; i < 36; i++) {
       if (i % 9 === 8) lane = clamp(lane + (Math.random() < 0.5 ? -1 : 1), 0, 2);
-      objs.push({ k: 'cell', lane, x: LANES[lane], z: 18 + i * 3, y: 6.2 });
+      path.push(lane);
+      if (i % 9 === 5) objs.push({ k: 'ring', lane, x: LANES[lane], z: 18 + i * 3, y: 6.0 });
+      else objs.push({ k: 'cell', lane, x: LANES[lane], z: 18 + i * 3, y: 6.2 });
     }
+    // sky traffic stops well before Flight runs out, so the way down is always clear
+    const limit = Math.min(140, speed * (POW.fly.dur - 1.3));
+    for (const i of [4, 12, 21, 30]) {
+      const z = 18 + i * 3; if (z > limit) break;
+      for (let l = 0; l < 3; l++) {
+        if (l === path[i]) continue;
+        const r = Math.random(), x = LANES[l];
+        if (r < 0.42) { const m = pick(['cc', 'm3', 'my', 'r1']), M = MODELS[m]; objs.push({ k: 'skycar', sky: true, lane: l, x, z, d: M.len, w: M.w, y0: 4.9, y1: 4.9 + M.cabTop, m, col: M.col || pick(M.cols || SEDAN_COLS) }); }
+        else if (r < 0.68) objs.push({ k: 'drone', sky: true, lane: l, x, z, d: 1.3, w: 1.7, y0: 4.95, y1: 6.4 });
+        else if (r < 0.86) objs.push({ k: 'heli', sky: true, lane: l, x, z, d: 5.6, w: 1.7, y0: 4.8, y1: 6.7 });
+      }
+    }
+    flightRocket = T;
   }
+
   function smash(o) {
     o.smash = { sx: 0, sy: 0, vx: (o.x >= pl.x ? 1 : -1) * rnd(5, 9), vy: rnd(8, 12), age: 0 };
     sparks(o.x, 1.2, o.z, 14, '#ffd27a'); shake = Math.max(shake, 0.25);
@@ -1083,6 +1100,8 @@ html, body { background: #26222c !important; }
     }
     if (mode === 'dying') {
       const prev = deathT; deathT += dt; speed = 0;
+      // a crash in the air drops the car to whatever it was over before the arrest plays out
+      if (pl.y > pl.ground) { pw.fly = 0; pl.rollT = 0; pl.roll = 0; pl.vy -= G * dt; pl.y = Math.max(pl.ground, pl.y + pl.vy * dt); if (pl.y === pl.ground) { shake = Math.max(shake, 0.6); buzz(60); } }
       advance(0, dt);
       chaserZ += (-0.4 - chaserZ) * dt * 3;
       if (prev < 0.4 && deathT >= 0.4) { tone(700, 0.35, 'sine', 0.04, 1100); tone(1100, 0.35, 'sine', 0.03, 700); }
@@ -1146,6 +1165,21 @@ html, body { background: #26222c !important; }
       if (o.k === 'cell' || o.k === 'pow') {
         if (o.z < CAR_LEN + 0.2 && o.z > -0.6 && Math.abs(o.x - pl.x) < 1.25 && Math.abs(o.y - (pl.y + 0.8)) < 1.4) collect(o);
         continue;
+      }
+      if (o.k === 'ring') {
+        if (!o.got && o.z < CAR_LEN && o.z > -0.5 && Math.abs(o.x - pl.x) < 1.1 && Math.abs(o.y - (pl.y + 0.6)) < 1.3) {
+          o.got = true; cells += 10; toast('Ring: +10 kWh'); tone(1200, 0.3, 'sine', 0.05, 2400); sparks(o.x, o.y, o.z, 16, '#ffd36e');
+        }
+        continue;
+      }
+      if (o.sky) {
+        if (o.smash || o.z > CAR_LEN || o.z + o.d < 0) continue;
+        const reach = 0.95 + o.w / 2 - 0.25;
+        if (Math.abs(pl.x - o.x) >= reach || pl.y + 1.0 < o.y0 || pl.y + 0.2 > o.y1) continue;
+        if (pw.lud > 0 || invuln > 0) { smash(o); continue; }
+        if (shield) { shield = false; invuln = 1.2; smash(o); continue; }
+        if (Math.abs(pl.prevX - o.x) >= reach) { sideHit(o); if (mode !== 'play') return; continue; }
+        crash(); return;
       }
       if (o.smash || o.z > CAR_LEN || o.z + o.d < 0) continue;
       const reach = 0.95 + o.w / 2 - 0.22;
@@ -1242,6 +1276,10 @@ html, body { background: #26222c !important; }
       switch (o.k) {
         case 'barrier': drawBarrier(o); break;
         case 'wall': drawWall(o); break;
+        case 'skycar': drawSkyCar(o); break;
+        case 'drone': drawDrone(o); break;
+        case 'heli': drawHeli(o); break;
+        case 'ring': drawRing(o); break;
         case 'sedan': drawCar(o.x + (o.smash ? o.smash.sx : 0), o.smash ? o.smash.sy : 0, o.z, o.col, MODELS[o.m], false, 0); break;
         case 'van': drawVan(o); break;
         case 'ct': drawCyber(o.x + (o.smash ? o.smash.sx : 0), o.smash ? o.smash.sy : 0, o.z, o.col, false); break;
@@ -1322,6 +1360,61 @@ html, body { background: #26222c !important; }
     hazeG = window.__cx.createLinearGradient(0, HY - 6, 0, HY + H * 0.08);
     hazeG.addColorStop(0, 'rgba(211,102,74,.35)'); hazeG.addColorStop(1, 'rgba(211,102,74,0)');
   }
+  const skyOff = (o) => [o.x + (o.smash ? o.smash.sx : 0), o.y0 + (o.smash ? o.smash.sy : 0)];
+  function drawSkyCar(o) {
+    const [x, y] = skyOff(o); if (o.z <= ZN) return;
+    for (const sx of [-0.55, 0.55]) for (const zz of [0.6, o.d - 0.8]) { if (o.z + zz <= ZN) continue; const g = P(x + sx, y - 0.05, o.z + zz); glow(g[0], g[1], g[2] * 0.6, 0.9); }
+    drawCar(x, y, o.z, o.col, MODELS[o.m], false, null);
+  }
+  function drawDrone(o) {
+    const [x, y] = skyOff(o), z = o.z; if (z <= ZN) return;
+    drawBox(x, y - 0.45, y - 0.05, z + 0.35, z + 0.95, 0.55, '#9a6b3f', '#b98552', '#7c5530');
+    drawBox(x, y, y + 0.22, z + 0.25, z + 1.05, 0.7, '#2a2d33', '#3a3e46', '#202328');
+    for (const zz of [z + 1.15, z + 0.15]) for (const sx of [-0.62, 0.62]) {
+      if (zz <= ZN) continue;
+      const c = P(x + sx, y + 0.3, zz), r = c[2] * 0.36;
+      ctx.fillStyle = 'rgba(205,214,228,.35)'; ctx.beginPath(); ctx.ellipse(c[0], c[1], r, r * 0.22, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#16181d'; ctx.fillRect(c[0] - r * 0.12, c[1] - r * 0.05, r * 0.24, r * 0.3);
+    }
+    if (Math.floor(T * 4 + z) % 2) { const c = P(x, y + 0.24, z + 0.25); ctx.fillStyle = '#ff3b3b'; ctx.fillRect(c[0] - c[2] * 0.05, c[1] - c[2] * 0.05, c[2] * 0.1, c[2] * 0.1); }
+  }
+  function drawHeli(o) {
+    const [x, y] = skyOff(o), z = o.z; if (z + o.d <= ZN) return;
+    drawBox(x, y + 0.9, y + 1.2, z + 3.4, z + 5.6, 0.3, '#e8ebf0', '#ffffff', '#b9bec7');
+    if (z + 5.4 > ZN && Math.floor(T * 3) % 2) { const c = P(x, y + 1.35, z + 5.5); ctx.fillStyle = '#ff3b3b'; ctx.beginPath(); ctx.arc(c[0], c[1], Math.max(1.5, c[2] * 0.08), 0, Math.PI * 2); ctx.fill(); }
+    for (const sx of [-0.6, 0.6]) drawBox(x + sx, y, y + 0.1, z + 0.6, z + 3.4, 0.12, '#2a2d33', '#3a3e46', '#202328');
+    const rr = drawBox(x, y + 0.25, y + 1.55, z + 0.7, z + 3.5, 1.5, '#1d3a6e', '#2c5aa8', '#16305c');
+    if (rr) {
+      sub(rr, 0.1, 0.12, 0.9, 0.5, '#9fc3ff');
+      if (rr.r - rr.l > 34) { ctx.fillStyle = '#ffffff'; ctx.font = `700 ${(rr.b - rr.t) * 0.3}px "Saira Semi Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('NEWS', (rr.l + rr.r) / 2, rr.t + (rr.b - rr.t) * 0.74); }
+    }
+    if (z + 2 > ZN) {
+      const c = P(x, y + 1.75, z + 2.1), r = c[2] * 2.2;
+      ctx.fillStyle = 'rgba(200,210,225,.18)'; ctx.beginPath(); ctx.ellipse(c[0], c[1], r, r * 0.16, 0, 0, Math.PI * 2); ctx.fill();
+      const ang = T * 40; ctx.strokeStyle = '#16181d'; ctx.lineWidth = Math.max(1.5, c[2] * 0.08);
+      ctx.beginPath(); ctx.moveTo(c[0] - Math.cos(ang) * r, c[1] - Math.sin(ang) * r * 0.16); ctx.lineTo(c[0] + Math.cos(ang) * r, c[1] + Math.sin(ang) * r * 0.16); ctx.stroke();
+    }
+  }
+  function drawRing(o) {
+    if (o.got || o.z <= ZN + 0.3) return;
+    const [sx, sy, s] = P(o.x, o.y + Math.sin(T * 3 + o.z) * 0.1, o.z), r = s * 1.05;
+    ctx.strokeStyle = 'rgba(255,211,110,.3)'; ctx.lineWidth = Math.max(3, s * 0.36); ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#ffd36e'; ctx.lineWidth = Math.max(2, s * 0.14); ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.stroke();
+  }
+  // a stainless rocket lifts off behind the skyline whenever you take Flight
+  function drawRocket() {
+    const a = T - flightRocket; if (a < 0 || a > 9) return;
+    const k = H / 800, x = W * 0.55, p = a / 9, y = HY + hyOff - 150 * k - p * p * H * 0.95;
+    const trail = ctx.createLinearGradient(0, y, 0, HY + hyOff - 150 * k);
+    trail.addColorStop(0, 'rgba(240,242,248,.55)'); trail.addColorStop(1, 'rgba(240,242,248,0)');
+    ctx.fillStyle = trail; ctx.beginPath(); ctx.moveTo(x - 4 * k, y + 64 * k); ctx.lineTo(x + 4 * k, y + 64 * k); ctx.lineTo(x + 26 * k, HY + hyOff - 150 * k); ctx.lineTo(x - 26 * k, HY + hyOff - 150 * k); ctx.fill();
+    const fl = 26 * k * (0.8 + Math.random() * 0.4);
+    ctx.fillStyle = '#ffb84d'; ctx.beginPath(); ctx.moveTo(x - 5 * k, y + 60 * k); ctx.lineTo(x + 5 * k, y + 60 * k); ctx.lineTo(x, y + 60 * k + fl); ctx.fill();
+    ctx.fillStyle = '#fff3d6'; ctx.beginPath(); ctx.moveTo(x - 3 * k, y + 60 * k); ctx.lineTo(x + 3 * k, y + 60 * k); ctx.lineTo(x, y + 60 * k + fl * 0.5); ctx.fill();
+    ctx.fillStyle = '#d9dde4'; ctx.fillRect(x - 5 * k, y + 8 * k, 10 * k, 52 * k);
+    ctx.beginPath(); ctx.moveTo(x - 5 * k, y + 8 * k); ctx.quadraticCurveTo(x, y - 6 * k, x + 5 * k, y + 8 * k); ctx.fill();
+    ctx.fillStyle = '#9aa0ab'; ctx.fillRect(x - 8 * k, y + 50 * k, 3 * k, 10 * k); ctx.fillRect(x + 5 * k, y + 50 * k, 3 * k, 10 * k);
+  }
   function drawSky() {
     if (!bg) bakeBackdrop();
     if (hyOff > 0) { ctx.fillStyle = '#0b0d22'; ctx.fillRect(0, 0, W, hyOff + 1); }
@@ -1330,6 +1423,7 @@ html, body { background: #26222c !important; }
       const k = H / 800; ctx.fillStyle = '#ff3b3b';
       for (const m of landmarks) { const top = m.type === 'wtc' ? 360 : m.type === 'esb' ? 290 : 295; ctx.fillRect(m.x - 1.5 * k, HY + hyOff + 1 - top * k - 3, 3 * k, 3); }
     }
+    drawRocket();
   }
 
 
