@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '56';
+window.BUILD = '57';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -189,6 +189,17 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 .buybar .btn { padding: 9px 14px; font-size: 12px; flex: none; }
 .buybar .btn:disabled { background: #3a3346; box-shadow: none; color: var(--muted); cursor: default; }
 .paint.pv { border-color: var(--cell); box-shadow: 0 0 0 1px var(--cell) inset; }
+/* garage tabs: one category at a time, pinned under the preview */
+.tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-inline: -2px; padding: 2px; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { flex: none; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 13px var(--body); cursor: pointer; }
+.tabs button small { margin-left: 5px; font-size: 11px; opacity: .7; }
+.tabs button[aria-selected="true"] { background: var(--paper); border-color: var(--paper); color: var(--ink); }
+.tabs button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+/* rarity tag on each tile */
+.rar { font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.rar.common { color: #a9a3b3; } .rar.rare { color: #5ce1ff; } .rar.epic { color: #c38bff; } .rar.legendary { color: #ffb84d; }
+.paint.legendary { border-color: rgba(255,184,77,.45); background: linear-gradient(180deg, rgba(255,184,77,.08), rgba(255,255,255,.02)); }
 .fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden;
   background: radial-gradient(ellipse at 50% 55%, rgba(0,0,0,0) 45%, rgba(0,0,0,.55) 100%), linear-gradient(rgba(30,90,150,.22), rgba(30,90,150,0) 50%, rgba(255,130,60,.12)); }
 /* rain: a tall tile of streaks slid down on the compositor, so it costs nothing per frame */
@@ -366,23 +377,12 @@ html, body { background: #26222c !important; }
         <div class="bank"><span class="batt" aria-hidden="true"></span><b id="gBank">0</b>kWh to spend</div>
         <canvas class="preview" id="preview" aria-label="Preview of your roadster"></canvas>
         <div class="buybar"><span id="pvName">Tap anything to try it on</span><button class="btn" id="pvBtn" type="button" hidden>Buy</button></div>
+        <div class="tabs" id="gTabs" role="tablist" aria-label="Garage sections"></div>
       </div>
-      <div id="shop">
-        <div class="label">Paint</div>
-        <div class="paints" id="shop-paint"></div>
-        <div class="label">Designs</div>
-        <div class="paints" id="shop-design"></div>
-        <div class="label">Jet smoke</div>
-        <div class="paints" id="shop-smoke"></div>
-        <div class="label">Drivers</div>
-        <div class="paints" id="shop-driver"></div>
-        <div class="label">Maps</div>
-        <div class="paints" id="shop-map"></div>
-      </div>
+      <div id="shop"><div class="paints" id="shopGrid"></div></div>
+      <div class="stats" id="gStats" hidden></div>
       <div class="msg" id="gMsg" aria-live="polite"></div>
-      <div class="label">Your stats</div>
-      <div class="stats" id="gStats"></div>
-      <button class="btn ghost" id="garageBack" type="button">Back</button>
+      <button class="btn ghost" id="garageBack" type="button" hidden>Back</button>
     </div>
   </div>
 
@@ -762,11 +762,17 @@ html, body { background: #26222c !important; }
   const DRIVERS = [
     { id: 'v:elon', name: 'Elon', cost: 0, skin: '#efc4a8', tee: '#16181d', jacket: '#2b2e36', legs: '#232a3a', shoes: '#0d0e11', hair: '#4a3324', hairStyle: 'elon',
       label: 'ELON', labelCol: '#f4f4f2', co: 'T E S L A', coCol: '#e8283f' },
-    { id: 'v:sam', name: 'Sam Altman', cost: 20000, skin: '#f1c9ad', tee: '#202329', jacket: '#202329', legs: '#34405a', shoes: '#e9e9ea', hair: '#5b4332', hairStyle: 'sam',
+    { id: 'v:sam', name: 'Sam Altman', cost: 60000, skin: '#f1c9ad', tee: '#202329', jacket: '#202329', legs: '#34405a', shoes: '#e9e9ea', hair: '#5b4332', hairStyle: 'sam',
       label: 'SAM ALTMAN', labelCol: '#f4f4f2', co: 'O P E N A I', coCol: '#f4f4f2', logo: 'openai' },
-    { id: 'v:trump', name: 'Donald Trump', cost: 30000, skin: '#f0b98c', tee: '#ffffff', jacket: '#1c2442', legs: '#1c2442', shoes: '#0d0e11', hair: '#f0cf6e', hairStyle: 'trump',
+    { id: 'v:trump', name: 'Donald Trump', cost: 80000, skin: '#f0b98c', tee: '#ffffff', jacket: '#1c2442', legs: '#1c2442', shoes: '#0d0e11', hair: '#f0cf6e', hairStyle: 'trump',
       label: 'TRUMP', labelCol: '#1c2442', co: 'U S A', coCol: '#1c2442', tie: '#c8202e', wide: 1.12 },
+    // Lakers gold jerseys: LeBron #23 with headband and beard; Shaq #34, bald with a goatee, and a head taller than everyone
+    { id: 'v:lebron', name: 'LeBron James', cost: 100000, skin: '#8a5636', tee: '#fdb927', jacket: '#fdb927', arms: '#8a5636', legs: '#8a5636', shorts: '#fdb927', shoes: '#552583', hair: '#1c120c', hairStyle: 'lebron',
+      label: 'LEBRON', labelCol: '#552583', num: '23', co: 'L A K E R S', coCol: '#552583', trim: '#552583', wide: 1.08, tall: 1.05 },
+    { id: 'v:shaq', name: 'Shaq', cost: 100000, skin: '#5e3a24', tee: '#fdb927', jacket: '#fdb927', arms: '#5e3a24', legs: '#5e3a24', shorts: '#fdb927', shoes: '#f4f4f2', hair: '#1a100a', hairStyle: 'shaq',
+      label: 'SHAQ', labelCol: '#552583', num: '34', co: 'L A K E R S', coCol: '#552583', trim: '#552583', wide: 1.25, tall: 1.18 },
   ];
+  const rarity = (cost) => (cost >= 30000 ? 'legendary' : cost >= 12000 ? 'epic' : cost >= 5000 ? 'rare' : 'common');
   const SHOP = { paint: PAINTS, design: DESIGNS, smoke: SMOKES, map: MAPS, driver: DRIVERS };
   const save = { bank: 0, owned: ['pearl', 'd:none', 's:white', 'm:nyc', 'v:elon'], paint: 'pearl', design: 'd:none', smoke: 's:white', map: 'm:nyc', driver: 'v:elon', crates: 0, runs: 0, dist: 0, longest: 0, cellsTotal: 0, twistsBest: 0, top: [] };
   try { Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch (e) {}
@@ -1166,14 +1172,27 @@ html, body { background: #26222c !important; }
   const equipped = (cat) => (cat === 'paint' ? save.paint : save[cat]);
   // what the preview car is wearing (starts as what's equipped) and the item last tapped, which the buy bar acts on
   let pvState = null, pvItem = null, pvRaf = 0;
+  // garage: one tab at a time (Paint, Designs, Smoke, Drivers, Maps, Stats), each tile tagged with its rarity
+  const TABS = [['paint', 'Paint'], ['design', 'Designs'], ['smoke', 'Smoke'], ['driver', 'Drivers'], ['map', 'Maps'], ['stats', 'Stats']];
+  let gTab = 'paint';
   function renderGarage(msg = '') {
     $('gBank').textContent = save.bank.toLocaleString();
-    for (const cat of ['paint', 'design', 'smoke', 'driver', 'map']) {
-      $('shop-' + cat).innerHTML = SHOP[cat].map((p) => {
-        const own = save.owned.includes(p.id), on = equipped(cat) === p.id, pv = pvState && pvState[cat] === p.id && !on;
+    $('gTabs').innerHTML = TABS.map(([k, label]) => {
+      const n = k === 'stats' ? '' : `<small>${SHOP[k].filter((p) => save.owned.includes(p.id)).length}/${SHOP[k].length}</small>`;
+      return `<button type="button" role="tab" data-tab="${k}" aria-selected="${k === gTab}">${label}${n}</button>`;
+    }).join('');
+    const selTab = $('gTabs').querySelector('[aria-selected="true"]');
+    if (selTab) selTab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const stats = gTab === 'stats';
+    $('shop').hidden = stats; $('gStats').hidden = !stats;
+    if (!stats) {
+      const cat = gTab;
+      $('shopGrid').innerHTML = SHOP[cat].map((p) => {
+        const own = save.owned.includes(p.id), on = equipped(cat) === p.id, pv = pvState && pvState[cat] === p.id && !on, r = rarity(p.cost);
         const tag = on ? 'Equipped' : own ? 'Owned' : `${p.cost.toLocaleString()} kWh`;
         const sw = cat === 'paint' ? p.col : cat === 'design' || cat === 'map' ? p.sw : cat === 'driver' ? `url(${avatarURL(p)}) center/cover` : smokeSw(p);
-        return `<button type="button" class="paint${on ? ' on' : ''}${pv ? ' pv' : ''}${own ? '' : ' locked'}" data-cat="${cat}" data-id="${p.id}"><i style="background:${sw}"></i>${p.name}<small>${tag}</small></button>`;
+        const rt = p.cost ? `<em class="rar ${r}">${r}</em>` : '<em class="rar common">Starter</em>';
+        return `<button type="button" class="paint ${r}${on ? ' on' : ''}${pv ? ' pv' : ''}${own ? '' : ' locked'}" data-cat="${cat}" data-id="${p.id}"><i style="background:${sw}"></i>${p.name}${rt}<small>${tag}</small></button>`;
       }).join('');
     }
     $('gMsg').textContent = msg;
@@ -1181,6 +1200,7 @@ html, body { background: #26222c !important; }
     const st = [['Runs', save.runs.toLocaleString()], ['Best score', (save.top[0] || 0).toLocaleString()], ['Total distance', save.dist.toFixed(1) + ' km'], ['Longest run', save.longest.toFixed(2) + ' km'], ['Cells collected', save.cellsTotal.toLocaleString()], ['Most twists', save.twistsBest]];
     $('gStats').innerHTML = st.map(([k, v]) => `<div class="stat"><span class="label">${k}</span><b>${v}</b></div>`).join('');
   }
+  $('gTabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b) return; gTab = b.dataset.tab; renderGarage(); });
   function renderBuyBar() {
     const btn = $('pvBtn');
     if (!pvItem) { $('pvName').textContent = 'Tap anything to try it on'; btn.hidden = true; return; }
@@ -1296,7 +1316,7 @@ html, body { background: #26222c !important; }
   // ---------- Cyber Crate: kWh, or something from the garage you don't own yet (pricier items are rarer) ----------
   function rollCrate() {
     const pool = [];
-    for (const cat of ['paint', 'design', 'smoke', 'driver']) for (const p of SHOP[cat]) if (p.cost > 0 && !save.owned.includes(p.id)) pool.push({ cat, p, w: 1 / p.cost });
+    for (const cat of ['paint', 'design', 'smoke', 'driver']) for (const p of SHOP[cat]) if (p.cost > 0 && !save.owned.includes(p.id)) pool.push({ cat, p, w: (cat === 'driver' ? 0.6 : 1) / p.cost });
     if (pool.length && Math.random() < 0.4) {
       let r = Math.random() * pool.reduce((a, q) => a + q.w, 0), it = pool[0];
       for (const q of pool) { r -= q.w; if (r <= 0) { it = q; break; } }
@@ -1332,7 +1352,7 @@ html, body { background: #26222c !important; }
       else {
         const p = res.p, sw = res.cat === 'paint' ? p.col : res.cat === 'design' ? p.sw : res.cat === 'driver' ? `url(${avatarURL(p)}) center/cover` : smokeSw(p);
         pr.style.background = sw;
-        $('cText').textContent = `New ${res.cat === 'smoke' ? 'jet smoke' : res.cat}: ${p.name}! Equip it in the Garage.`;
+        $('cText').textContent = `${res.cat === 'driver' ? 'LEGENDARY! New driver' : 'New ' + (res.cat === 'smoke' ? 'jet smoke' : res.cat)}: ${p.name}! Equip it in the Garage.`;
       }
       tone(990, 0.4, 'triangle', 0.06, 1980); buzz(50);
       $('cOpen').hidden = save.crates < 1; $('cOpen').textContent = `Open next (${save.crates})`;
@@ -3029,23 +3049,26 @@ html, body { background: #26222c !important; }
   // the driver, in the style of whoever is equipped: name across the chest and company low on the shirt
   function drawMan(x, y, z, pose) {
     if (z <= ZN) return;
-    const D = driverOf(), [fx, fy, u0] = P(x, y, z), u = u0, wk = D.wide || 1;
-    const SKIN = D.skin, TEE = D.tee, JACKET = D.jacket, JEANS = D.legs;
+    const D = driverOf(), [fx, fy, u0] = P(x, y, z), u = u0 * (D.tall || 1), wk = D.wide || 1;
+    const SKIN = D.skin, TEE = D.tee, JEANS = D.legs, JACKET = D.arms || D.jacket;
     const R = (dx, dy, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(fx + dx * u, fy - (dy + h) * u, w * u, h * u); };
     const RW = (dx, dy, w, h, c) => R(dx * wk, dy, w * wk, h, c);
     if (y <= 0.05 || y === 0.15) { ctx.fillStyle = 'rgba(10,4,14,.4)'; ctx.beginPath(); ctx.ellipse(fx, fy, 0.38 * u, 0.08 * u, 0, 0, Math.PI * 2); ctx.fill(); }
     const sw = pose.walk ? Math.sin(pose.walk) * 0.07 : 0;
     const bob = pose.walk ? Math.abs(Math.sin(pose.walk)) * 0.03 : 0;
     RW(-0.19 + sw, 0, 0.16, 0.92, JEANS); RW(0.03 - sw, 0, 0.16, 0.92, JEANS);
+    if (D.shorts) { RW(-0.21, 0.5, 0.42, 0.42, D.shorts); RW(-0.21, 0.5, 0.42, 0.04, D.trim); }
     RW(-0.22 + sw, 0, 0.21, 0.08, D.shoes); RW(0.02 - sw, 0, 0.21, 0.08, D.shoes);
-    RW(-0.3, 0.88 + bob, 0.6, 0.66, JACKET);
+    RW(-0.3, 0.88 + bob, 0.6, 0.66, D.jacket);
     RW(-0.18, 0.9 + bob, 0.36, 0.64, TEE);
+    if (D.trim) { RW(-0.3, 1.5 + bob, 0.6, 0.04, D.trim); RW(-0.3, 0.88 + bob, 0.04, 0.66, D.trim); RW(0.26, 0.88 + bob, 0.04, 0.66, D.trim); }
     if (D.tie) { R(-0.035, 0.98 + bob, 0.07, 0.5, D.tie); R(-0.05, 1.43 + bob, 0.1, 0.07, D.tie); }
     if (u > 40) {
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillStyle = D.labelCol; ctx.font = `700 ${0.11 * u}px "Saira Semi Condensed", sans-serif`;
       ctx.fillText(D.label, fx, fy - (1.335 + bob) * u, 0.34 * wk * u);
       if (D.logo === 'openai') openaiLogo(fx, fy - (1.17 + bob) * u, 0.075 * u, '#f4f4f2', Math.max(1, 0.012 * u));
+      if (D.num) { ctx.fillStyle = D.labelCol; ctx.font = `700 ${0.2 * u}px Michroma, "Arial Black", sans-serif`; ctx.fillText(D.num, fx, fy - (1.15 + bob) * u); }
       ctx.fillStyle = D.coCol; ctx.font = `700 ${0.072 * u}px "Saira Semi Condensed", sans-serif`;
       ctx.fillText(D.co, fx, fy - (1.0 + bob) * u);
     }
@@ -3091,6 +3114,17 @@ html, body { background: #26222c !important; }
       g.quadraticCurveTo(X(-0.1), Y(hy + 0.16), X(-0.14), Y(hy + 0.1));
       g.closePath(); g.fill();
       g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.ellipse(X(0.02), Y(hy + 0.22), 0.11 * u, 0.025 * u, -0.15, 0, Math.PI * 2); g.fill();
+    } else if (D.hairStyle === 'lebron') {
+      // close-cropped hair under a white headband, full beard
+      g.ellipse(fx, Y(hy + 0.06), 0.158 * u, 0.15 * u, 0, Math.PI, 2 * Math.PI); g.fill();
+      R(-0.16, hy + 0.09, 0.32, 0.055, '#f4f4f2');
+      g.fillStyle = D.hair; g.beginPath(); g.ellipse(fx, Y(hy - 0.07), 0.15 * u, 0.13 * u, 0, 0, Math.PI); g.fill();
+      R(-0.155, hy - 0.08, 0.04, 0.1, D.hair); R(0.115, hy - 0.08, 0.04, 0.1, D.hair);
+    } else if (D.hairStyle === 'shaq') {
+      // shaved head with a little shine, short goatee
+      g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(X(-0.04), Y(hy + 0.13), 0.07 * u, 0.035 * u, -0.3, 0, Math.PI * 2); g.fill();
+      g.fillStyle = D.hair; g.beginPath(); g.ellipse(fx, Y(hy - 0.15), 0.06 * u, 0.05 * u, 0, 0, Math.PI * 2); g.fill();
+      R(-0.07, hy - 0.09, 0.14, 0.02, D.hair);
     } else if (D.hairStyle === 'sam') {
       // short, neat brown hair with a soft straight fringe
       g.ellipse(fx, Y(hy + 0.07), 0.168 * u, 0.16 * u, 0, Math.PI, 2 * Math.PI); g.fill();
@@ -3106,11 +3140,12 @@ html, body { background: #26222c !important; }
       g.quadraticCurveTo(X(-0.07), Y(hy + 0.16), X(-0.125), Y(hy + 0.1));
       g.closePath(); g.fill();
     }
-    const brow = D.hairStyle === 'trump' ? '#d9b25a' : '#3a2618';
+    const dark = D.hairStyle === 'lebron' || D.hairStyle === 'shaq', brow = D.hairStyle === 'trump' ? '#d9b25a' : dark ? '#140c08' : '#3a2618';
     R(-0.095, hy + 0.035, 0.07, 0.017, brow); R(0.025, hy + 0.035, 0.07, 0.017, brow);
+    if (dark) { C(-0.055, hy, 0.026, '#f4efe8'); C(0.055, hy, 0.026, '#f4efe8'); }
     C(-0.055, hy, 0.017, D.hairStyle === 'sam' ? '#3a5a78' : '#2a1a10'); C(0.055, hy, 0.017, D.hairStyle === 'sam' ? '#3a5a78' : '#2a1a10');
     R(-0.012, hy - 0.065, 0.024, 0.055, 'rgba(0,0,0,.12)');
-    g.strokeStyle = '#7a3b2e'; g.lineWidth = Math.max(1, u * 0.016); g.lineCap = 'round'; g.beginPath();
+    g.strokeStyle = dark ? '#e9d6c8' : '#7a3b2e'; g.lineWidth = Math.max(1, u * 0.016); g.lineCap = 'round'; g.beginPath();
     if (D.hairStyle === 'trump') { g.moveTo(X(-0.045), Y(hy - 0.11)); g.quadraticCurveTo(X(0), Y(hy - 0.085), X(0.045), Y(hy - 0.11)); }
     else { g.moveTo(X(-0.05), Y(hy - 0.105)); g.quadraticCurveTo(X(0.01), Y(hy - 0.13), X(0.068), Y(hy - 0.085)); }
     g.stroke();
@@ -3130,6 +3165,8 @@ html, body { background: #26222c !important; }
     const u = 200, fx = 64, fy = 64 + 1.72 * u - 6;
     g.fillStyle = D.jacket; g.fillRect(fx - 0.33 * u, fy - 1.5 * u, 0.66 * u, 0.6 * u);
     g.fillStyle = D.tee; g.fillRect(fx - 0.14 * u, fy - 1.5 * u, 0.28 * u, 0.6 * u);
+    if (D.arms) { g.fillStyle = D.arms; g.fillRect(fx - 0.33 * u, fy - 1.5 * u, 0.1 * u, 0.6 * u); g.fillRect(fx + 0.23 * u, fy - 1.5 * u, 0.1 * u, 0.6 * u); }
+    if (D.trim) { g.fillStyle = D.trim; g.fillRect(fx - 0.23 * u, fy - 1.5 * u, 0.46 * u, 0.04 * u); }
     if (D.tie) { g.fillStyle = D.tie; g.fillRect(fx - 0.035 * u, fy - 1.49 * u, 0.07 * u, 0.5 * u); }
     g.fillStyle = D.skin; g.fillRect(fx - 0.07 * u, fy - 1.56 * u, 0.14 * u, 0.1 * u);
     drawHead(g, fx, fy, u, D, 1.72);
