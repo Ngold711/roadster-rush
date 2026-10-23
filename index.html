@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '33';
+window.BUILD = '34';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -1604,11 +1604,15 @@ html, body { background: #26222c !important; }
     for (let z = FAR - ((FAR + orr) % PR); z > ZN + 0.2; z -= PR) list.push(['post', z]);
     const PB = 120, ob = traveled % PB;
     for (let z = FAR - ((FAR + ob) % PB); z > ZN + 0.2; z -= PB) { const n = Math.round((z + traveled) / PB); list.push(['board', z, n % 2 ? 1 : -1, n]); }
+    // extra WANTED billboards halfway between the campaign billboards, on the other side of the street
+    const ow = (traveled + PB / 2) % PB;
+    for (let z = FAR - ((FAR + ow) % PB); z > ZN + 0.2; z -= PB) { const n = Math.round((z + traveled + PB / 2) / PB); list.push(['wboard', z, n % 2 ? -1 : 1, n]); }
     // building facades sit behind everything else on the sidewalk, so they get painted first
     list.sort((a, b) => (a[0] === 'bldg' ? 0 : 1) - (b[0] === 'bldg' ? 0 : 1) || b[1] - a[1]);
     for (const [k, z, bs, bn] of list) {
       ctx.globalAlpha = clamp((FAR - z) / 35, 0, 1);
-      if (k === 'board') { drawBillboard(bs, z, bn); continue; }
+      if (k === 'board') { drawBillboard(bs, z, bn, false); continue; }
+      if (k === 'wboard') { drawBillboard(bs, z, bn, true); continue; }
       if (k === 'bldg') { drawBuilding(bs, z, bn); continue; }
       for (const side of [-1, 1]) {
         if (k === 'post') {
@@ -1656,8 +1660,8 @@ html, body { background: #26222c !important; }
     ctx.save(); ctx.transform((b[0] - a[0]) / 300, (b[1] - a[1]) / 300, (c[0] - a[0]) / 450, (c[1] - a[1]) / 450, a[0], a[1]);
     ctx.drawImage(img, 0, 0); ctx.restore();
   }
-  function drawBillboard(side, z, n) {
-    const photo = n % 3 === 0 ? wantedAt() : photoAt(n);
+  function drawBillboard(side, z, n, wanted) {
+    const photo = wanted ? wantedAt() : photoAt(n);
     const cx = side * 8.6, hw = 1.75, y0 = 3.4, y1 = 8.65;
     for (const by of [y0 + 0.5, y1 - 0.5]) {
       const a = P(cx + side * hw, by, z), b = P(side * 11.5, by, z);
@@ -1991,7 +1995,7 @@ html, body { background: #26222c !important; }
     sub(rr, 0.04, 0.82, 0.16, 0.92, '#e01f30');
     sub(rr, 0.84, 0.82, 0.96, 0.92, '#e01f30');
     sub(rr, 0, 0.96, 1, 1, '#1c1820');
-    const photo = o.photo ? photoAt(o.pi) : null;
+    const photo = o.photo ? photoAt(o.pi) : wantedAt();
     if (photo) {
       const ph = (rr.b - rr.t) * 0.7, pw = ph * 0.667, px = (rr.l + rr.r) / 2 - pw / 2, py = rr.t + (rr.b - rr.t) * 0.07;
       const b = Math.max(1, rr.s * 0.06);
