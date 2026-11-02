@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '69';
+window.BUILD = '70';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -596,45 +596,8 @@ html, body { background: #26222c !important; }
     g.fillStyle = '#8a1c1c'; g.font = '700 30px Georgia, "Times New Roman", serif'; g.fillText('5,000 kWh', W2 / 2, 428);
     wantedPoster = c; return c;
   }
-  // Miss America 2026 pageant flyer (photo used with her permission), taped around the street-lamp poles
-  const missImg = new Image(); missImg.src = '';
-  let missFlyer = null;
-  function missAt() {
-    if (missFlyer || !missImg.complete || !missImg.naturalWidth) return missFlyer;
-    const W2 = 300, H2 = 660, c = document.createElement('canvas'); c.width = W2; c.height = H2;
-    const g = c.getContext('2d');
-    const bgG = g.createLinearGradient(0, 0, 0, H2); bgG.addColorStop(0, '#ffe3ef'); bgG.addColorStop(1, '#ff9cc8');
-    g.fillStyle = bgG; g.fillRect(0, 0, W2, H2);
-    g.strokeStyle = '#d4a52a'; g.lineWidth = 8; g.strokeRect(6, 6, W2 - 12, H2 - 12);
-    g.strokeStyle = '#f6dc84'; g.lineWidth = 2; g.strokeRect(14, 14, W2 - 28, H2 - 28);
-    // crown
-    g.fillStyle = '#e8b931'; g.beginPath(); g.moveTo(112, 58); g.lineTo(118, 28); g.lineTo(134, 46); g.lineTo(150, 20); g.lineTo(166, 46); g.lineTo(182, 28); g.lineTo(188, 58); g.closePath(); g.fill();
-    g.fillStyle = '#ff4f9a'; for (const [x, y] of [[118, 28], [150, 20], [182, 28]]) { g.beginPath(); g.arc(x, y, 4.5, 0, Math.PI * 2); g.fill(); }
-    g.fillStyle = '#5ce1ff'; g.beginPath(); g.arc(150, 47, 5, 0, Math.PI * 2); g.fill();
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = '#8a1450'; g.font = '700 30px Georgia, "Times New Roman", serif'; g.fillText('MISS AMERICA', W2 / 2, 84);
-    g.fillStyle = '#b8860b'; g.font = '700 26px Georgia, "Times New Roman", serif'; g.fillText('\u2605 2026 \u2605', W2 / 2, 114);
-    // the whole photo, top to bottom, in a gold frame
-    const px = 40, py = 132, pw = 220, ph = 476;
-    g.fillStyle = '#d4a52a'; g.fillRect(px - 6, py - 6, pw + 12, ph + 12);
-    const sr = missImg.naturalWidth / missImg.naturalHeight, dr = pw / ph; let sx = 0, sy = 0, sw = missImg.naturalWidth, sh = missImg.naturalHeight;
-    if (sr > dr) { sw = sh * dr; sx = (missImg.naturalWidth - sw) / 2; } else { sh = sw / dr; sy = (missImg.naturalHeight - sh) * 0.25; }
-    g.drawImage(missImg, sx, sy, sw, sh, px, py, pw, ph);
-    // WINNER sash across the corner of the photo
-    g.save(); g.translate(px + pw - 44, py + 46); g.rotate(0.62);
-    g.beginPath(); g.rect(-px - pw, -py - ph, 2000, 2000); g.restore(); g.save(); g.beginPath(); g.rect(px, py, pw, ph); g.clip(); g.translate(px + pw - 44, py + 46); g.rotate(0.62);
-    g.fillStyle = '#e8b931'; g.fillRect(-80, -14, 160, 28); g.fillStyle = '#8a1450'; g.font = '700 18px Georgia, serif'; g.fillText('WINNER', 0, 1);
-    g.restore();
-    g.fillStyle = '#8a1450'; g.font = 'italic 700 17px Georgia, "Times New Roman", serif'; g.fillText('Congratulations to our Queen!', W2 / 2, 634);
-    // sparkles
-    g.fillStyle = '#ffffff';
-    for (const [x, y, r] of [[30, 40, 7], [268, 46, 6], [24, 300, 5], [276, 360, 7], [50, 646, 5], [252, 644, 6]]) {
-      g.beginPath(); g.moveTo(x, y - r); g.quadraticCurveTo(x, y, x + r, y); g.quadraticCurveTo(x, y, x, y + r); g.quadraticCurveTo(x, y, x - r, y); g.quadraticCurveTo(x, y, x, y - r); g.fill();
-    }
-    return (missFlyer = c);
-  }
   // redraw the posters once the display fonts arrive so the lettering uses them
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { posters.fill(null); wantedPoster = null; missFlyer = null; });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { posters.fill(null); wantedPoster = null; });
   let W = 0, H = 0, DPR = 1, F = 600, HY = 200;
   const cam = { x: 0, y: 3.6, z: CAMZ };
   let mesas = [], stars = [], landmarks = [];
@@ -2414,7 +2377,6 @@ html, body { background: #26222c !important; }
           const r = Math.max(2, a[2] * 0.7);
           glow(c[0], c[1], r, 0.95);
           if (SET.real && weather === 'rain') reflect(side * 4.2, z, a[2], warmStrip, 0.38);
-          if (bn % 3 === 0 && side === (bn % 2 ? 1 : -1) && z < 90) drawMissFlyer(side * 5.6, z, bn);
         }
       }
     }
@@ -2837,122 +2799,6 @@ html, body { background: #26222c !important; }
     if (!o.smash) shadowAt(x, 1.6, o.z, o.z + 0.9, 0);
     const c = P(x, yb + 0.5, o.z), wob = o.smash ? o.smash.age * 9 : Math.sin(T * 3 + o.z) * 0.04;
     drawQuestAt(c[0], c[1], c[2], wob);
-  }
-  // flyer taped around a lamp pole at chest height, a little crooked, with tape at the corners
-  function drawMissFlyer(x, z, n) {
-    const img = missAt(); if (!img || z <= ZN + 0.5) return;
-    const tl = P(x - 0.62, 3.75, z), br = P(x + 0.62, 1.03, z), s = tl[2];
-    const x0 = tl[0], y0 = tl[1], w = br[0] - x0, h = br[1] - y0;
-    if (x0 > W || x0 + w < 0 || w < 3) return;
-    ctx.save(); ctx.translate(x0 + w / 2, y0 + h / 2); ctx.rotate((n % 3 - 1) * 0.05);
-    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(-w / 2 + s * 0.03, -h / 2 + s * 0.04, w, h);
-    ctx.drawImage(img, -w / 2, -h / 2, w, h);
-    if (SET.real) { const g = ctx.createLinearGradient(-w / 2, 0, w / 2, 0); g.addColorStop(0, 'rgba(0,0,0,.25)'); g.addColorStop(0.5, 'rgba(255,255,255,.08)'); g.addColorStop(1, 'rgba(0,0,0,.3)'); ctx.fillStyle = g; ctx.fillRect(-w / 2, -h / 2, w, h); }
-    ctx.fillStyle = 'rgba(235,235,220,.75)';
-    for (const [cx, cy, a] of [[-0.5, -0.5, -0.6], [0.5, -0.5, 0.6], [-0.5, 0.5, 0.6], [0.5, 0.5, -0.6]]) { ctx.save(); ctx.translate(cx * w, cy * h); ctx.rotate(a); ctx.fillRect(-w * 0.1, -h * 0.025, w * 0.2, h * 0.05); ctx.restore(); }
-    ctx.restore();
-  }
-  // ---------- launch ramp on the road: a silver curve with neon edges rising up and over, on a steel tower ----------
-  function drawLaunchRamp(o) {
-    const R = 7, x = o.x, w = o.w, mars = onMars(), edge = mars ? '#ff8a2a' : '#ff2a3a', segs = [];
-    for (let i = 0; i < 18; i++) {
-      const a0 = i / 18 * (Math.PI / 2 + 0.38), a1 = (i + 1) / 18 * (Math.PI / 2 + 0.38);
-      segs.push([R * (1 - Math.cos(a0)), o.z + R * Math.sin(a0), R * (1 - Math.cos(a1)), o.z + R * Math.sin(a1), i]);
-    }
-    // steel tower beside the ramp, drawn first since it stands behind the curve
-    const tz = o.z + R, side = x >= 0 ? 1 : -1, tx = x + side * (w / 2 + 0.7);
-    if (tz - 1.2 > ZN) {
-      drawBox(tx, 0, 2 * R + 0.6, tz - 1.2, tz + 1.2, 1.1, '#2a2d33', '#3a3e46', '#33363d');
-      const br = new Path2D(), fx = tx - side * 0.55;
-      for (let y = 0; y < 2 * R; y += 1.6) { const a = P(fx, y, tz - 1.2), b = P(fx, y + 1.6, tz + 1.2), c = P(fx, y, tz + 1.2), d = P(fx, y + 1.6, tz - 1.2); br.moveTo(a[0], a[1]); br.lineTo(b[0], b[1]); br.moveTo(c[0], c[1]); br.lineTo(d[0], d[1]); }
-      ctx.strokeStyle = 'rgba(150,155,165,.5)'; ctx.lineWidth = 1; ctx.stroke(br);
-    }
-    segs.sort((p, q) => Math.max(q[1], q[3]) - Math.max(p[1], p[3]));
-    for (const [y0, z0, y1, z1, i] of segs) {
-      if (Math.min(z0, z1) <= ZN + 0.2) continue;
-      const shadeK = 0.75 + 0.25 * Math.cos(i / 18 * 2.2);
-      poly([[x - w / 2, y0, z0], [x + w / 2, y0, z0], [x + w / 2, y1, z1], [x - w / 2, y1, z1]], shade('#c4c9d1', shadeK));
-      for (const [ex, col, lw] of [[-w / 2, edge, 0.16], [w / 2, edge, 0.16], [0, '#f4f4f2', 0.05]]) {
-        const a = P(x + ex, y0, z0), b = P(x + ex, y1, z1);
-        ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, a[2] * lw); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
-      }
-    }
-    if (o.z > 8 && !SET.low) { const g = P(x, 0.4, o.z); glow(g[0], g[1], g[2] * 2.2, 0.35); }
-  }
-  // ---------- launch cutscene: side view of the car climbing the ramp, flipping off the top, thrusters, smoke ----------
-  function sideCar(x, y, s, rot, col) {
-    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(s, s);
-    ctx.fillStyle = col; ctx.beginPath();
-    ctx.moveTo(-0.5, -0.05); ctx.lineTo(0.5, -0.05); ctx.lineTo(0.52, -0.12); ctx.lineTo(0.18, -0.17); ctx.lineTo(-0.02, -0.3); ctx.lineTo(-0.3, -0.29); ctx.lineTo(-0.5, -0.16); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#12161e'; ctx.beginPath(); ctx.moveTo(0.14, -0.165); ctx.lineTo(-0.03, -0.275); ctx.lineTo(-0.28, -0.265); ctx.lineTo(-0.33, -0.17); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#ff2a3a'; ctx.fillRect(-0.52, -0.15, 0.04, 0.04);
-    ctx.fillStyle = '#0c0d10'; for (const wx of [-0.31, 0.31]) { ctx.beginPath(); ctx.arc(wx, -0.04, 0.085, 0, Math.PI * 2); ctx.fill(); }
-    ctx.fillStyle = '#5b606a'; for (const wx of [-0.31, 0.31]) { ctx.beginPath(); ctx.arc(wx, -0.04, 0.04, 0, Math.PI * 2); ctx.fill(); }
-    ctx.restore();
-  }
-  // the ramp's shape, like the reveal: a short run-in, a tight curve up, a tall straight wall, and a lean back over at the top
-  function launchPath() {
-    const gy = H * 0.82, r = H * 0.1, Lv = H * 0.36, r2 = H * 0.16, x0 = W * 0.2, cx = W * 0.58, pts = [];
-    for (let x = -40; x < cx; x += 6) pts.push([x, gy]);
-    for (let i = 0; i <= 20; i++) { const a = Math.PI / 2 - i / 20 * Math.PI / 2; pts.push([cx + r * Math.cos(a), gy - r + r * Math.sin(a)]); }
-    for (let y = gy - r; y > gy - r - Lv; y -= 6) pts.push([cx + r, y]);
-    const c2x = cx + r - r2, c2y = gy - r - Lv;
-    for (let i = 0; i <= 20; i++) { const a = -i / 20 * 0.75; pts.push([c2x + r2 * Math.cos(a), c2y + r2 * Math.sin(a)]); }
-    const len = [0]; for (let i = 1; i < pts.length; i++) len.push(len[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-    return { pts, len, total: len[len.length - 1], gy, cx, r, Lv, x0 };
-  }
-  function pathAt(lp, d) {
-    const { pts, len } = lp; let i = 1;
-    while (i < pts.length - 1 && len[i] < d) i++;
-    const q = clamp((d - len[i - 1]) / Math.max(0.001, len[i] - len[i - 1]), 0, 1), A = pts[i - 1], B = pts[i];
-    return { x: A[0] + (B[0] - A[0]) * q, y: A[1] + (B[1] - A[1]) * q, a: Math.atan2(B[1] - A[1], B[0] - A[0]) };
-  }
-  function drawLaunchScene() {
-    const k = launchT, mars = onMars(), lp = launchPath(), gy = lp.gy, edge = mars ? '#ff8a2a' : '#ff2a3a', s = H * 0.13, lw = H * 0.03;
-    const sky = ctx.createLinearGradient(0, 0, 0, H);
-    sky.addColorStop(0, mars ? '#1a0c10' : '#04050a'); sky.addColorStop(0.8, mars ? '#3a1a14' : '#0d0f18'); sky.addColorStop(1, mars ? '#2a120c' : '#07080c');
-    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = mars ? '#4a2216' : '#101217'; ctx.fillRect(0, gy, W, H - gy);
-    // steel truss tower holding up the straight part
-    const tx0 = lp.cx + lp.r + lw, tx1 = tx0 + H * 0.07, top = gy - lp.r - lp.Lv - H * 0.04;
-    ctx.strokeStyle = '#3d4149'; ctx.lineWidth = Math.max(2, H * 0.004); ctx.strokeRect(tx0, top, tx1 - tx0, gy - top);
-    ctx.beginPath(); for (let y = top; y < gy; y += H * 0.05) { ctx.moveTo(tx0, y); ctx.lineTo(tx1, y + H * 0.05); ctx.moveTo(tx1, y); ctx.lineTo(tx0, y + H * 0.05); } ctx.stroke();
-    // the ramp itself: silver, neon edges, white centre line; the surface the car drives on is the path
-    const off = (d) => { const p = []; for (let i = 0; i < lp.pts.length; i++) { const A = lp.pts[Math.max(0, i - 1)], B = lp.pts[Math.min(lp.pts.length - 1, i + 1)], a = Math.atan2(B[1] - A[1], B[0] - A[0]); p.push([lp.pts[i][0] - Math.sin(a) * d, lp.pts[i][1] + Math.cos(a) * d]); } return p; };
-    const line = (p, col, w) => { ctx.beginPath(); p.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineJoin = 'round'; ctx.stroke(); };
-    line(off(lw / 2), '#b9bec7', lw);
-    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.45; line(off(0), edge, 6); line(off(lw), edge, 6); ctx.restore();
-    line(off(0), edge, 2); line(off(lw), edge, 2); line(off(lw / 2), 'rgba(255,255,255,.85)', 1.2);
-    // the car: accelerate up the ramp (0-1.6 s), fly off the top and flip back over (1.6-2.4 s), hover down on its thrusters
-    const col = paintCol(); let x, y, rot, jets = 0;
-    if (k < 1.6) { const q = k / 1.6, d = lp.total * q * q, pt = pathAt(lp, d); x = pt.x; y = pt.y; rot = pt.a; }
-    else {
-      const end = pathAt(lp, lp.total), vx = Math.cos(end.a), vy = Math.sin(end.a), q = Math.min(1, (k - 1.6) / 0.8);
-      const fx = end.x + vx * H * 0.18 * q - q * q * W * 0.12, fy = end.y + vy * H * 0.16 * q + q * q * H * 0.06;
-      if (k < 2.4) { x = fx; y = fy; rot = end.a + (-Math.PI * 2 - end.a) * q; jets = q; }
-      else {
-        const h = Math.min(1, (k - 2.4) / 0.9), ex = end.x + vx * H * 0.18 - W * 0.12, ey = end.y + vy * H * 0.16 + H * 0.06;
-        x = ex + (W * 0.4 - ex) * h; y = ey + (gy - H * 0.2 - ey) * h + Math.sin(k * 6) * 3; rot = 0; jets = 1;
-      }
-    }
-    if (jets > 0) {
-      for (const jx of [-0.3, 0, 0.3]) {
-        const c = Math.cos(rot), sn = Math.sin(rot), bx = x + jx * s * c, by = y + jx * s * sn, len = Math.max(0, gy - by) * jets, jw = s * 0.07;
-        const g = ctx.createLinearGradient(0, by, 0, by + len); g.addColorStop(0, 'rgba(235,245,255,.95)'); g.addColorStop(0.4, 'rgba(120,180,255,.75)'); g.addColorStop(1, 'rgba(120,180,255,0)');
-        ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(bx - jw * 0.5, by); ctx.lineTo(bx + jw * 0.5, by); ctx.lineTo(bx + jw * 1.6, by + len); ctx.lineTo(bx - jw * 1.6, by + len); ctx.fill();
-      }
-    }
-    sideCar(x, y, s, rot, col);
-    // smoke billows out under the hover until it fills the bottom of the screen, then a white flash back to the road
-    if (k > 2.2) {
-      const q = Math.min(1, (k - 2.2) / 1.2);
-      for (let i = 0; i < 16; i++) {
-        const sx = W * 0.4 + (i - 8) * W * 0.065 * (0.6 + q), r = (28 + (i * 37) % 44) * (0.4 + q) * (H / 800);
-        ctx.fillStyle = `rgba(225,230,238,${(0.55 * q).toFixed(2)})`; ctx.beginPath(); ctx.arc(sx, gy - r * 0.4, r, 0, Math.PI * 2); ctx.fill();
-      }
-    }
-    if (k > 3.1) { ctx.fillStyle = `rgba(240,242,246,${Math.min(1, (k - 3.1) / 0.5).toFixed(2)})`; ctx.fillRect(0, 0, W, H); }
-    if (k < 3.1) { ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `400 ${Math.min(W * 0.08, 34)}px Michroma, sans-serif`; ctx.fillText(k < 1.6 ? 'LAUNCH RAMP' : 'LIFTOFF', W / 2, gy + (H - gy) * 0.5); }
   }
   function pasteWanted(fx, pz, pw, ph) {
     const img = wantedAt(); if (!img || pz <= ZN + 0.5) return;
