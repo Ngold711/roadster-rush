@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '72';
+window.BUILD = '73';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -277,17 +277,14 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 .hunt.pop i.on:last-of-type { animation: comboPop .3s ease-out; }
 .btn.gold { justify-self: stretch; background: #ffd36e; color: var(--ink); box-shadow: 0 3px 0 #b8892e; }
 .btn.gold:active { box-shadow: 0 1px 0 #b8892e; }
-/* Cyber Crate: an angular steel box with a red light bar; the lid flies off and the prize pops up */
-.cbox { position: relative; justify-self: center; width: 190px; height: 170px; }
-.cbox .body { position: absolute; left: 0; right: 0; bottom: 0; height: 86px; background: linear-gradient(160deg, #f1f3f6, #a3a9b3 55%, #6b717b); clip-path: polygon(6% 0, 94% 0, 100% 100%, 0 100%); z-index: 2; }
-.cbox .body::after { content: ""; position: absolute; left: 9%; right: 9%; top: 20px; height: 4px; background: #ff2a3a; box-shadow: 0 0 12px #ff2a3a; }
-.cbox .lid { position: absolute; left: 4%; right: 4%; bottom: 86px; height: 44px; background: linear-gradient(170deg, #ffffff, #c3c8d0 60%, #8a9099); clip-path: polygon(50% 0, 100% 100%, 0 100%); transform-origin: 85% 100%; transition: transform .6s cubic-bezier(.3,1.4,.5,1), opacity .6s; z-index: 3; }
-.cbox.shake { animation: crateShake .7s ease-in-out; }
-@keyframes crateShake { 0%, 100% { transform: none; } 20% { transform: rotate(-5deg); } 40% { transform: rotate(5deg); } 60% { transform: rotate(-3deg); } 80% { transform: rotate(2deg); } }
-.cbox.open .lid { transform: translate(46px, -70px) rotate(38deg); opacity: 0; }
-.cbox .prize { position: absolute; left: 50%; bottom: 52px; width: 68px; height: 68px; margin-left: -34px; border-radius: 50%; border: 3px solid rgba(255,255,255,.7); display: grid; place-items: center; font: 400 13px var(--display); color: var(--ink); transform: scale(0); transition: transform .55s .25s cubic-bezier(.2,1.6,.4,1); box-shadow: 0 0 44px rgba(255,211,110,.85); z-index: 1; }
-.cbox.open .prize { transform: translateY(-52px) scale(1); }
-@media (prefers-reduced-motion: reduce) { .cbox.shake { animation: none; } }
+/* crate opening: a full-screen canvas scene with the buttons pinned along the bottom */
+#crate { padding: 0; display: block; background: #030406; }
+#crateCv { position: absolute; inset: 0; width: 100%; height: 100%; }
+#crate .ctitle { position: absolute; z-index: 2; left: 0; right: 0; top: 0; padding: calc(env(safe-area-inset-top, 0px) + 16px) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); text-align: center; pointer-events: none; }
+#crate .cbar { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; display: grid; gap: 10px; justify-items: center; padding: 26px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 18px) max(16px, env(safe-area-inset-left, 0px)); background: linear-gradient(rgba(3,4,6,0), rgba(3,4,6,.92) 35%); }
+#crate .cbar .lede { text-align: center; min-height: 22px; }
+#crate .cbar .row { width: 100%; max-width: 420px; justify-content: center; }
+
 @media (max-width: 520px) { .card { padding: 18px; gap: 14px; } .screen { align-items: flex-start; } #menu { align-items: center; padding-bottom: 26vh; } } /* on phones the start box sits mid-screen, other menus at the top, so the car stays in view */
 </style>
 <style>
@@ -454,15 +451,18 @@ html, body { background: #26222c !important; }
   <div class="count" id="count" hidden></div>
 
   <div class="screen" id="crate" hidden>
-    <div class="card">
+    <div class="ctitle">
       <div>
         <div class="eyebrow">Word hunt prize</div>
         <h2>Cyber Crate</h2>
       </div>
-      <div class="cbox" id="cbox"><div class="lid"></div><div class="body"></div><div class="prize" id="cPrize"></div></div>
+    </div>
+    <canvas id="crateCv" aria-label="Cyber Crate opening"></canvas>
+    <div class="cbar">
       <p class="lede" id="cText">Tap Open to see what's inside.</p>
       <div class="row">
         <button class="btn" id="cOpen" type="button">Open</button>
+        <button class="btn ghost" id="cEquip" type="button" hidden>Equip</button>
         <button class="btn ghost" id="cDone" type="button">Done</button>
       </div>
     </div>
@@ -890,6 +890,9 @@ html, body { background: #26222c !important; }
   // tunnels: after a while on the road you dive into one now and then (a Boring Company Loop in New York, a lava tube on Mars)
   // dawn: 0 at night, 1 once the sun is up; starts about 75 s into a run and is full by about 4 minutes
   let dawnK = 0, dawnShown = -1, dawnTold = false;
+  // themed stretch of road for 15-20 s every few minutes: Waymo Way in New York, Optimus Outpost on Mars
+  let zone = null, nextZone = 100;
+  const zoneAt = (wz) => !!zone && wz >= zone.s && wz <= zone.e;
   // Zuck attack: about 1-2 times every 5 minutes (first one 2-3 minutes in) the patrol Cybertruck pulls ahead and Zuck throws Meta Quest headsets from the bed for 20 s
   const BOSS_DUR = 20;
   let boss = null, nextBoss = 80, zuckArm = 0;
@@ -910,7 +913,7 @@ html, body { background: #26222c !important; }
   function reset() {
     objs = []; parts = [];
     hunt = { word: pick(WORDS), got: 0, next: rnd(400, 600), out: false, done: false };
-    tunnel = null; nextTunnel = rnd(550, 750); dawnK = 0; dawnTold = false; boss = null; nextBoss = rnd(120, 180); zuckArm = 0; nextLaunch = rnd(60, 100); launchLand = false; ride = null;
+    tunnel = null; nextTunnel = rnd(550, 750); zone = null; nextZone = rnd(80, 130); dawnK = 0; dawnTold = false; boss = null; nextBoss = rnd(120, 180); zuckArm = 0; nextLaunch = rnd(60, 100); launchLand = false; ride = null;
     renderHunt();
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
     reviveUsed = false; revivePending = false; jumpBuf = 0; lastWall = false; t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
@@ -942,11 +945,12 @@ html, body { background: #26222c !important; }
       const r = Math.random(), e = 0.38 - diff * 0.28;
       kinds[l] = r < e ? 'empty' : r < e + 0.15 ? 'pod' : r < e + 0.3 ? 'ramp' : r < e + 0.4 ? 'semi' : r < e + 0.53 ? 'sedan' : r < e + 0.6 ? 'van' : r < e + 0.68 ? 'ct' : 'barrier';
     }
+    if (zoneAt(traveled + z)) for (let l = 0; l < 3; l++) if (['van', 'ct', 'semi', 'pod'].includes(kinds[l])) kinds[l] = 'sedan';
     for (let l = 0; l < 3; l++) {
       const x = LANES[l];
       switch (kinds[l]) {
         case 'barrier': objs.push({ k: 'barrier', lane: l, x, z: z + 2, d: 0.6, w: 2.0, h: 0.9 }); break;
-        case 'sedan': { const rm = Math.random(), m = rm < 0.22 ? 'cc' : rm < 0.38 ? pick(['ip', 'zk', 'io', 'ip', 'zk', 'io', 'pr', 'lx', 'ff', 'pa']) : pick(['m3', 'ms', 'my', 'mx', 'r1']); objs.push({ k: 'sedan', lane: l, x, z, m, d: MODELS[m].len, w: MODELS[m].w, h: MODELS[m].cabTop, col: MODELS[m].col || pick(MODELS[m].cols || SEDAN_COLS) }); break; }
+        case 'sedan': { const rm = Math.random(), m = zoneAt(traveled + z) ? (onMars() && rm < 0.25 ? 'cc' : pick(['ip', 'ip', 'zk', 'zk', 'io', 'io', 'pr', 'lx', 'ff', 'pa'])) : rm < 0.22 ? 'cc' : rm < 0.38 ? pick(['ip', 'zk', 'io', 'ip', 'zk', 'io', 'pr', 'lx', 'ff', 'pa']) : pick(['m3', 'ms', 'my', 'mx', 'r1']); objs.push({ k: 'sedan', lane: l, x, z, m, d: MODELS[m].len, w: MODELS[m].w, h: MODELS[m].cabTop, col: MODELS[m].col || pick(MODELS[m].cols || SEDAN_COLS) }); break; }
         case 'van': objs.push({ k: 'van', lane: l, x, z, d: 7.4, w: 2.2, h: 2.6 }); break;
         case 'ct': objs.push({ k: 'ct', lane: l, x, z, d: 5.6, w: 2.15, h: 2.05, col: Math.random() < 0.8 ? '#b4b8c0' : '#1d1f25' }); break;
         case 'semi':
@@ -1341,33 +1345,24 @@ html, body { background: #26222c !important; }
   }
   let crateFrom = 'menu';
   function openCrates(from) {
-    crateFrom = from; $('cbox').className = 'cbox'; $('cPrize').textContent = ''; $('cPrize').style.background = '';
-    $('cText').textContent = `Tap Open to see what's inside.${save.crates > 1 ? ` ${save.crates} crates waiting.` : ''}`;
-    $('cOpen').hidden = false; $('cOpen').textContent = 'Open';
-    show('crate');
+    crateFrom = from; crateIdle();
+    show('crate'); crateLoop();
   }
   $('cOpen').onclick = () => {
-    const box = $('cbox');
-    if (box.classList.contains('open')) { openCrates(crateFrom); return; }
-    if (save.crates < 1 || box.classList.contains('shake')) return;
+    if (CR.phase === 'run') return;
+    if (save.crates < 1) return;
     save.crates--; persist();
-    const res = rollCrate();
-    box.classList.add('shake'); tone(220, 0.5, 'sawtooth', 0.03, 440);
-    setTimeout(() => {
-      box.classList.remove('shake'); box.classList.add('open');
-      const pr = $('cPrize');
-      if (res.kwh) { pr.style.background = 'radial-gradient(circle,#c9f6ff,#5ce1ff 60%,#1b6f86)'; pr.textContent = res.kwh; $('cText').textContent = `+${res.kwh.toLocaleString()} kWh added to your bank.`; }
-      else {
-        const p = res.p, sw = res.cat === 'paint' ? p.col : res.cat === 'design' ? p.sw : res.cat === 'driver' ? `url(${avatarURL(p)}) center/cover` : smokeSw(p);
-        pr.style.background = sw;
-        $('cText').textContent = `${res.cat === 'driver' ? 'LEGENDARY! New driver' : 'New ' + (res.cat === 'smoke' ? 'jet smoke' : res.cat)}: ${p.name}! Equip it in the Garage.`;
-      }
-      tone(990, 0.4, 'triangle', 0.06, 1980); buzz(50);
-      $('cOpen').hidden = save.crates < 1; $('cOpen').textContent = `Open next (${save.crates})`;
-      renderCrateBtns();
-    }, 750);
+    crateRun(rollCrate());
+    renderCrateBtns();
   };
-  $('cDone').onclick = () => { renderCrateBtns(); if (crateFrom === 'menu') renderMissions('missionsMenu'); show(crateFrom); };
+  $('cEquip').onclick = () => {
+    const pz = CR.prize; if (!pz || pz.kwh) return;
+    if (pz.cat === 'paint') save.paint = pz.p.id; else save[pz.cat] = pz.p.id;
+    persist(); pl.col = paintCol(); if (pz.cat === 'driver') setHudAvatar();
+    $('cEquip').hidden = true; $('cText').textContent = `${pz.p.name} equipped!`; tone(880, 0.15, 'triangle', 0.04, 1320);
+  };
+  $('crateCv').addEventListener('pointerdown', () => { if (CR.phase === 'run' && crateT() > 2.6 && crateT() < CR.END) CR.t0 -= (CR.END - crateT()) * 1000; });
+  $('cDone').onclick = () => { CR.phase = 'off'; renderCrateBtns(); if (crateFrom === 'menu') renderMissions('missionsMenu'); show(crateFrom); };
   $('menuCrate').onclick = () => openCrates('menu');
   $('overCrate').onclick = () => openCrates('over');
   renderCrateBtns();
@@ -1625,7 +1620,12 @@ html, body { background: #26222c !important; }
     const dz = ride ? rideStep(dt) : speed * dt;
     score += dz * 0.35 * multiplier();
     advance(dz, dt);
-    if (!tunnel && traveled > nextTunnel) { const s0 = traveled + FAR + 25; let hue; do hue = pick(NEON); while (hue === lastHue); lastHue = hue; tunnel = { s: s0, e: s0 + rnd(170, 260), hue }; }
+    if (!zone && !tunnel && t > nextZone) {
+      const s0 = traveled + FAR + 25; zone = { s: s0, e: s0 + speed * rnd(15, 20), told: false };
+    }
+    if (zone && !zone.told && traveled > zone.s - 2) { zone.told = true; toast(onMars() ? 'Welcome to Optimus Outpost' : 'Welcome to Waymo Way'); tone(523, 0.18, 'triangle', 0.04, 784); tone(784, 0.3, 'triangle', 0.04, 1046); }
+    if (zone && traveled > zone.e + 20) { zone = null; nextZone = t + rnd(150, 240); nextTunnel = Math.max(nextTunnel, traveled + 120); }
+    if (!tunnel && !zone && traveled > nextTunnel) { const s0 = traveled + FAR + 25; let hue; do hue = pick(NEON); while (hue === lastHue); lastHue = hue; tunnel = { s: s0, e: s0 + rnd(170, 260), hue }; }
     if (tunnel && traveled > tunnel.e + 12) { tunnel = null; nextTunnel = traveled + rnd(700, 1100); }
     // extra room after a wall so you can land and get set before the next row
     while (spawnZ < FAR) { spawnRow(spawnZ); spawnZ += 26 + speed * 0.28 + rnd(0, 12) + (lastWall ? speed * 0.75 : 0); }
@@ -2359,6 +2359,7 @@ html, body { background: #26222c !important; }
       if (z1 <= ZN) continue;
       for (const lx of [-1.1, 1.1]) poly([[lx - 0.07, 0, z0], [lx + 0.07, 0, z0], [lx + 0.07, 0, z1], [lx - 0.07, 0, z1]], '#e9dfd2');
     }
+    if (zone) drawZoneRoad();
     ctx.save(); ctx.translate(0, hyOff); ctx.fillStyle = hazeG; ctx.fillRect(0, HY - 6, W, H * 0.08 + 6); ctx.restore();
   }
 
@@ -2376,14 +2377,23 @@ html, body { background: #26222c !important; }
     // extra WANTED billboards halfway between the campaign billboards, on the other side of the street
     const ow = (traveled + PB / 2) % PB;
     for (let z = FAR - ((FAR + ow) % PB); z > ZN + 0.2; z -= PB) { const n = Math.round((z + traveled + PB / 2) / PB); list.push(['wboard', z, n % 2 ? -1 : 1, n]); }
+    if (zone) {
+      for (const [wz, enter] of [[zone.s, true], [zone.e, false]]) { const z = wz - traveled; if (z > ZN + 0.5 && z < FAR) list.push(['arch', z, enter ? 1 : 0]); }
+    }
     // building facades sit behind everything else on the sidewalk, so they get painted first
     list.sort((a, b) => (a[0] === 'bldg' ? 0 : 1) - (b[0] === 'bldg' ? 0 : 1) || b[1] - a[1]);
     for (const [k, z, bs, bn] of list) {
       if (keep && !keep(z, k === 'bldg' ? 14.5 : 0.5)) continue;
       ctx.globalAlpha = clamp((FAR - z) / 35, 0, 1);
+      if (k === 'arch') { drawZoneArch(z, bs); continue; }
       if (k === 'board') { drawBillboard(bs, z, bn); continue; }
-      if (k === 'wboard') { drawWantedSign(bs, z); continue; }
-      if (k === 'bldg') { if (onMars()) drawMarsSite(bs, z, bn); else drawBuilding(bs, z, bn); continue; }
+      if (k === 'wboard') { if (zoneAt(z + traveled)) drawZoneBoard(bs, z); else drawWantedSign(bs, z); continue; }
+      if (k === 'bldg') {
+        if (onMars()) drawMarsSite(bs, z, bn); else drawBuilding(bs, z, bn);
+        if (zone && zoneAt(z + 7 + traveled) && hash(bn * 3, bs * 5) < 0.75 && (!onMars() || hash(bn * 5, bs * 3) >= 0.52)) drawGraffiti(bs, z, bn);
+        continue;
+      }
+      if (k === 'post' && zoneAt(z + traveled)) { drawZonePost(z); continue; }
       for (const side of [-1, 1]) {
         if (k === 'post') {
           const a = P(side * 5.1, 0, z), b = P(side * 5.1, 0.6, z);
@@ -2863,6 +2873,294 @@ html, body { background: #26222c !important; }
     }
     // the lip at the very top, where the car leaves the ramp
     const [ty, tzz] = pts[N]; if (tzz > ZN + 0.3) { const a = P(x - w / 2, ty, tzz), b = P(x + w / 2, ty + 0.25, tzz); ctx.fillStyle = '#4a4f58'; ctx.fillRect(a[0], a[1] - (b[1] - a[1]), b[0] - a[0], Math.abs(b[1] - a[1]) + 1); }
+  }
+  // ---------- Waymo Way / Optimus Outpost ----------
+  const ZTEAL = '0,224,198', ZRED = '227,25,55';
+  const zoneCol = () => (onMars() ? ZRED : ZTEAL);
+  function drawZoneRoad() {
+    const z0 = Math.max(zone.s - traveled, ZN), z1 = Math.min(zone.e - traveled, FAR); if (z1 <= z0) return;
+    const c = zoneCol();
+    poly([[-4.6, 0, z0], [4.6, 0, z0], [4.6, 0, z1], [-4.6, 0, z1]], `rgba(${c},.07)`);
+    for (const ex of [-4.35, 4.35]) {
+      poly([[ex - 0.14, 0, z0], [ex + 0.14, 0, z0], [ex + 0.14, 0, z1], [ex - 0.14, 0, z1]], `rgba(${c},.35)`);
+      poly([[ex - 0.06, 0, z0], [ex + 0.06, 0, z0], [ex + 0.06, 0, z1], [ex - 0.06, 0, z1]], `rgb(${c})`);
+    }
+    const P10 = 10, o2 = traveled % P10;
+    for (let z = -o2; z < FAR; z += P10) {
+      const a = Math.max(z, z0), b = Math.min(z + 3.6, z1); if (b <= a) continue;
+      for (const lx of [-1.1, 1.1]) poly([[lx - 0.08, 0, a], [lx + 0.08, 0, a], [lx + 0.08, 0, b], [lx - 0.08, 0, b]], `rgb(${c})`);
+    }
+  }
+  // arch over the road at the start ("Welcome to") and the end ("Leaving")
+  function drawZoneArch(z, enter) {
+    const mars = onMars(), c = zoneCol(), dark = mars ? '#6b1420' : '#0a5a46';
+    for (const sx of [-5.3, 5.3]) drawBox(sx, 0, 7.8, z - 0.2, z + 0.2, 0.4, '#2a3036', '#3a4048', '#30363d');
+    const a = P(-5.6, 8.2, z), b = P(5.6, 5.6, z), w = b[0] - a[0], h = b[1] - a[1];
+    if (w < 4) return;
+    ctx.fillStyle = dark; ctx.fillRect(a[0], a[1], w, h);
+    ctx.strokeStyle = '#f4f8f6'; ctx.lineWidth = Math.max(1, h * 0.05); ctx.strokeRect(a[0] + h * 0.07, a[1] + h * 0.07, w - h * 0.14, h - h * 0.14);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#ffffff';
+    ctx.font = `700 ${h * 0.4}px "Saira Semi Condensed", sans-serif`;
+    ctx.fillText(enter ? (mars ? 'OPTIMUS OUTPOST' : 'WAYMO WAY') : (mars ? 'LEAVING OPTIMUS OUTPOST' : 'LEAVING WAYMO WAY'), a[0] + w / 2, a[1] + h * 0.45, w * 0.9);
+    ctx.font = `600 ${h * 0.17}px "Saira Semi Condensed", sans-serif`; ctx.fillStyle = mars ? '#ffd0d6' : '#bff7ec';
+    ctx.fillText(enter ? (mars ? 'ROBOTS AT WORK · DRIVE CAREFULLY' : 'AUTONOMOUS ZONE · ALL CARS DRIVERLESS') : 'THANKS FOR RIDING', a[0] + w / 2, a[1] + h * 0.78, w * 0.9);
+    glow(a[0] + w / 2, a[1] + h / 2, w * 0.55, 0.35);
+    if (!SET.low) { const pa = ctx.globalAlpha; ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = pa * 0.25; ctx.fillStyle = `rgb(${c})`; ctx.fillRect(a[0] - h * 0.15, a[1] - h * 0.15, w + h * 0.3, h * 0.08); ctx.fillRect(a[0] - h * 0.15, b[1] + h * 0.07, w + h * 0.3, h * 0.08); ctx.globalAlpha = pa; ctx.globalCompositeOperation = 'source-over'; }
+  }
+  // street-sign poles in place of the hydrant posts; on Mars, Optimus robots work along the curb
+  function drawZonePost(z) {
+    const mars = onMars(), n = Math.round((z + traveled) / 21);
+    for (const side of [-1, 1]) {
+      if ((n + (side > 0 ? 1 : 0)) % 2 === 0) {
+        const base = P(side * 5.2, 0, z), top = P(side * 5.2, 3.3, z), s = base[2];
+        ctx.fillStyle = '#3a4048'; ctx.fillRect(base[0] - s * 0.05, top[1], s * 0.1, base[1] - top[1]);
+        const sw = s * 2.1, sh = s * 0.42, sx = base[0] - sw / 2, sy = top[1] - sh;
+        ctx.fillStyle = mars ? '#8a1a22' : '#0a6b4f'; ctx.fillRect(sx, sy, sw, sh);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(0.6, s * 0.03); ctx.strokeRect(sx + s * 0.05, sy + s * 0.05, sw - s * 0.1, sh - s * 0.1);
+        if (s > 6) { ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${s * 0.24}px "Saira Semi Condensed", sans-serif`; ctx.fillText(mars ? (n % 4 < 2 ? 'ROBOT CROSSING' : 'OPTIMUS OUTPOST') : (n % 4 < 2 ? 'WAYMO WAY' : 'ROBOTAXI LANE'), base[0], sy + sh / 2, sw * 0.9); }
+      } else if (mars) drawOptimus(side * 6.4, z, n);
+    }
+  }
+  function drawOptimus(x, z, n) {
+    if (z <= ZN + 0.5) return;
+    const p = P(x, 0, z), s = p[2] * 0.95, sw = Math.sin(T * 4 + n) * 0.05;
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(p[0], p[1], s * 0.32, s * 0.07, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e9ecf0'; ctx.fillRect(p[0] - s * (0.15 + sw), p[1] - s * 0.9, s * 0.11, s * 0.9); ctx.fillRect(p[0] + s * (0.04 + sw), p[1] - s * 0.9, s * 0.11, s * 0.9);
+    ctx.fillStyle = '#1b1e23'; ctx.fillRect(p[0] - s * 0.17, p[1] - s * 0.62, s * 0.34, s * 0.09);
+    ctx.fillStyle = '#f4f6f8'; ctx.fillRect(p[0] - s * 0.23, p[1] - s * 1.55, s * 0.46, s * 0.7);
+    ctx.fillStyle = '#1b1e23'; ctx.fillRect(p[0] - s * 0.23, p[1] - s * 1.22, s * 0.46, s * 0.12);
+    ctx.fillStyle = '#e9ecf0'; ctx.fillRect(p[0] - s * 0.34, p[1] - s * 1.5, s * 0.1, s * 0.62); ctx.fillRect(p[0] + s * 0.24, p[1] - s * (1.5 + (n % 2 ? 0.25 : 0)), s * 0.1, s * 0.62);
+    ctx.fillStyle = '#111317'; ctx.beginPath(); ctx.ellipse(p[0], p[1] - s * 1.74, s * 0.15, s * 0.17, 0, 0, Math.PI * 2); ctx.fill();
+    glow(p[0], p[1] - s * 1.74, s * 0.35, 0.5);
+    if (s > 30) { ctx.fillStyle = '#e31937'; ctx.font = `700 ${s * 0.09}px "Saira Semi Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.fillText('TESLA', p[0], p[1] - s * 1.32); }
+  }
+  // billboard in place of the wanted sign while inside the zone
+  function drawZoneBoard(side, z) {
+    const mars = onMars(), cx = side * 7.0, tl = P(cx - 1.7, 5.4, z), br = P(cx + 1.7, 2.3, z), s = tl[2];
+    const x0 = tl[0], y0 = tl[1], w = br[0] - x0, h = br[1] - y0; if (x0 > W || x0 + w < 0 || w < 4) return;
+    for (const px of [cx - 1.2, cx + 1.2]) { const a = P(px, 0, z), b = P(px, 2.3, z); ctx.fillStyle = '#2a3036'; ctx.fillRect(a[0] - s * 0.06, b[1], s * 0.12, a[1] - b[1]); }
+    ctx.fillStyle = '#20262c'; ctx.fillRect(x0 - s * 0.12, y0 - s * 0.12, w + s * 0.24, h + s * 0.24);
+    const gr = ctx.createLinearGradient(x0, y0, x0 + w, y0 + h); gr.addColorStop(0, mars ? '#3a0c14' : '#062f36'); gr.addColorStop(1, mars ? '#7a1a24' : '#0b5a5e');
+    ctx.fillStyle = gr; ctx.fillRect(x0, y0, w, h);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.font = `700 ${h * 0.22}px "Saira Semi Condensed", sans-serif`;
+    ctx.fillText(mars ? 'Optimus. Hired.' : 'No driver. No problem.', x0 + w / 2, y0 + h * 0.4, w * 0.9);
+    ctx.font = `600 ${h * 0.13}px Michroma, sans-serif`; ctx.fillStyle = `rgb(${zoneCol()})`;
+    ctx.fillText(mars ? 'TESLA BOT · MARS BASE' : 'WAYMO ONE', x0 + w / 2, y0 + h * 0.72, w * 0.9);
+    glow(x0 + w / 2, y0 + h / 2, w * 0.6, 0.3);
+  }
+  // spray-painted lettering on a wall near street level, baked once per word
+  const GRAF = { nyc: [['WAYMO', ['#00e0c6', '#7b5cff', '#ff5fa2']], ['RIDE THE FUTURE', ['#00e0c6', '#5aa8ff']], ['NO DRIVER', ['#ffd36e', '#00e0c6']], ['ROBOTAXI', ['#ff5fa2', '#ffd36e']], ['WAYMO WAY', ['#7b5cff', '#00e0c6']]],
+    mars: [['OPTIMUS', ['#e31937', '#ffffff']], ['ROBOTS RULE', ['#ffd36e', '#e31937']], ['BEEP BOOP', ['#5ce1ff', '#ffffff']], ['OPTIMUS', ['#ffffff', '#ff8a2a']]] };
+  const grafCache = {};
+  function grafImg(key, i) {
+    const id = key + i; if (grafCache[id]) return grafCache[id];
+    const [txt, cols] = GRAF[key][i], c = document.createElement('canvas'); c.width = 420; c.height = 130; const g = c.getContext('2d');
+    g.translate(210, 66); g.rotate(-0.05); g.textAlign = 'center'; g.textBaseline = 'middle';
+    let fs = 78; g.font = `italic 900 ${fs}px "Arial Black", Impact, sans-serif`; while (g.measureText(txt).width > 390 && fs > 30) { fs -= 4; g.font = `italic 900 ${fs}px "Arial Black", Impact, sans-serif`; }
+    const tw = g.measureText(txt).width, gr = g.createLinearGradient(-tw / 2, 0, tw / 2, 0); cols.forEach((cc, k) => gr.addColorStop(k / (cols.length - 1), cc));
+    g.lineJoin = 'round'; g.lineWidth = 12; g.strokeStyle = '#0b0b10'; g.strokeText(txt, 0, 0); g.lineWidth = 4; g.strokeStyle = '#ffffff'; g.strokeText(txt, 0, 0);
+    g.fillStyle = gr; g.fillText(txt, 0, 0);
+    // drips and overspray
+    g.fillStyle = cols[0]; for (let k = 0; k < 7; k++) { const dx = (Math.sin(k * 9.1 + i) * 0.5) * tw, dl = 10 + (k * 13 % 22); g.fillRect(dx, fs * 0.3, 3, dl); g.beginPath(); g.arc(dx + 1.5, fs * 0.3 + dl, 2.6, 0, 7); g.fill(); }
+    g.fillStyle = 'rgba(255,255,255,.7)'; for (let k = 0; k < 30; k++) g.fillRect(Math.sin(k * 3.7) * 200, Math.cos(k * 5.3) * 60, 2, 2);
+    return (grafCache[id] = c);
+  }
+  function drawGraffiti(side, z, n) {
+    const fx = side * 11.44, za = side < 0 ? z + 3 : z + 11.5, zb = side < 0 ? z + 11.5 : z + 3;
+    if (Math.min(za, zb) <= ZN + 0.6 || z > 80) return;
+    const key = onMars() ? 'mars' : 'nyc', img = grafImg(key, Math.floor(hash(n, side * 7) * GRAF[key].length));
+    const a = P(fx, 2.9, za), b = P(fx, 2.9, zb), c = P(fx, 0.5, za);
+    if (Math.abs(b[0] - a[0]) < 6) return;
+    ctx.save(); ctx.transform((b[0] - a[0]) / 420, (b[1] - a[1]) / 420, (c[0] - a[0]) / 130, (c[1] - a[1]) / 130, a[0], a[1]);
+    ctx.drawImage(img, 0, 0); ctx.restore();
+  }
+  // ---------- Cyber Crate opening: plugged into a Supercharger, charges up, overloads and bursts,
+  // then a strip of prize cards flies sideways and slows to a stop on what you won ----------
+  const CR = { phase: 'off', t0: 0, prize: null, rar: 'common', cards: [], win: 0, end: 0, tick: -1, sparks: [], raf: 0, END: 7.1, told: false };
+  const CR_TIERS = ['common', 'rare', 'epic', 'legendary'];
+  const CR_COL = { common: [176, 186, 200], rare: [92, 168, 255], epic: [180, 124, 255], legendary: [255, 196, 90] };
+  const crRgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  const kwhRar = (n) => (n >= 2500 ? 'legendary' : n >= 1000 ? 'epic' : n >= 500 ? 'rare' : 'common');
+  const prizeRar = (pz) => (pz.kwh ? kwhRar(pz.kwh) : pz.cat === 'driver' ? 'legendary' : rarity(pz.p.cost));
+  const crateT = () => (performance.now() - CR.t0) / 1000;
+  const avImgs = {};
+  const avatarImg = (D) => { if (!avImgs[D.id]) { const im = new Image(); im.src = avatarURL(D); avImgs[D.id] = im; } return avImgs[D.id]; };
+  // a filler card with the same shape of odds as a real crate (nothing is granted)
+  function sampleCard(rarOnly) {
+    const items = []; for (const cat of ['paint', 'design', 'smoke', 'driver']) for (const p of SHOP[cat]) if (p.cost > 0) items.push({ cat, p, w: (cat === 'driver' ? 0.6 : 1) / p.cost });
+    if (rarOnly) { const pool = items.filter((q) => prizeRar(q) === rarOnly); if (pool.length) { const q = pick(pool); return { cat: q.cat, p: q.p }; } }
+    if (Math.random() < 0.4) { let r = Math.random() * items.reduce((a, q) => a + q.w, 0); for (const q of items) { r -= q.w; if (r <= 0) return { cat: q.cat, p: q.p }; } }
+    const r = Math.random(); return { kwh: r < 0.4 ? 150 : r < 0.7 ? 250 : r < 0.9 ? 500 : r < 0.98 ? 1000 : 2500 };
+  }
+  function crateIdle() {
+    CR.phase = 'idle'; CR.prize = null; CR.rar = 'rare';
+    $('cEquip').hidden = true; $('cOpen').hidden = save.crates < 1; $('cOpen').textContent = 'Open';
+    $('cText').textContent = save.crates > 1 ? `${save.crates} crates waiting. Tap Open to charge one up.` : 'Tap Open to charge it up.';
+  }
+  function crateRun(prize) {
+    CR.phase = 'run'; CR.t0 = performance.now(); CR.prize = prize; CR.rar = prizeRar(prize); CR.tick = -1; CR.told = false;
+    CR.cards = []; for (let i = 0; i < 48; i++) CR.cards.push(sampleCard());
+    CR.win = 40; CR.cards[CR.win] = prize;
+    // a near miss now and then: something rarer sitting right next to the winner
+    if (CR.rar !== 'legendary' && Math.random() < 0.5) CR.cards[CR.win + (Math.random() < 0.5 ? 1 : -1)] = sampleCard('legendary');
+    CR.land = (Math.random() - 0.5) * 0.6;
+    CR.sparks = Array.from({ length: 140 }, () => ({ a: Math.random() * 6.283, v: 60 + Math.random() * 260, s: 1 + Math.random() * 2.6, up: Math.random() * 120 }));
+    $('cOpen').hidden = true; $('cEquip').hidden = true; $('cText').textContent = 'Supercharging…';
+    tone(110, 1.6, 'sawtooth', 0.035, 440); buzz(20);
+  }
+  function crateFinish() {
+    const pz = CR.prize; CR.phase = 'done';
+    const what = pz.kwh ? `+${pz.kwh.toLocaleString()} kWh added to your bank.` : `${pz.cat === 'driver' ? 'New driver' : 'New ' + (pz.cat === 'smoke' ? 'jet smoke' : pz.cat)}: ${pz.p.name}!`;
+    $('cText').textContent = what;
+    $('cEquip').hidden = !!pz.kwh;
+    $('cOpen').hidden = save.crates < 1; $('cOpen').textContent = `Open next (${save.crates})`;
+  }
+  function crateLoop() {
+    cancelAnimationFrame(CR.raf);
+    const step = () => {
+      if ($('crate').hidden || CR.phase === 'off') { CR.raf = 0; return; }
+      try { drawCrate(); } catch (e) { console.error(e); }
+      CR.raf = requestAnimationFrame(step);
+    };
+    CR.raf = requestAnimationFrame(step);
+  }
+  function crBloom(g, x, y, r, c, a) { if (r <= 0) return; const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, crRgba(c, a)); gr.addColorStop(0.35, crRgba(c, a * 0.35)); gr.addColorStop(1, crRgba(c, 0)); g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); g.restore(); }
+  function crRR(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  function crRays(g, cx, cy, n, r1, c, a, rot) { g.save(); g.globalCompositeOperation = 'lighter'; for (let i = 0; i < n; i++) { const ang = i / n * Math.PI * 2 + rot, w = 0.035 + (i % 3) * 0.02; const gr = g.createRadialGradient(cx, cy, 0, cx, cy, r1); gr.addColorStop(0, crRgba(c, a)); gr.addColorStop(1, crRgba(c, 0)); g.fillStyle = gr; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, r1 * (0.7 + (i * 37 % 30) / 100), ang - w, ang + w); g.closePath(); g.fill(); } g.restore(); }
+  // the scene is laid out in a 330 x 586 box, scaled to the screen; the night backdrop fills the whole screen
+  function drawCrate() {
+    const cv = $('crateCv'), r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+    const SW = Math.max(1, r.width), SH = Math.max(1, r.height);
+    if (cv.width !== Math.round(SW * dpr) || cv.height !== Math.round(SH * dpr)) { cv.width = Math.round(SW * dpr); cv.height = Math.round(SH * dpr); }
+    const g = cv.getContext('2d'), k = Math.min(SW / 330, (SH - 120) / 560), ox = (SW - 330 * k) / 2, oy = Math.max(0, (SH - 150 - 586 * k) / 2) + 20;
+    const tt = CR.phase === 'run' || CR.phase === 'done' ? crateT() : 0, now = performance.now() / 1000;
+    const tierIdx = CR_TIERS.indexOf(CR.rar);
+    // rarity hint climbs while it charges: common, then up to the prize's tier
+    const hintIdx = CR.phase === 'idle' ? 1 : Math.min(tierIdx, Math.floor(clamp(tt / 1.7, 0, 1) * (tierIdx + 1)));
+    const hc = CR_COL[CR_TIERS[Math.max(0, hintIdx)]];
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // backdrop: a Supercharger canopy at night over wet pavement
+    const bg = g.createLinearGradient(0, 0, 0, SH); bg.addColorStop(0, '#04060c'); bg.addColorStop(0.58, '#0c1220'); bg.addColorStop(0.6, '#0a0c10'); bg.addColorStop(1, '#030405');
+    g.fillStyle = bg; g.fillRect(0, 0, SW, SH);
+    g.translate(ox, oy); g.scale(k, k);
+    const L = -ox / k, Rr = (SW - ox) / k;
+    g.fillStyle = '#1a1e26'; g.fillRect(L, 34, Rr - L, 10);
+    for (let x = Math.floor(L / 70) * 70 + 30; x < Rr; x += 70) { g.fillStyle = '#eaf2ff'; g.fillRect(x, 44, 36, 3); crBloom(g, x + 18, 46, 40, [220, 235, 255], 0.3); }
+    for (let i = 0; i < 24; i++) { g.fillStyle = `rgba(255,255,255,${0.025 + (i * 7 % 5) / 120})`; g.fillRect(L + ((i * 97) % 1000) / 1000 * (Rr - L), 370 + (i * 53 % 200), 30 + (i * 11 % 50), 1); }
+    const charge = CR.phase === 'run' ? clamp(tt / 1.8, 0, 1) : 0, burst = CR.phase !== 'idle' && tt > 1.8, stripOn = CR.phase !== 'idle' && tt > 2.35;
+    crBloom(g, 165, 390, 190, hc, 0.12 + 0.35 * charge);
+    if (!stripOn) {
+      // Supercharger post
+      const sx = 22, sy = 200; crRR(g, sx, sy, 46, 190, 18); const sb = g.createLinearGradient(sx, 0, sx + 46, 0); sb.addColorStop(0, '#cfd4db'); sb.addColorStop(0.4, '#f5f7f9'); sb.addColorStop(1, '#aab1ba'); g.fillStyle = sb; g.fill();
+      crRR(g, sx + 6, sy + 10, 34, 70, 14); g.fillStyle = '#e31937'; g.fill(); g.fillStyle = '#fff'; g.font = '700 26px Arial'; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillText('T', sx + 23, sy + 56);
+      crBloom(g, sx + 23, sy + 46, 40, [255, 60, 80], 0.45);
+      // cable with energy pulses running down it
+      const x0 = 68, y0 = 300, x1 = 120, y1 = 372;
+      g.strokeStyle = '#15181d'; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.moveTo(x0, y0); g.bezierCurveTo(x0 + 20, y0 + 90, x1 - 50, y1 + 30, x1, y1); g.stroke();
+      if (charge > 0) for (let i = 0; i < 5; i++) { const q = (i / 5 + tt * (1 + charge * 2)) % 1, m = 1 - q; const px = m * m * m * x0 + 3 * m * m * q * (x0 + 20) + 3 * m * q * q * (x1 - 50) + q * q * q * x1, py = m * m * m * y0 + 3 * m * m * q * (y0 + 90) + 3 * m * q * q * (y1 + 30) + q * q * q * y1; crBloom(g, px, py, 16, hc, 0.9); g.fillStyle = '#fff'; g.beginPath(); g.arc(px, py, 2.2, 0, 7); g.fill(); }
+      // the crate: stainless Cybertruck-style chest with a red light bar; it shakes harder as it charges, then blows apart
+      const sh = charge * charge * 3.5, jx = (Math.random() - 0.5) * sh, jy = (Math.random() - 0.5) * sh;
+      const o = burst ? Math.min(1, (tt - 1.8) / 0.5) : 0, cx = 185 + jx, cy = 400 + jy;
+      crateBody2(g, cx, cy, hc, CR.phase === 'idle' ? 0.25 + 0.15 * Math.sin(now * 3) : charge, o);
+      g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+      if (!burst) { g.font = '400 22px Michroma, sans-serif'; g.fillStyle = 'rgba(230,238,246,.92)'; g.fillText(CR.phase === 'idle' ? 'READY' : `${Math.round(charge * 250)} kW`, 165, 470); if (CR.phase === 'run' && hintIdx > 0) { g.font = '600 12px "Saira Semi Condensed", sans-serif'; g.fillStyle = crRgba(hc, 1); g.fillText(`${CR_TIERS[hintIdx].toUpperCase()} OR BETTER`.split('').join(' '), 165, 492); } }
+      if (burst) {
+        const q = Math.min(1, (tt - 1.8) / 0.55);
+        crRays(g, cx - 10, 340, 30, 360 * (0.5 + q), hc, 0.55 * (1 - q * 0.5), now * 0.3);
+        crBloom(g, cx - 10, 340, 260 * (0.6 + q), hc, 1 - q * 0.6);
+        g.save(); g.translate(cx - 10, 372); g.scale(1, 0.25); g.strokeStyle = crRgba(hc, 0.9 * (1 - q)); g.lineWidth = 6; g.beginPath(); g.arc(0, 0, 40 + q * 260, 0, 7); g.stroke(); g.restore();
+        for (const p of CR.sparks) { const d = p.v * q, x = cx - 10 + Math.cos(p.a) * d, y = 340 + Math.sin(p.a) * d * 0.7 - p.up * q + 60 * q * q; g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = crRgba(hc, 1 - q * 0.8); g.beginPath(); g.arc(x, y, p.s, 0, 7); g.fill(); g.restore(); }
+        if (!CR.told) { CR.told = true; tone(70, 0.6, 'sawtooth', 0.06, 40); tone(880, 0.5, 'triangle', 0.04, 1760); buzz([40, 30, 60]); }
+        g.fillStyle = `rgba(255,255,255,${Math.max(0, 0.9 - q * 2)})`; g.fillRect(L, -oy / k, Rr - L, SH / k);
+      }
+      return;
+    }
+    // ---- prize strip ----
+    const STEP = 92, CW = 82, CH = 112, SY = 300, sT = tt - 2.35, dur = 4.3, u = clamp(sT / dur, 0, 1);
+    const ease = 1 - Math.pow(1 - u, 4), target = (CR.win + CR.land) * STEP, off = target * ease;
+    const settled = sT >= dur, cIdx = Math.round(off / STEP);
+    if (cIdx !== CR.tick && !settled) { CR.tick = cIdx; tone(1400 + Math.random() * 200, 0.03, 'square', 0.025); if (u > 0.6) buzz(4); }
+    const slowHint = CR_COL[CR_TIERS[Math.min(tierIdx, Math.floor(u * 1.25 * (tierIdx + 1)))]];
+    const mc = settled ? CR_COL[CR.rar] : slowHint;
+    const band = g.createLinearGradient(0, SY - 90, 0, SY + 90); band.addColorStop(0, 'rgba(0,0,0,0)'); band.addColorStop(0.5, 'rgba(10,14,22,.9)'); band.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = band; g.fillRect(L, SY - 90, Rr - L, 180);
+    if (settled) { const q = Math.min(1, (sT - dur) / 0.6); crRays(g, 165, SY, 26, 330, CR_COL[CR.rar], 0.45 * q, now * 0.25); }
+    const speed = u < 1 ? 4 * Math.pow(1 - u, 3) * target / dur : 0;
+    for (let i = 0; i < CR.cards.length; i++) {
+      const x = 165 - CW / 2 + i * STEP - off; if (x + CW < L - 10 || x > Rr + 10) continue;
+      const hl = settled && i === CR.win;
+      if (speed > 400) { g.globalAlpha = 0.35; for (let b = 1; b < 4; b++) drawPrizeCard(g, x + b * Math.min(26, speed * 0.012), SY - CH / 2, CW, CH, CR.cards[i], false); g.globalAlpha = 1; }
+      const sc = hl ? 1 + 0.12 * Math.min(1, (sT - dur) / 0.3) : 1;
+      g.save(); g.translate(x + CW / 2, SY); g.scale(sc, sc); drawPrizeCard(g, -CW / 2, -CH / 2, CW, CH, CR.cards[i], hl); g.restore();
+    }
+    for (const [x0, dir] of [[L, 1], [Rr, -1]]) { const fg = g.createLinearGradient(x0, 0, x0 + dir * 70, 0); fg.addColorStop(0, '#060910'); fg.addColorStop(1, 'rgba(6,9,16,0)'); g.fillStyle = fg; g.fillRect(Math.min(x0, x0 + dir * 70), SY - CH / 2 - 20, 70, CH + 40); }
+    g.fillStyle = crRgba(mc, 1); g.fillRect(165 - 1.5, SY - CH / 2 - 20, 3, CH + 40); crBloom(g, 165, SY, 90, mc, 0.45);
+    g.beginPath(); g.moveTo(156, SY - CH / 2 - 26); g.lineTo(174, SY - CH / 2 - 26); g.lineTo(165, SY - CH / 2 - 12); g.fill();
+    g.beginPath(); g.moveTo(156, SY + CH / 2 + 26); g.lineTo(174, SY + CH / 2 + 26); g.lineTo(165, SY + CH / 2 + 12); g.fill();
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+    if (!settled) { g.font = '400 20px Michroma, sans-serif'; g.fillStyle = 'rgba(230,238,246,.9)'; g.fillText(u < 0.55 ? 'SPINNING…' : 'ALMOST…', 165, 470); }
+    else {
+      const pz = CR.prize, c = CR_COL[CR.rar];
+      g.font = '400 13px Michroma, sans-serif'; g.fillStyle = crRgba(c, 1); g.fillText((CR.rar + (pz.cat === 'driver' ? ' driver' : '')).toUpperCase().split('').join(' '), 165, 156);
+      g.font = '700 30px "Saira Semi Condensed", sans-serif'; g.fillStyle = '#fff'; g.fillText(pz.kwh ? `+${pz.kwh.toLocaleString()} kWh` : pz.p.name, 165, 196);
+      if (CR.phase === 'run') { CR.phase = 'done'; tone(660, 0.2, 'triangle', 0.05, 990); tone(990, 0.5, 'triangle', 0.05, 1980); if (CR.rar === 'legendary') { tone(1320, 0.7, 'triangle', 0.04, 2640); buzz([60, 40, 120]); } else buzz(40); crateFinish(); }
+      if (CR.rar === 'legendary' || CR.rar === 'epic') for (let i = 0; i < 40; i++) { const a = i * 2.39996, d = ((now * 60 + i * 23) % 220); g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = crRgba(c, 0.8 * (1 - d / 220)); g.beginPath(); g.arc(165 + Math.cos(a) * d, SY + Math.sin(a) * d * 0.8, 1.8, 0, 7); g.fill(); g.restore(); }
+    }
+  }
+  function crateBody2(g, cx, cy, c, glowK, o) {
+    const steel = (x0, x1, m = 1) => { const gr = g.createLinearGradient(x0, 0, x1, 0); gr.addColorStop(0, `rgb(${120 * m},${128 * m},${138 * m})`); gr.addColorStop(0.3, `rgb(${236 * m},${239 * m},${243 * m})`); gr.addColorStop(0.55, `rgb(${178 * m},${185 * m},${194 * m})`); gr.addColorStop(0.85, `rgb(${222 * m},${226 * m},${231 * m})`); gr.addColorStop(1, `rgb(${110 * m},${118 * m},${128 * m})`); return gr; };
+    const fl = cx - 92, fr = cx + 70, ft = cy - 74, inset = 10, depth = 28, rise = 16;
+    g.fillStyle = 'rgba(0,0,0,.5)'; g.beginPath(); g.ellipse(cx - 6, cy + 4, 120, 12, 0, 0, 7); g.fill();
+    g.save(); if (o) { g.translate(o * 60, o * 20); g.rotate(o * 0.4); g.globalAlpha = 1 - o; }
+    g.fillStyle = steel(fr, fr + depth, 0.72); g.beginPath(); g.moveTo(fr, cy); g.lineTo(fr + depth, cy - rise); g.lineTo(fr + depth - inset, ft - rise); g.lineTo(fr - inset, ft); g.closePath(); g.fill(); g.restore();
+    for (const [x0, x1, dir] of [[fl, cx - 11, -1], [cx - 11, fr, 1]]) {
+      g.save(); if (o) { g.translate(dir * o * 80, o * 30); g.rotate(dir * o * 0.5); g.globalAlpha = 1 - o; }
+      g.fillStyle = steel(fl, fr); g.beginPath(); g.moveTo(x0, cy); g.lineTo(x1, cy); g.lineTo(x1 === fr ? fr - inset : x1, ft); g.lineTo(x0 === fl ? fl + inset : x0, ft); g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 1; for (let y = ft + 3; y < cy; y += 3) { g.beginPath(); g.moveTo(x0 + 4, y); g.lineTo(x1 - 4, y); g.stroke(); }
+      g.restore();
+    }
+    g.save(); if (o) { g.translate(o * 20, -o * 160); g.rotate(o * 0.7); g.globalAlpha = 1 - o; }
+    const lg = g.createLinearGradient(0, ft - rise, 0, ft); lg.addColorStop(0, '#fbfcfd'); lg.addColorStop(1, '#aab1ba');
+    g.fillStyle = lg; g.beginPath(); g.moveTo(fl + inset, ft); g.lineTo(fr - inset, ft); g.lineTo(fr + depth - inset, ft - rise); g.lineTo(fl + inset + depth, ft - rise); g.closePath(); g.fill(); g.restore();
+    if (!o) {
+      g.fillStyle = '#ff2a3a'; g.fillRect(fl + 16, ft + 12, fr - fl - 32, 3); crBloom(g, cx - 11, ft + 13, 110, [255, 42, 58], 0.3);
+      g.fillStyle = '#5b626c'; for (const [bx, by] of [[fl + 14, cy - 8], [fr - 14, cy - 8], [fl + 20, ft + 6], [fr - 20, ft + 6]]) { g.beginPath(); g.arc(bx, by, 2, 0, 7); g.fill(); }
+      g.fillStyle = 'rgba(30,34,40,.6)'; g.font = '400 8px Michroma, sans-serif'; g.textAlign = 'center'; g.fillText('C Y B E R   C R A T E', cx - 11, cy - 14);
+      if (glowK > 0) { g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = crRgba(c, glowK); g.lineWidth = 2.5; g.shadowColor = crRgba(c, 1); g.shadowBlur = 16 * glowK; g.beginPath(); g.moveTo(cx - 11, ft); g.lineTo(cx - 11, cy); g.moveTo(fl + inset, ft + 1); g.lineTo(fr - inset, ft + 1); g.moveTo(fr, cy); g.lineTo(fr - inset, ft); g.stroke(); g.restore(); }
+    }
+  }
+  // one prize card: rarity-tinted frame and glow, the real item's swatch or portrait, its name
+  function drawPrizeCard(g, x, y, w, h, pz, hl) {
+    const r = prizeRar(pz), rc = CR_COL[r];
+    const bgc = g.createLinearGradient(0, y, 0, y + h); bgc.addColorStop(0, '#1a2230'); bgc.addColorStop(1, '#0b0f17');
+    crRR(g, x, y, w, h, 10); g.fillStyle = bgc; g.fill();
+    g.save(); g.clip(); const sh = g.createRadialGradient(x + w / 2, y + h * 0.42, 2, x + w / 2, y + h * 0.42, w * 0.75); sh.addColorStop(0, crRgba(rc, r === 'common' ? 0.18 : 0.45)); sh.addColorStop(1, crRgba(rc, 0)); g.fillStyle = sh; g.fillRect(x, y, w, h);
+    g.fillStyle = crRgba(rc, 1); g.fillRect(x, y + h - 7, w, 7); g.restore();
+    crRR(g, x, y, w, h, 10); g.strokeStyle = crRgba(rc, hl ? 1 : 0.65); g.lineWidth = hl ? 3 : 1.5; g.stroke();
+    const ix = x + w / 2, iy = y + h * 0.42, ir = w * 0.29;
+    if (pz.kwh) {
+      g.fillStyle = '#5ce1ff'; crRR(g, ix - ir * 0.5, iy - ir * 0.95, ir, ir * 1.6, 4); g.fill(); g.fillRect(ix - ir * 0.22, iy - ir * 1.1, ir * 0.44, ir * 0.18);
+      g.fillStyle = '#0b1a24'; g.fillRect(ix - ir * 0.3, iy - ir * 0.75, ir * 0.6, ir * 0.4);
+    } else if (pz.cat === 'paint') {
+      const gr = g.createRadialGradient(ix - ir * 0.35, iy - ir * 0.35, 1, ix, iy, ir); gr.addColorStop(0, '#fff'); gr.addColorStop(0.3, pz.p.col); gr.addColorStop(1, shade(pz.p.col, 0.6)); g.fillStyle = gr; g.beginPath(); g.arc(ix, iy, ir, 0, 7); g.fill();
+    } else if (pz.cat === 'design') {
+      g.save(); g.beginPath(); g.arc(ix, iy, ir, 0, 7); g.clip(); g.fillStyle = '#e6e9ef'; g.fillRect(ix - ir, iy - ir, ir * 2, ir * 2); g.fillStyle = '#16181d';
+      const id = pz.p.id;
+      if (id === 'd:stripes') { g.fillRect(ix - ir * 0.4, iy - ir, ir * 0.25, ir * 2); g.fillRect(ix + ir * 0.15, iy - ir, ir * 0.25, ir * 2); }
+      else if (id === 'd:twotone') g.fillRect(ix - ir, iy - ir, ir * 2, ir);
+      else if (id === 'd:checker') { for (let i = -2; i < 2; i++) for (let j = -2; j < 2; j++) if ((i + j + 8) % 2) g.fillRect(ix + i * ir * 0.5, iy + j * ir * 0.5, ir * 0.5, ir * 0.5); }
+      else if (id === 'd:number') { g.fillStyle = '#c8202e'; g.font = `700 ${ir * 1.4}px "Saira Semi Condensed", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('8', ix, iy + ir * 0.05); }
+      else { const gg = g.createRadialGradient(ix, iy, 1, ix, iy, ir); gg.addColorStop(0, '#c9f6ff'); gg.addColorStop(0.5, '#5ce1ff'); gg.addColorStop(1, '#123d52'); g.fillStyle = gg; g.fillRect(ix - ir, iy - ir, ir * 2, ir * 2); }
+      g.restore();
+    } else if (pz.cat === 'smoke') {
+      if (!pz.p.rgb) { g.fillStyle = '#ffd36e'; for (const [dx, dy, s2] of [[0, 0, 0.9], [-0.6, 0.5, 0.45], [0.6, 0.45, 0.4]]) { const sx = ix + dx * ir, sy = iy + dy * ir, kk = s2 * ir; g.beginPath(); g.moveTo(sx, sy - kk); g.quadraticCurveTo(sx, sy, sx + kk, sy); g.quadraticCurveTo(sx, sy, sx, sy + kk); g.quadraticCurveTo(sx, sy, sx - kk, sy); g.quadraticCurveTo(sx, sy, sx, sy - kk); g.fill(); } }
+      else { const c2 = `rgb(${pz.p.rgb.join(',')})`; for (let i = 0; i < 3; i++) { g.fillStyle = c2; g.globalAlpha = (g.globalAlpha || 1) * (0.55 + i * 0.2); g.beginPath(); g.arc(ix - ir * 0.45 + i * ir * 0.45, iy + ir * 0.2 - i * ir * 0.25, ir * (0.55 - i * 0.07), 0, 7); g.fill(); g.globalAlpha = 1; } }
+    } else if (pz.cat === 'driver') {
+      const im = avatarImg(pz.p); g.save(); g.beginPath(); g.arc(ix, iy, ir * 1.05, 0, 7); g.clip(); if (im.complete && im.naturalWidth) g.drawImage(im, ix - ir * 1.05, iy - ir * 1.05, ir * 2.1, ir * 2.1); else { g.fillStyle = pz.p.skin; g.fill(); } g.restore();
+      g.strokeStyle = crRgba(rc, 1); g.lineWidth = 2; g.beginPath(); g.arc(ix, iy, ir * 1.05, 0, 7); g.stroke();
+    }
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#eef3f8';
+    const label = pz.kwh ? `${pz.kwh.toLocaleString()} kWh` : pz.p.name;
+    g.font = `700 ${pz.kwh ? 15 : 11}px "Saira Semi Condensed", sans-serif`; g.fillText(label, ix, y + h - 20, w - 8);
   }
   function pasteWanted(fx, pz, pw, ph) {
     const img = wantedAt(); if (!img || pz <= ZN + 0.5) return;
