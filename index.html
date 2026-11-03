@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '75';
+window.BUILD = '76';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -82,11 +82,12 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .batt::before { content: ""; position: absolute; left: 2px; right: 2px; top: -5px; height: 3px; background: var(--cell); border-radius: 1px 1px 0 0; }
 .batt::after { content: ""; position: absolute; inset: 2px; background: var(--cell); opacity: .8; }
 .dist { font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--paper); }
-.tools { display: flex; gap: 6px; pointer-events: auto; }
+.tools { display: flex; gap: 8px; pointer-events: auto; }
 button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .icon-btn:active, .paint:active { transform: scale(0.94); }
 .icon-btn svg { display: block; margin: 0 auto; }
-.icon-btn { width: 36px; height: 36px; border-radius: 3px; border: 1px solid var(--line); background: var(--panel); color: var(--paper); font: 700 13px var(--body); cursor: pointer; }
+.icon-btn.off { color: #ff8a95; }
+.icon-btn { width: 42px; height: 42px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--paper); font: 700 13px var(--body); cursor: pointer; }
 .icon-btn:focus-visible, .btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 
 .screen {
@@ -317,12 +318,11 @@ html, body { background: #26222c !important; }
     </div>
     <div class="right">
       <div class="tools">
-        <button class="icon-btn" id="hudShare" type="button" aria-label="Share the game"><svg width="16" height="18" viewBox="0 0 16 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 11V1.5M4.5 5 8 1.5 11.5 5"/><path d="M5 8H2.5v8.5h11V8H11"/></svg></button>
-        <button class="icon-btn" id="muteBtn" type="button" aria-label="Mute sound">SND</button>
-        <button class="icon-btn" id="musicBtn" type="button" aria-label="Turn music off">MUS</button>
-        <button class="icon-btn" id="pauseBtn" type="button" aria-label="Pause">II</button>
-        <button class="icon-btn" id="hudRestart" type="button" aria-label="Restart run"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M12.5 1.5v3h-3"/></svg></button>
-        <button class="icon-btn" id="hudHome" type="button" aria-label="Home screen"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5 8 2l6 5.5"/><path d="M3.5 6.5v7.5h9V6.5"/><path d="M6.5 14v-4h3v4"/></svg></button>
+        <button class="icon-btn" id="hudShare" type="button" aria-label="Share the game"><svg width="18" height="20" viewBox="0 0 16 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 11V1.5M4.5 5 8 1.5 11.5 5"/><path d="M5 8H2.5v8.5h11V8H11"/></svg></button>
+        <button class="icon-btn" id="muteBtn" type="button" aria-label="Mute sound"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5h3l4-3.5v12l-4-3.5H3z" fill="currentColor"/><path d="M13.5 7a4 4 0 0 1 0 6M15.8 4.8a7 7 0 0 1 0 10.4"/></svg></button>
+        <button class="icon-btn" id="pauseBtn" type="button" aria-label="Pause"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="4" width="3.4" height="12" rx="1" fill="currentColor"/><rect x="11.6" y="4" width="3.4" height="12" rx="1" fill="currentColor"/></svg></button>
+        <button class="icon-btn" id="hudRestart" type="button" aria-label="Restart run"><svg width="19" height="19" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M12.5 1.5v3h-3"/></svg></button>
+        <button class="icon-btn" id="hudHome" type="button" aria-label="Home screen"><svg width="19" height="19" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7.5 8 2l6 5.5"/><path d="M3.5 6.5v7.5h9V6.5"/><path d="M6.5 14v-4h3v4"/></svg></button>
       </div>
       <div class="cells"><span class="batt" aria-hidden="true"></span><span id="cells">0</span><span class="label">kWh</span></div>
       <div class="dist" id="dist">0.00 km</div>
@@ -1111,22 +1111,18 @@ html, body { background: #26222c !important; }
     if (arp !== undefined) voice('square', mtof(root + 24 + arp), 0, t0, st * 1.2, 0.035, 2400);
   }
   setInterval(() => {
-    if (!AC || !save.music || !SET.mus || mode !== 'play') { musNext = 0; return; }
+    if (!AC || muted || !save.music || !SET.mus || mode !== 'play') { musNext = 0; return; }
     musicSetup();
     const tempo = 112 + Math.min(44, Math.max(0, (speed - 24) * 0.9)), st = 60 / tempo / 4;
     if (musNext < AC.currentTime) musNext = AC.currentTime + 0.05;
     while (musNext < AC.currentTime + 0.15) { musicStep(musStep, musNext, st); musNext += st; musStep = (musStep + 1) % 64; }
   }, 40);
-  function toggleMusic() {
-    save.music = !save.music; persist();
-    $('musicBtn').textContent = save.music ? 'MUS' : 'OFF';
-    $('musicBtn').setAttribute('aria-label', save.music ? 'Turn music off' : 'Turn music on');
+  function showMute() {
+    $('muteBtn').innerHTML = muted ? '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5h3l4-3.5v12l-4-3.5H3z" fill="currentColor"/><path d="M13.5 7.5l5 5M18.5 7.5l-5 5"/></svg>' : '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5h3l4-3.5v12l-4-3.5H3z" fill="currentColor"/><path d="M13.5 7a4 4 0 0 1 0 6M15.8 4.8a7 7 0 0 1 0 10.4"/></svg>';
+    $('muteBtn').setAttribute('aria-label', muted ? 'Turn sound on' : 'Mute sound');
+    $('muteBtn').classList.toggle('off', muted);
   }
-  function toggleMute() {
-    muted = !muted;
-    $('muteBtn').textContent = muted ? 'OFF' : 'SND';
-    $('muteBtn').setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
-  }
+  function toggleMute() { muted = !muted; save.muted = muted; persist(); showMute(); }
 
   // ---------- flow ----------
   function show(id) { ['menu', 'pause', 'over', 'garage', 'revive', 'settings', 'crate'].forEach((s) => { $(s).hidden = s !== id; }); }
@@ -1417,8 +1413,7 @@ html, body { background: #26222c !important; }
   $('resumeBtn').onclick = togglePause;
   $('pauseBtn').onclick = togglePause;
   $('muteBtn').onclick = toggleMute;
-  $('musicBtn').onclick = toggleMusic;
-  if (!save.music) { $('musicBtn').textContent = 'OFF'; $('musicBtn').setAttribute('aria-label', 'Turn music on'); }
+  muted = !!save.muted; save.music = true; showMute();
   // launch splash: fades out on its own after the charge bar fills; any tap or key skips it
   let splashT = setTimeout(hideSplash, 2100);
   function hideSplash() { clearTimeout(splashT); const sp = $('splash'); if (!sp || sp.classList.contains('out')) return; sp.classList.add('out'); setTimeout(() => { sp.hidden = true; }, 520); }
@@ -2846,6 +2841,12 @@ html, body { background: #26222c !important; }
   }
   // ---------- launch ramp: a concrete curve rising past vertical, neon edge strips, a steel truss tower and floodlights ----------
   function drawLaunchRamp(o) {
+    // a ramp you're not riding fades away as you pass it, so its giant face never blocks the view
+    const fadeK = o.riding || Math.abs(o.x - pl.x) < 1.2 ? 1 : clamp((o.z - 3) / 16, 0, 1); if (fadeK <= 0) return;
+    const pa0 = ctx.globalAlpha; ctx.globalAlpha = pa0 * fadeK;
+    try { drawLaunchRampBody(o); } finally { ctx.globalAlpha = pa0; }
+  }
+  function drawLaunchRampBody(o) {
     const R = RAMP_R, x = o.x, w = 2.6, mars = onMars(), edge = mars ? '255,138,42' : '255,42,58', N = 26, real = SET.real;
     const pts = []; for (let i = 0; i <= N; i++) { const a = i / N * RAMP_MAX; pts.push([R * (1 - Math.cos(a)), o.z + R * Math.sin(a), a]); }
     // truss tower behind the curve on the outside of the road: two posts with cross bracing
