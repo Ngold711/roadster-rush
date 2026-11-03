@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '86';
+window.BUILD = '87';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -1476,8 +1476,11 @@ html, body { background: #26222c !important; }
   function bootSound() {
     if (bootPlayed || muted || !SET.sfx) return;
     initAudio(); if (!AC) return;
-    if (AC.state === 'suspended') AC.resume();
-    if (AC.state !== 'running') return;
+    // waking audio takes a moment after the tap, so play once it's actually running (still on the start screen)
+    if (AC.state !== 'running') {
+      try { const pr = AC.resume(); if (pr && pr.then) pr.then(() => { if (AC.state === 'running' && mode === 'menu') bootSound(); }).catch(() => {}); } catch (e) {}
+      return;
+    }
     bootPlayed = true;
     const n = AC.currentTime, vol = 0.06 * SET.sfx / 80, out = AC.createGain(); out.gain.value = vol; out.connect(AC.destination);
     // rising charge: sawtooth through a filter that opens as it climbs
