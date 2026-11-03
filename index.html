@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '83';
+window.BUILD = '84';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -166,6 +166,7 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 .mission.done { color: var(--muted); }
 .mission.done .mbar i { background: #9be15d; }
 .mission.done .mr { color: #9be15d; }
+.mission .mdiff { font-style: normal; font-size: 11px; font-weight: 700; color: #ffb84d; border: 1px solid rgba(255,184,77,.45); border-radius: 3px; padding: 0 4px; margin-left: 4px; }
 .callout { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); padding: 8px 16px; border-radius: 4px; background: var(--panel); border: 1px solid var(--line); font: 600 15px var(--body); color: var(--paper); pointer-events: none; z-index: 6; text-align: center; white-space: nowrap; }
 .callout.warn { top: 24%; font: 400 clamp(22px, 6vw, 30px) var(--display); letter-spacing: .08em; color: #ffb84d; border-color: rgba(255,184,77,.6); animation: warnBlink .45s steps(2, start) infinite; }
 @keyframes warnBlink { to { visibility: hidden; } }
@@ -816,23 +817,56 @@ html, body { background: #26222c !important; }
 
   // ---------- daily missions: 3 goals picked from the date, each paying bonus kWh once ----------
   // goals are tough on purpose: most take a long, clean run (or a full day of play) to finish
-  const MISSIONS = [
-    { id: 'twist', text: 'Twist 20 times in one run', goal: 20, reward: 200, run: () => runTwists },
-    { id: 'cells', text: 'Collect 500 kWh in one run', goal: 500, reward: 250, run: () => cells },
-    { id: 'dist', text: 'Drive 10 km in one run', goal: 10, reward: 250, run: () => traveled / 1000 * 4, fmt: (v) => v.toFixed(1) },
-    { id: 'roof', text: 'Ride 10 trailer roofs in one run', goal: 10, reward: 250, run: () => runRoofs },
-    { id: 'walls', text: 'Twist over 8 walls in one run', goal: 8, reward: 300, run: () => runWalls },
-    { id: 'score', text: 'Score 15,000 in one run', goal: 15000, reward: 275, run: () => score, fmt: (v) => Math.floor(v).toLocaleString() },
-    { id: 'pows', text: 'Grab 18 power-ups today', goal: 18, reward: 200, ev: 'pow' },
-    { id: 'runs', text: 'Finish 15 runs today', goal: 15, reward: 175, ev: 'run' },
+  // per-run counters the missions read (reset at the start of every run)
+  const RS = {};
+  function resetRunStats() { Object.assign(RS, { pows: 0, rings: 0, maxCombo: 0, boss: 0, ramps: 0, tunnels: 0, zones: 0, fly: 0, lanes: 0, jumps: 0, dives: 0, cleanKm: 0, lastHitKm: 0, dodged: 0, passed: 0, smashed: 0 }); }
+  resetRunStats();
+  const runKm = () => traveled / 1000 * 4;
+  // 100 daily missions: 25 kinds, each at four difficulty levels from 7.5 to 10; rewards grow with difficulty
+  const MISSION_KINDS = [
+    ['dist', 'Drive {g} km in one run', [9, 12, 16, 22], () => runKm(), (v) => v.toFixed(1)],
+    ['score', 'Score {g} in one run', [14000, 20000, 30000, 45000], () => score, (v) => Math.floor(v).toLocaleString()],
+    ['cells', 'Collect {g} kWh in one run', [400, 600, 850, 1200], () => cells],
+    ['twist', 'Twist {g} times in one run', [18, 26, 35, 50], () => runTwists],
+    ['roof', 'Ride {g} trailer roofs in one run', [9, 13, 18, 25], () => runRoofs],
+    ['walls', 'Twist over {g} walls in one run', [7, 10, 14, 20], () => runWalls],
+    ['combo', 'Reach a ×{g} combo', [40, 60, 90, 130], () => RS.maxCombo],
+    ['pows', 'Grab {g} power-ups in one run', [8, 11, 15, 20], () => RS.pows],
+    ['rings', 'Fly through {g} rings in one run', [10, 15, 22, 30], () => RS.rings],
+    ['time', 'Survive {g} minutes in one run', [4, 5.5, 7, 9], () => t / 60, (v) => v.toFixed(1)],
+    ['boss', 'Survive {g} Zuck attacks in one run', [1, 2, 3, 4], () => RS.boss],
+    ['ramp', 'Take {g} launch ramps in one run', [2, 3, 4, 5], () => RS.ramps],
+    ['tunnel', 'Drive through {g} tunnels in one run', [2, 3, 4, 5], () => RS.tunnels],
+    ['zone', 'Drive through {g} Waymo Ways or Outposts in one run', [2, 3, 4, 5], () => RS.zones],
+    ['letters', 'Collect {g} word letters in one run', [3, 4, 6, 8], () => (hunt ? hunt.got : 0)],
+    ['fly', 'Grab {g} Flight power-ups in one run', [2, 3, 4, 5], () => RS.fly],
+    ['lanes', 'Change lanes {g} times in one run', [150, 220, 300, 400], () => RS.lanes],
+    ['jumps', 'Jump {g} times in one run', [40, 60, 80, 110], () => RS.jumps],
+    ['dives', 'Dive down {g} times in one run', [15, 25, 35, 50], () => RS.dives],
+    ['clean', 'Drive {g} km without hitting anything', [4, 6, 8, 11], () => Math.max(RS.cleanKm, mode === 'play' ? runKm() - RS.lastHitKm : 0), (v) => v.toFixed(1)],
+    ['dodge', 'Dodge {g} Meta Quest headsets in one run', [15, 25, 35, 50], () => RS.dodged],
+    ['pass', 'Pass {g} vehicles in one run', [150, 220, 300, 400], () => RS.passed],
+    ['smash', 'Smash through {g} things in one run', [15, 25, 40, 60], () => RS.smashed],
+    ['runsday', 'Finish {g} runs today', [12, 18, 25, 35], null, null, 'run'],
+    ['kmday', 'Drive {g} km in total today', [25, 40, 60, 90], null, (v) => v.toFixed(1), 'km'],
   ];
+  const DIFF = [7.5, 8.3, 9.2, 10], REWARD = [200, 275, 375, 500];
+  const MISSIONS = [];
+  for (const [kind, text, goals, run, fmt, ev] of MISSION_KINDS) goals.forEach((goal, i) => MISSIONS.push({
+    id: `${kind}-${i}`, kind, tier: i, diff: DIFF[i], goal, reward: REWARD[i], ev, fmt,
+    text: text.replace('{g}', goal >= 1000 ? goal.toLocaleString() : goal), run: run || undefined,
+  }));
   function today() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
   function dailyMissions() {
-    const day = today();
-    if (!save.missions || save.missions.day !== day) {
-      let h = 0; for (const ch of day) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-      const pool = MISSIONS.map((m) => m.id), list = [];
-      while (list.length < 3) { h = (h * 1103515245 + 12345) >>> 0; const id = pool.splice(h % pool.length, 1)[0]; list.push({ id, prog: 0, done: false }); }
+    const day = today(), known = (l) => l && l.every((m) => MISSIONS.some((d) => d.id === m.id));
+    if (!save.missions || save.missions.day !== day || !known(save.missions.list)) {
+      // never repeat yesterday's missions (or even their kind), and pick one easier, one middle and one hardest
+      const prev = new Set(((save.missions && save.missions.list) || []).map((m) => (MISSIONS.find((d) => d.id === m.id) || { kind: m.id }).kind)), used = new Set(), list = [];
+      for (const tiers of [[0], [1], [2, 3]]) {
+        let pool = MISSIONS.filter((d) => tiers.includes(d.tier) && !prev.has(d.kind) && !used.has(d.kind));
+        if (!pool.length) pool = MISSIONS.filter((d) => tiers.includes(d.tier) && !used.has(d.kind));
+        const d = pick(pool); used.add(d.kind); list.push({ id: d.id, prog: 0, done: false });
+      }
       save.missions = { day, list }; persist();
     }
     return save.missions.list;
@@ -844,8 +878,8 @@ html, body { background: #26222c !important; }
     m.done = true; m.prog = def.goal; save.bank += def.reward; persist();
     toast(`Mission done: +${def.reward} kWh`); tone(990, 0.35, 'triangle', 0.05, 1980); buzz(40);
   }
-  function missionEvent(ev) {
-    for (const m of dailyMissions()) { const def = MISSIONS.find((d) => d.id === m.id); if (!m.done && def.ev === ev && ++m.prog >= def.goal) completeMission(m, def); }
+  function missionEvent(ev, amt = 1) {
+    for (const m of dailyMissions()) { const def = MISSIONS.find((d) => d.id === m.id); if (!m.done && def.ev === ev && (m.prog += amt) >= def.goal) completeMission(m, def); }
     persist();
   }
   let missionT = 0;
@@ -862,7 +896,7 @@ html, body { background: #26222c !important; }
     const rows = dailyMissions().map((m) => {
       const def = MISSIONS.find((d) => d.id === m.id), f = def.fmt || ((v) => Math.floor(v));
       const pct = Math.min(100, m.prog / def.goal * 100);
-      return `<div class="mission${m.done ? ' done' : ''}"><span>${def.text}</span><span class="mr">${m.done ? 'Done ✓' : '+' + def.reward + ' kWh'}</span><span class="mbar"><i style="width:${pct.toFixed(0)}%"></i></span></div>`;
+      return `<div class="mission${m.done ? ' done' : ''}"><span>${def.text} <em class="mdiff">${def.diff.toFixed(1)}</em></span><span class="mr">${m.done ? 'Done ✓' : '+' + def.reward + ' kWh'}</span><span class="mbar"><i style="width:${pct.toFixed(0)}%"></i></span></div>`;
     }).join('');
     $(id).innerHTML = `<div class="mh"><span class="label">Daily missions</span><span class="label">${m0done()}/3</span></div>` + rows;
   }
@@ -934,6 +968,7 @@ html, body { background: #26222c !important; }
     tunnel = null; nextTunnel = rnd(550, 750); zone = null; nextZone = rnd(80, 130); dawnK = 0; dawnTold = false; boss = null; nextBoss = rnd(120, 180); zuckArm = 0; nextLaunch = rnd(60, 100); launchLand = false; ride = null;
     renderHunt();
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
+    resetRunStats();
     reviveUsed = false; revivePending = false; jumpBuf = 0; lastWall = false; t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
     flightRocket = -99; caught = false; shield = false; chaserZ = -2.6; introT = 4; chaserX = -2.4; chaserY = 0; chaserVy = 0; pw.lud = pw.magnet = pw.dbl = pw.fly = 0; combo = 0;
     cam.x = 0; cam.y = 3.6;
@@ -1036,13 +1071,13 @@ html, body { background: #26222c !important; }
   function move(d) {
     if (mode !== 'play') return;
     const nl = clamp(pl.lane + d, 0, 2);
-    if (nl !== pl.lane) { pl.fromLane = pl.lane; pl.lane = nl; pl.rollDir = d; tutDid('lane'); tone(320, 0.05, 'triangle', 0.025, 260); }
+    if (nl !== pl.lane) { RS.lanes++; pl.fromLane = pl.lane; pl.lane = nl; pl.rollDir = d; tutDid('lane'); tone(320, 0.05, 'triangle', 0.025, 260); }
   }
   // a jump pressed just before landing is remembered and fires the moment the wheels touch down
   function jump() {
     if (mode !== 'play') return;
     if (!pl.grounded && !pl.boost && pw.fly <= 0) { jumpBuf = 0.25; return; }
-    if (pl.grounded) { pl.vy = JUMPV; pl.grounded = false; tutDid('jump'); tone(380, 0.18, 'sine', 0.05, 760); puff(14); }
+    if (pl.grounded) { RS.jumps++; pl.vy = JUMPV; pl.grounded = false; tutDid('jump'); tone(380, 0.18, 'sine', 0.05, 760); puff(14); }
     else if (pl.boost && pw.fly <= 0) { pl.boost = false; pl.vy = TWISTV; tutDid('boost'); tone(240, 0.3, 'sawtooth', 0.04, 900); twist(); }
     else if (pw.fly > 0 && pl.rollT <= 0) twist();
   }
@@ -1054,7 +1089,7 @@ html, body { background: #26222c !important; }
     score += 50 * multiplier();
     tone(600, 0.45, 'triangle', 0.04, 1500);
   }
-  function dive() { if (mode === 'play' && !pl.grounded && pw.fly <= 0) { pl.vy = -26; tutDid('drop'); } }
+  function dive() { if (mode === 'play' && !pl.grounded && pw.fly <= 0) { RS.dives++; pl.vy = -26; tutDid('drop'); } }
 
   addEventListener('keydown', (e) => {
     if (mode === 'intro' && e.key !== 'm' && e.key !== 'M') { endIntro(); return; }
@@ -1175,6 +1210,7 @@ html, body { background: #26222c !important; }
     mode = 'over'; $('tip').hidden = true;
     const s = Math.floor(score), km = traveled / 1000 * 4, isBest = s > best;
     missionEvent('run');
+    missionEvent('km', km);
     save.runs++; save.dist += km; save.longest = Math.max(save.longest, km);
     save.cellsTotal += cells; save.bank += cells; save.twistsBest = Math.max(save.twistsBest, runTwists);
     save.top = [...save.top, s].sort((x, y) => y - x).slice(0, 5);
@@ -1406,7 +1442,7 @@ html, body { background: #26222c !important; }
   $('startBtn').onclick = start;
   // leaving a run early still banks the cells collected so far; only a finished run counts toward scores and stats
   function bankUnfinished() {
-    if (mode === 'play' || mode === 'paused' || mode === 'dying') { save.bank += cells; save.cellsTotal += cells; persist(); }
+    if (mode === 'play' || mode === 'paused' || mode === 'dying') { save.bank += cells; save.cellsTotal += cells; missionEvent('km', runKm()); persist(); }
   }
   function restart() {
     bankUnfinished();
@@ -1512,6 +1548,7 @@ html, body { background: #26222c !important; }
   }
 
   function smash(o) {
+    if (mode === 'play') RS.smashed++;
     o.smash = { sx: 0, sy: 0, vx: (o.x >= pl.x ? 1 : -1) * rnd(5, 9), vy: rnd(8, 12), age: 0 };
     sparks(o.x, 1.2, o.z, 14, '#ffd27a'); shake = Math.max(shake, 0.25);
     tone(140, 0.25, 'sawtooth', 0.06, 50);
@@ -1525,11 +1562,14 @@ html, body { background: #26222c !important; }
   }
   // how long the patrol truck stays on your tail after a stumble; a second stumble inside this window gets you caught
   const STUMBLE = 7;
+  function hitStreak() { RS.cleanKm = Math.max(RS.cleanKm, runKm() - RS.lastHitKm); RS.lastHitKm = runKm(); }
   function bump(o) {
+    hitStreak();
     smash(o); shake = 0.55; buzz(70); tone(160, 0.18, 'square', 0.05, 80);
     if (stumble > 0) { caught = true; crash(); } else { stumble = STUMBLE; toast('The cop is on you!'); }
   }
   function sideHit(o) {
+    hitStreak();
     pl.lane = pl.fromLane; pl.x = pl.prevX;
     sparks((pl.x + o.x) / 2, 0.7, 1.8, 16, '#ffd27a');
     shake = 0.5; buzz(70); tone(180, 0.15, 'square', 0.05, 90);
@@ -1676,9 +1716,9 @@ html, body { background: #26222c !important; }
       const s0 = traveled + FAR + 25; zone = { s: s0, e: s0 + speed * rnd(15, 20), told: false };
     }
     if (zone && !zone.told && traveled > zone.s - 2) { zone.told = true; toast(onMars() ? 'Welcome to Optimus Outpost' : 'Welcome to Waymo Way'); tone(523, 0.18, 'triangle', 0.04, 784); tone(784, 0.3, 'triangle', 0.04, 1046); }
-    if (zone && traveled > zone.e + 20) { zone = null; nextZone = t + rnd(150, 240); nextTunnel = Math.max(nextTunnel, traveled + 120); }
+    if (zone && traveled > zone.e + 20) { RS.zones++; zone = null; nextZone = t + rnd(150, 240); nextTunnel = Math.max(nextTunnel, traveled + 120); }
     if (!tunnel && !zone && traveled > nextTunnel) { const s0 = traveled + FAR + 25; let hue; do hue = pick(NEON); while (hue === lastHue); lastHue = hue; tunnel = { s: s0, e: s0 + rnd(170, 260), hue }; }
-    if (tunnel && traveled > tunnel.e + 12) { tunnel = null; nextTunnel = traveled + rnd(700, 1100); }
+    if (tunnel && traveled > tunnel.e + 12) { RS.tunnels++; tunnel = null; nextTunnel = traveled + rnd(700, 1100); }
     // extra room after a wall so you can land and get set before the next row
     while (spawnZ < FAR) { spawnRow(spawnZ); spawnZ += 26 + speed * 0.28 + rnd(0, 12) + (lastWall ? speed * 0.75 : 0); }
     if (!ride) updPlayer(dt);
@@ -1783,7 +1823,7 @@ html, body { background: #26222c !important; }
       dz = speed * dt * q;
       if (!r.lit && q > 0.7) { r.lit = true; tone(300, 0.6, 'sawtooth', 0.04, 120); shake = Math.max(shake, 0.25); }
       if (q >= 1) {
-        ride = null; pl.vy = 0; pl.ground = 0;
+        ride = null; pl.vy = 0; pl.ground = 0; RS.ramps++;
         pw.fly = 8; skyCells(); launchLand = true;
         cells += 50; toast('LIFTOFF! +50 kWh'); tone(660, 0.3, 'triangle', 0.05, 1320);
       }
@@ -1803,7 +1843,7 @@ html, body { background: #26222c !important; }
     boss.t -= dt;
     if (chaserZ > 8 && stumble <= 0 && (boss.throwT -= dt) <= 0) { throwQuest(); boss.throwT = rnd(0.95, 1.5); }
     if (boss.t <= 0) {
-      boss = null; nextBoss = t + rnd(150, 300);
+      boss = null; nextBoss = t + rnd(150, 300); RS.boss++;
       cells += 100; score += 2000 * multiplier();
       toast('You dodged Zuck! +100 kWh'); tone(660, 0.2, 'triangle', 0.06, 990); tone(990, 0.45, 'triangle', 0.05, 1980);
     }
@@ -1825,6 +1865,10 @@ html, body { background: #26222c !important; }
     for (const o of objs) {
       o.z -= dz;
       if (o.k === 'wall' && o.lane === 1 && !o.passed && !o.smash && o.z + o.d < 0 && mode === 'play') { o.passed = true; runWalls++; }
+      if (!o.counted && !o.smash && mode === 'play' && o.z + (o.d || 0) < 0) {
+        if (['sedan', 'van', 'ct', 'semicab'].includes(o.k)) { o.counted = true; RS.passed++; }
+        else if (o.k === 'vr' && !o.air) { o.counted = true; RS.dodged++; }
+      }
       if (o.k === 'letter' && !o.gone && !o.missed && o.z < -1 && mode === 'play') { o.missed = true; if (hunt) { hunt.out = false; hunt.next = traveled + rnd(300, 450); } }
       if (o.air) { o.air.t += dt; if (o.air.t >= o.air.dur) { o.air = null; if (o.z > 0 && o.z < 60) { shake = Math.max(shake, 0.12); tone(140, 0.12, 'square', 0.03, 90); } } }
       if (o.smash) { const m = o.smash; m.age += dt; m.vy -= G * dt; m.sx += m.vx * dt; m.sy += m.vy * dt; }
@@ -1856,7 +1900,7 @@ html, body { background: #26222c !important; }
       }
       if (o.k === 'ring') {
         if (!o.got && o.z < CAR_LEN && o.z > -0.5 && Math.abs(o.x - pl.x) < 1.1 && Math.abs(o.y - (pl.y + 0.6)) < 1.3) {
-          o.got = true; cells += 5; toast('Ring: +5 kWh'); tone(1200, 0.3, 'sine', 0.05, 2400); sparks(o.x, o.y, o.z, 16, '#ffd36e');
+          o.got = true; RS.rings++; cells += 5; toast('Ring: +5 kWh'); tone(1200, 0.3, 'sine', 0.05, 2400); sparks(o.x, o.y, o.z, 16, '#ffd36e');
         }
         continue;
       }
@@ -1920,12 +1964,14 @@ html, body { background: #26222c !important; }
     if (o.k === 'cell') {
       cells++; combo++; comboT = 1.0;
       // every 10 cells in a row pays a small bonus
+      RS.maxCombo = Math.max(RS.maxCombo, combo);
       if (combo % 10 === 0) { const bonus = 3; cells += bonus; toast(`Combo ×${combo}: +${bonus} kWh`); tone(1320, 0.2, 'triangle', 0.04, 1760); }
       score += 10 * multiplier();
       tone(880 + Math.min(combo, 12) * 45, 0.07, 'square', 0.03);
       sparks(o.x, o.y, o.z, 4, '#5ce1ff');
     } else {
       const p = POW[o.p];
+      RS.pows++; if (o.p === 'fly') RS.fly++;
       if (o.p === 'shield') shield = true; else pw[o.p] = p.dur;
       if (o.p === 'fly') skyCells();
       shake = Math.max(shake, 0.18); buzz(25); missionEvent('pow');
