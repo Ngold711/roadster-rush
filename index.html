@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '70';
+window.BUILD = '71';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -893,10 +893,10 @@ html, body { background: #26222c !important; }
   // Zuck attack: about 1-2 times every 5 minutes (first one 2-3 minutes in) the patrol Cybertruck pulls ahead and Zuck throws Meta Quest headsets from the bed for 20 s
   const BOSS_DUR = 20;
   let boss = null, nextBoss = 80, zuckArm = 0;
-  // launch ramp: the curved ramp from the Roadster reveal shows up about once every 3-5 minutes; hit it and a
-  // side-view cutscene shows the car climbing past vertical, flipping off the top and lighting its thrusters
-  const LAUNCH_DUR = 3.6;
-  let nextLaunch = 160, launchT = 0, launchLand = false;
+  // launch ramp: the curved ramp from the Roadster reveal shows up about once every 3-5 minutes. Drive onto it and,
+  // still from behind the car, it climbs the curve past vertical, backflips off the top and lights its thrusters
+  const RAMP_R = 7, RAMP_MAX = Math.PI / 2 + 0.38, RIDE_CLIMB = 1.05, RIDE_FLIP = 0.9;
+  let nextLaunch = 160, launchLand = false, ride = null;
   let tunnel = null, nextTunnel = 600, underground = false, lastHue = 355;
   // each Loop tunnel glows one neon color, picked fresh (never the same twice in a row)
   const NEON = [355, 215, 188, 130, 278, 318, 22, 52];
@@ -910,7 +910,7 @@ html, body { background: #26222c !important; }
   function reset() {
     objs = []; parts = [];
     hunt = { word: pick(WORDS), got: 0, next: rnd(400, 600), out: false, done: false };
-    tunnel = null; nextTunnel = rnd(550, 750); dawnK = 0; dawnTold = false; boss = null; nextBoss = rnd(120, 180); zuckArm = 0; nextLaunch = rnd(120, 200); launchT = 0; launchLand = false;
+    tunnel = null; nextTunnel = rnd(550, 750); dawnK = 0; dawnTold = false; boss = null; nextBoss = rnd(120, 180); zuckArm = 0; nextLaunch = rnd(120, 200); launchLand = false; ride = null;
     renderHunt();
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
     reviveUsed = false; revivePending = false; jumpBuf = 0; lastWall = false; t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
@@ -1390,7 +1390,7 @@ html, body { background: #26222c !important; }
   $('startBtn').onclick = start;
   // leaving a run early still banks the cells collected so far; only a finished run counts toward scores and stats
   function bankUnfinished() {
-    if (mode === 'play' || mode === 'paused' || mode === 'dying' || mode === 'launch') { save.bank += cells; save.cellsTotal += cells; persist(); }
+    if (mode === 'play' || mode === 'paused' || mode === 'dying') { save.bank += cells; save.cellsTotal += cells; persist(); }
   }
   function restart() {
     bankUnfinished();
@@ -1593,7 +1593,6 @@ html, body { background: #26222c !important; }
       return;
     }
     if (mode === 'intro') { updIntro(dt); return; }
-    if (mode === 'launch') { launchT += dt; if (launchT >= LAUNCH_DUR) endLaunch(); return; }
     if (mode === 'menu' || mode === 'over') {
       speed = 14; traveled += speed * dt;
       cam.x += (0 - cam.x) * dt * 2; cam.y += (3.6 - cam.y) * dt * 2;
@@ -1623,14 +1622,14 @@ html, body { background: #26222c !important; }
     // gentler start, most of the speed-up in the first few minutes, then a slow climb that never quite stops
     const base = Math.min(80, 24 + 30 * (1 - Math.exp(-t / 75)) + t * 0.04);
     speed = base * (pw.lud > 0 ? 1.65 : 1);
-    const dz = speed * dt;
+    const dz = ride ? rideStep(dt) : speed * dt;
     score += dz * 0.35 * multiplier();
     advance(dz, dt);
     if (!tunnel && traveled > nextTunnel) { const s0 = traveled + FAR + 25; let hue; do hue = pick(NEON); while (hue === lastHue); lastHue = hue; tunnel = { s: s0, e: s0 + rnd(170, 260), hue }; }
     if (tunnel && traveled > tunnel.e + 12) { tunnel = null; nextTunnel = traveled + rnd(700, 1100); }
     // extra room after a wall so you can land and get set before the next row
     while (spawnZ < FAR) { spawnRow(spawnZ); spawnZ += 26 + speed * 0.28 + rnd(0, 12) + (lastWall ? speed * 0.75 : 0); }
-    updPlayer(dt);
+    if (!ride) updPlayer(dt);
     tutTick(dt);
     for (const k in pw) pw[k] = Math.max(0, pw[k] - dt);
     invuln = Math.max(0, invuln - dt);
@@ -1709,15 +1708,36 @@ html, body { background: #26222c !important; }
     toast(`Launch ramp ahead: ${['left', 'middle', 'right'][lane]} lane!`); tone(440, 0.2, 'triangle', 0.04, 880);
   }
   function startLaunch(o) {
-    o.gone = true; mode = 'launch'; launchT = 0; $('tip').hidden = true; $('wallWarn').hidden = true;
+    o.riding = true; ride = { o, t: 0, pitch: 0, z0: o.z };
+    Object.assign(pl, { x: o.x, lane: o.lane, fromLane: o.lane, vy: 0, grounded: false, rollT: 0, roll: 0, lean: 0 });
+    $('tip').hidden = true; $('wallWarn').hidden = true;
     tone(180, 1.2, 'sawtooth', 0.04, 900); buzz(40);
   }
-  function endLaunch() {
-    mode = 'play'; launchT = 0;
-    objs = objs.filter((o) => o.z > 40 || o.k === 'cell');
-    Object.assign(pl, { y: 5.4, vy: 0, grounded: false, rollT: 0, roll: 0 });
-    pw.fly = 8; skyCells(); launchLand = true;
-    cells += 50; toast('LAUNCH! +50 kWh'); tone(660, 0.3, 'triangle', 0.05, 1320);
+  // one step of the ramp ride; returns how far the world moves this frame
+  function rideStep(dt) {
+    const r = ride, o = r.o; r.t += dt;
+    let dz;
+    if (r.t < RIDE_CLIMB) {
+      // up the curve: the car's height follows the ramp, and the world only moves as far as the curve still runs forward
+      const q = r.t / RIDE_CLIMB, th = RAMP_MAX * q * (0.55 + 0.45 * q);
+      const target = 1.85 - RAMP_R * Math.sin(Math.min(th, Math.PI / 2));
+      dz = Math.max(0, o.z - target);
+      pl.y = RAMP_R * (1 - Math.cos(th)); r.pitch = th;
+    } else {
+      // off the top: keep rotating back over into a full backflip while rising, as the road speeds back up
+      const q = Math.min(1, (r.t - RIDE_CLIMB) / RIDE_FLIP), e = q * q * (3 - 2 * q);
+      r.pitch = RAMP_MAX + (Math.PI * 2 - RAMP_MAX) * e;
+      pl.y = RAMP_R * (1 - Math.cos(RAMP_MAX)) + Math.sin(q * Math.PI * 0.6) * 2.4;
+      dz = speed * dt * q;
+      if (!r.lit && q > 0.7) { r.lit = true; tone(300, 0.6, 'sawtooth', 0.04, 120); shake = Math.max(shake, 0.25); }
+      if (q >= 1) {
+        ride = null; pl.vy = 0; pl.ground = 0;
+        pw.fly = 8; skyCells(); launchLand = true;
+        cells += 50; toast('LIFTOFF! +50 kWh'); tone(660, 0.3, 'triangle', 0.05, 1320);
+      }
+    }
+    pl.grounded = false; pl.ground = 0;
+    return dz;
   }
   function updBoss(dt) {
     zuckArm = Math.max(0, zuckArm - dt);
@@ -1775,7 +1795,7 @@ html, body { background: #26222c !important; }
     let ground = 0;
     for (const o of objs) {
       if (o.k === 'lramp') {
-        if (!o.gone && o.z < CAR_LEN && o.z > -1.5 && pl.y < 2.5 && Math.abs(o.x - pl.x) < 1.6) { startLaunch(o); return; }
+        if (!o.riding && o.z < CAR_LEN && o.z > -1.5 && pl.y < 2.5 && Math.abs(o.x - pl.x) < 1.6) { startLaunch(o); return; }
         continue;
       }
       if (o.k === 'cell' || o.k === 'pow' || o.k === 'letter') {
@@ -1870,7 +1890,6 @@ html, body { background: #26222c !important; }
 
   // ---------- render ----------
   function render() {
-    if (mode === 'launch') { drawLaunchScene(); return; }
     const tx = mode === 'play' || mode === 'dying' ? pl.x * 0.55 : 0;
     const close = (mode === 'intro' && introA < 2.1) || (mode === 'dying' && deathT > 0.6);
     const ty = close ? 2.4 : 3.6 + (mode === 'play' || mode === 'dying' ? pl.y * 0.75 : 0);
@@ -1904,7 +1923,7 @@ html, body { background: #26222c !important; }
       const top = o.k === 'ramp' ? clamp((CAR_LEN - o.z) / o.d, 0, 1) * o.h : o.h;
       return pl.y >= top - 0.45;
     };
-    const items = objs.map((o) => ({ z: under(o) ? Math.max(o.z + o.d, 0.01) : o.z, o }));
+    const items = objs.map((o) => ({ z: o.k === 'lramp' ? Math.max(o.z + 9, 0.01) : under(o) ? Math.max(o.z + o.d, 0.01) : o.z, o }));
     items.push({ z: 0, o: { k: 'player' } });
     if (mode === 'intro' && manPose()) items.push({ z: 1.8, o: { k: 'man' } });
     if (mode === 'dying') {
@@ -2800,6 +2819,51 @@ html, body { background: #26222c !important; }
     const c = P(x, yb + 0.5, o.z), wob = o.smash ? o.smash.age * 9 : Math.sin(T * 3 + o.z) * 0.04;
     drawQuestAt(c[0], c[1], c[2], wob);
   }
+  // ---------- launch ramp: a concrete curve rising past vertical, neon edge strips, a steel truss tower and floodlights ----------
+  function drawLaunchRamp(o) {
+    const R = RAMP_R, x = o.x, w = 2.6, mars = onMars(), edge = mars ? '255,138,42' : '255,42,58', N = 26, real = SET.real;
+    const pts = []; for (let i = 0; i <= N; i++) { const a = i / N * RAMP_MAX; pts.push([R * (1 - Math.cos(a)), o.z + R * Math.sin(a), a]); }
+    // truss tower behind the curve on the outside of the road: two posts with cross bracing
+    const side = x >= 0 ? 1 : -1, tx = x + side * (w / 2 + 0.9), tz0 = o.z + R - 1.4, tz1 = o.z + R + 1.4, th = 2 * R + 1;
+    if (tz0 > ZN + 0.3) {
+      for (const pz of [tz0, tz1]) drawBox(tx, 0, th, pz - 0.12, pz + 0.12, 0.24, '#30343b', '#40444c', '#3a3e46');
+      const br = new Path2D(), fx = tx - side * 0.12;
+      for (let y = 0; y < th; y += 1.4) { const a = P(fx, y, tz0), b = P(fx, y + 1.4, tz1), c = P(fx, y, tz1), d = P(fx, y + 1.4, tz0); br.moveTo(a[0], a[1]); br.lineTo(b[0], b[1]); br.moveTo(c[0], c[1]); br.lineTo(d[0], d[1]); }
+      for (let y = 0; y < th; y += 2.8) { const a = P(fx, y, tz0), b = P(fx, y, tz1); br.moveTo(a[0], a[1]); br.lineTo(b[0], b[1]); }
+      ctx.strokeStyle = 'rgba(160,166,176,.6)'; ctx.lineWidth = Math.max(1, P(fx, 0, tz0)[2] * 0.05); ctx.stroke(br);
+      // arms reaching from the tower to the back of the curve
+      for (let i = 6; i < N; i += 5) { const [py, pz] = pts[i]; if (pz <= ZN + 0.3) continue; const a = P(tx, py, pz), b = P(x + side * w / 2, py, pz); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+    }
+    // floodlights at the foot of the ramp washing light up its face
+    if (o.z > ZN + 1 && !SET.low) for (const lx of [-1, 1]) { const g = P(x + lx * (w / 2 + 0.5), 0.3, o.z - 0.6); glow(g[0], g[1], g[2] * 3, real ? 0.7 : 0.45); }
+    // the face, far segments first; concrete gets lighter where it turns to face you, with seams every few metres
+    const segs = []; for (let i = 0; i < N; i++) segs.push(i);
+    segs.sort((p, q) => Math.max(pts[q][1], pts[q + 1][1]) - Math.max(pts[p][1], pts[p + 1][1]));
+    for (const i of segs) {
+      const [y0, z0, a0] = pts[i], [y1, z1] = pts[i + 1];
+      if (Math.min(z0, z1) <= ZN + 0.2) continue;
+      const facing = Math.sin(a0 + RAMP_MAX / N / 2), base = 0.62 + 0.38 * facing;
+      let fill = shade('#b8bdc5', base);
+      if (real) { const a = P(x, y0, z0), b = P(x, y1, z1), g = ctx.createLinearGradient(a[0] - a[2] * w / 2, 0, a[0] + a[2] * w / 2, 0); g.addColorStop(0, shade('#b8bdc5', base * 0.8)); g.addColorStop(0.5, shade('#c9ced5', base * 1.05)); g.addColorStop(1, shade('#b8bdc5', base * 0.78)); fill = g; }
+      poly([[x - w / 2, y0, z0], [x + w / 2, y0, z0], [x + w / 2, y1, z1], [x - w / 2, y1, z1]], fill);
+      if (i % 3 === 0) { const a = P(x - w / 2, y0, z0), b = P(x + w / 2, y0, z0); ctx.strokeStyle = 'rgba(40,44,52,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+    }
+    // neon strips down both edges and the white centre line, each drawn as one smooth line over the whole curve
+    const vis = pts.filter((q) => q[1] > ZN + 0.2);
+    if (vis.length > 1) {
+      const sNear = P(x, vis[0][0], vis[0][1])[2];
+      for (const [ex, kind] of [[-w / 2, 1], [w / 2, 1], [0, 0]]) {
+        ctx.beginPath(); vis.forEach(([py, pz], i) => { const q = P(x + ex, py, pz); if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); });
+        ctx.lineJoin = 'round'; ctx.lineCap = 'butt';
+        if (kind) {
+          ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(${edge},.3)`; ctx.lineWidth = clamp(sNear * 0.22, 3, 16); ctx.stroke(); ctx.restore();
+          ctx.strokeStyle = `rgb(${edge})`; ctx.lineWidth = clamp(sNear * 0.06, 1.5, 5); ctx.stroke();
+        } else { ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = clamp(sNear * 0.025, 1, 2.5); ctx.stroke(); }
+      }
+    }
+    // the lip at the very top, where the car leaves the ramp
+    const [ty, tzz] = pts[N]; if (tzz > ZN + 0.3) { const a = P(x - w / 2, ty, tzz), b = P(x + w / 2, ty + 0.25, tzz); ctx.fillStyle = '#4a4f58'; ctx.fillRect(a[0], a[1] - (b[1] - a[1]), b[0] - a[0], Math.abs(b[1] - a[1]) + 1); }
+  }
   function pasteWanted(fx, pz, pw, ph) {
     const img = wantedAt(); if (!img || pz <= ZN + 0.5) return;
     const a = P(fx, 1.3 + ph, pz), b = P(fx, 1.3 + ph, pz + pw), c = P(fx, 1.3, pz);
@@ -3009,6 +3073,7 @@ html, body { background: #26222c !important; }
       ctx.strokeStyle = 'rgba(155,225,93,.55)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.ellipse(c[0], c[1], r * 1.1, r * 0.55, 0, 0, Math.PI * 2); ctx.stroke();
     }
+    if (ride) { drawPitchedCar(ride.pitch); ctx.restore(); return; }
     if (!pl.grounded && (mode === 'play' || mode === 'intro') && pl.rollT <= 0) drawThrust();
     if (pl.rollT > 0) {
       const c = P(pl.x, pl.y + 0.55, 1.6);
@@ -3021,6 +3086,48 @@ html, body { background: #26222c !important; }
     ctx.restore();
   }
 
+  // the car seen from behind while it pitches nose-up and over: the underside (with its thruster ports) and the tail
+  // while climbing, the nose when upside down, then the roof as it comes back round
+  function drawPitchedCar(p) {
+    const c = P(pl.x, pl.y + 0.55, 1.85), u = c[2], sn = Math.sin(p), cs = Math.cos(p), col = pl.col;
+    const w = ROADSTER.w * u, ph = 3.7 * Math.abs(sn) * u * 0.62, eh = 1.05 * Math.abs(cs) * u, x0 = c[0] - w / 2, top = c[1] - ph / 2, bot = c[1] + ph / 2;
+    if (ph > 1) {
+      if (sn > 0) {
+        rrect(x0, top, w, ph, Math.min(ph, w) * 0.18); ctx.fillStyle = '#23262c'; ctx.fill();
+        ctx.fillStyle = '#2f333a'; ctx.fillRect(x0 + w * 0.1, top + ph * 0.08, w * 0.8, ph * 0.84);
+        ctx.fillStyle = '#0b0c0f';
+        for (const fx of [0.02, 0.86]) for (const fy of [0.1, 0.72]) ctx.fillRect(x0 + w * fx, top + ph * fy, w * 0.12, ph * 0.18);
+        // three thruster ports glowing blue
+        for (const fy of [0.28, 0.5, 0.72]) {
+          const px = c[0], py = top + ph * fy, pr = Math.max(2, Math.min(w * 0.09, ph * 0.08));
+          glow(px, py, pr * 4, 0.7);
+          ctx.fillStyle = '#9fd0ff'; ctx.beginPath(); ctx.ellipse(px, py, pr, pr * Math.max(0.3, Math.abs(sn)), 0, 0, Math.PI * 2); ctx.fill();
+        }
+      } else {
+        // roof seen from above: long hood, dark glass canopy, short rear deck with the light bar
+        rrect(x0, top, w, ph, Math.min(ph, w) * 0.22); ctx.fillStyle = col; ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(x0 + w * 0.47, top + ph * 0.05, w * 0.06, ph * 0.9);
+        ctx.fillStyle = '#12161e'; ctx.beginPath();
+        ctx.moveTo(x0 + w * 0.3, top + ph * 0.3); ctx.lineTo(x0 + w * 0.7, top + ph * 0.3); ctx.lineTo(x0 + w * 0.8, top + ph * 0.62); ctx.lineTo(x0 + w * 0.2, top + ph * 0.62); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ff2a3a'; ctx.fillRect(x0 + w * 0.04, top + ph * 0.93, w * 0.92, Math.max(1, ph * 0.035));
+      }
+    }
+    if (eh > 1) {
+      if (cs > 0) {
+        // tail: light bar and the dark rear glass
+        const y0 = sn >= 0 ? bot : top - eh;
+        ctx.fillStyle = shade(col, 0.85); ctx.fillRect(x0, y0, w, eh);
+        ctx.fillStyle = '#12161e'; ctx.fillRect(x0 + w * 0.15, y0 + (sn >= 0 ? eh * 0.6 : 0), w * 0.7, eh * 0.4);
+        ctx.fillStyle = '#ff2a3a'; ctx.fillRect(x0, y0 + eh * (sn >= 0 ? 0.25 : 0.6), w, Math.max(1, eh * 0.12));
+      } else {
+        // nose, upside down: headlight strip
+        const y0 = sn >= 0 ? top - eh : bot;
+        ctx.fillStyle = shade(col, 0.95); ctx.fillRect(x0, y0, w, eh);
+        ctx.fillStyle = '#f4f8ff'; ctx.fillRect(x0 + w * 0.05, y0 + eh * 0.55, w * 0.9, Math.max(1, eh * 0.1));
+        ctx.fillStyle = '#16181d'; ctx.fillRect(x0 + w * 0.25, y0 + eh * 0.15, w * 0.5, eh * 0.18);
+      }
+    }
+  }
   // white exhaust columns that pour down to the ground and trail back, like the launch photos
   function drawThrust() {
     const fly = pw.fly > 0, gy = pl.ground;
