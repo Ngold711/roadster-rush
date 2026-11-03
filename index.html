@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '71';
+window.BUILD = '72';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -893,7 +893,7 @@ html, body { background: #26222c !important; }
   // Zuck attack: about 1-2 times every 5 minutes (first one 2-3 minutes in) the patrol Cybertruck pulls ahead and Zuck throws Meta Quest headsets from the bed for 20 s
   const BOSS_DUR = 20;
   let boss = null, nextBoss = 80, zuckArm = 0;
-  // launch ramp: the curved ramp from the Roadster reveal shows up about once every 3-5 minutes. Drive onto it and,
+  // launch ramp: the curved ramp from the Roadster reveal shows up about every 2-3½ minutes (first one 1-1½ minutes in). Drive onto it and,
   // still from behind the car, it climbs the curve past vertical, backflips off the top and lights its thrusters
   const RAMP_R = 7, RAMP_MAX = Math.PI / 2 + 0.38, RIDE_CLIMB = 1.05, RIDE_FLIP = 0.9;
   let nextLaunch = 160, launchLand = false, ride = null;
@@ -910,7 +910,7 @@ html, body { background: #26222c !important; }
   function reset() {
     objs = []; parts = [];
     hunt = { word: pick(WORDS), got: 0, next: rnd(400, 600), out: false, done: false };
-    tunnel = null; nextTunnel = rnd(550, 750); dawnK = 0; dawnTold = false; boss = null; nextBoss = rnd(120, 180); zuckArm = 0; nextLaunch = rnd(120, 200); launchLand = false; ride = null;
+    tunnel = null; nextTunnel = rnd(550, 750); dawnK = 0; dawnTold = false; boss = null; nextBoss = rnd(120, 180); zuckArm = 0; nextLaunch = rnd(60, 100); launchLand = false; ride = null;
     renderHunt();
     pl = { lane: 1, fromLane: 1, x: 0, prevX: 0, y: 0, vy: 0, grounded: true, lean: 0, ground: 0, col: paintCol(), boost: true, smokeT: 0, roll: 0, rollT: 0, rollDir: 1 };
     reviveUsed = false; revivePending = false; jumpBuf = 0; lastWall = false; t = 0; traveled = 0; score = 0; cells = 0; runTwists = 0; runRoofs = 0; runWalls = 0; wallsWarned = 0; onRoof = false; spawnZ = 240; tut = { i: 0, t: 0, done: 0 }; stumble = 0; invuln = 0; shake = 0; deathT = 0;
@@ -1699,7 +1699,7 @@ html, body { background: #26222c !important; }
   }
 
   function spawnLaunchRamp() {
-    nextLaunch = t + rnd(180, 330);
+    nextLaunch = t + rnd(120, 220);
     const lane = ri(3), z = FAR - 5;
     // clear its lane in front of it and give it room behind, so it can always be reached
     objs = objs.filter((o) => !(o.lane === lane && o.z > z - 45 && o.z < z + 18 && o.k !== 'cell'));
