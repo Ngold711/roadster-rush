@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '79';
+window.BUILD = '80';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -3444,7 +3444,8 @@ html, body { background: #26222c !important; }
     if (z + slope > ZN) {
       const zs = z + slope, zc = z + cab0, edge = shade(col, roadster ? 1.1 : 1.0);
       poly([[x - w / 2 + 0.14, y + bodyTop, zs], [x + w / 2 - 0.14, y + bodyTop, zs], [x + cabW / 2, y + cabTop, zc], [x - cabW / 2, y + cabTop, zc]], '#1a1f2a');
-      if (roadster && mode !== 'intro' && !(mode === 'dying' && deathT > 0.6)) {
+      if (roadster && SET.real) realRearGlass(x, y, m, zs, zc);
+      else if (roadster && mode !== 'intro' && !(mode === 'dying' && deathT > 0.6)) {
         // the driver's head seen through the rear glass, clipped to the glass so nothing pokes out of the roof
         const q = [[x - w / 2 + 0.14, y + bodyTop, zs], [x + w / 2 - 0.14, y + bodyTop, zs], [x + cabW / 2, y + cabTop, zc], [x - cabW / 2, y + cabTop, zc]].map((v) => P(v[0], v[1], v[2]));
         const D = driverOf(), hd = P(x - 0.28, y + bodyTop + (cabTop - bodyTop) * 0.55, zs + (zc - zs) * 0.55), hr = hd[2] * 0.15;
@@ -3454,7 +3455,7 @@ html, body { background: #26222c !important; }
         ctx.fillStyle = SET.real ? 'rgba(18,22,32,.4)' : 'rgba(18,22,32,.25)'; ctx.fillRect(q[3][0] - 2, q[3][1] - 2, q[1][0] - q[3][0] + 4, q[1][1] - q[3][1] + 4);
         ctx.restore();
       }
-      if (SET.real) {
+      if (SET.real && !roadster) {
         // a band of reflected street light across the rear glass
         const at = (u, sx) => [x + sx * ((w / 2 - 0.14) * (1 - u) + (cabW / 2) * u), y + bodyTop + (cabTop - bodyTop) * u, zs + (zc - zs) * u];
         poly([at(0.5, -1), at(0.5, 1), at(0.68, 1), at(0.68, -1)], 'rgba(200,215,240,.13)');
@@ -3472,6 +3473,7 @@ html, body { background: #26222c !important; }
       ctx.globalAlpha = pa;
     }
     if (roadster && save.design !== 'd:none') drawDesign(x, y, z, m, rr, col);
+    if (roadster && SET.real) { realRearTail(rr, brake); return; }
     if (roadster || m.bar) {
       sub(rr, 0, 0.14, 1, 0.26, brake ? '#ff5a64' : '#ff2a3a');
       sub(rr, 0, 0.26, 1, 0.3, 'rgba(255,42,58,.35)');
@@ -3509,6 +3511,46 @@ html, body { background: #26222c !important; }
     else lampGlow(rr, [0.12, 0.88], m.vert ? 0.32 : 0.2);
   }
 
+  // ---------- Realistic Roadster from behind ----------
+  // rear glass: dark tint reflecting the street, two seat backs, and the driver as a soft silhouette behind the glass
+  function realRearGlass(x, y, m, zs, zc) {
+    const { w, bodyTop, cabTop, cabW } = m;
+    const q = [[x - w / 2 + 0.16, y + bodyTop, zs], [x + w / 2 - 0.16, y + bodyTop, zs], [x + cabW / 2 - 0.02, y + cabTop, zc], [x - cabW / 2 + 0.02, y + cabTop, zc]].map((v) => P(v[0], v[1], v[2]));
+    const top = Math.min(q[2][1], q[3][1]), bot = Math.max(q[0][1], q[1][1]), L = Math.min(q[0][0], q[3][0]), Rr = Math.max(q[1][0], q[2][0]), Wd = Rr - L, Hd = bot - top;
+    ctx.save(); ctx.beginPath(); q.forEach((v, i) => (i ? ctx.lineTo(v[0], v[1]) : ctx.moveTo(v[0], v[1]))); ctx.closePath(); ctx.clip();
+    const tint = ctx.createLinearGradient(0, top, 0, bot); tint.addColorStop(0, '#3a4556'); tint.addColorStop(0.35, '#151b25'); tint.addColorStop(1, '#05070b');
+    ctx.fillStyle = tint; ctx.fillRect(L, top, Wd, Hd);
+    if (mode !== 'intro' && !(mode === 'dying' && deathT > 0.6)) {
+      // seat backs and the driver, faint through the tint
+      const at = (sx, u) => P(x + sx, y + bodyTop + (cabTop - bodyTop) * u, zs + (zc - zs) * u);
+      for (const sx of [-0.33, 0.33]) { const c = at(sx, 0.42), r = c[2]; ctx.fillStyle = 'rgba(0,0,0,.55)'; rrect(c[0] - r * 0.2, c[1] - r * 0.12, r * 0.4, r * 0.34, r * 0.08); ctx.fill(); }
+      const D = driverOf(), hd = at(-0.33, 0.7), hr = hd[2] * 0.13;
+      ctx.globalAlpha = 0.5; ctx.fillStyle = D.hairStyle === 'shaq' ? D.skin : D.hair; ctx.beginPath(); ctx.ellipse(hd[0], hd[1], hr * 0.85, hr, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+    }
+    // reflections: a soft sky band, a sharp diagonal glint, and a few warm street lights
+    const sky = ctx.createLinearGradient(0, top, 0, top + Hd * 0.45); sky.addColorStop(0, 'rgba(170,190,220,.28)'); sky.addColorStop(1, 'rgba(170,190,220,0)'); ctx.fillStyle = sky; ctx.fillRect(L, top, Wd, Hd * 0.45);
+    ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.beginPath(); ctx.moveTo(L + Wd * 0.58, top); ctx.lineTo(L + Wd * 0.7, top); ctx.lineTo(L + Wd * 0.46, bot); ctx.lineTo(L + Wd * 0.38, bot); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,210,150,.35)'; for (let i = 0; i < 6; i++) { const fx = ((i * 37 + Math.floor(traveled / 9) * 13) % 100) / 100; ctx.fillRect(L + Wd * fx, top + Hd * (0.2 + (i % 3) * 0.08), Math.max(1, Wd * 0.012), Math.max(1, Hd * 0.04)); }
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(4,6,10,.9)'; ctx.lineWidth = Math.max(1, Wd * 0.012); ctx.beginPath(); q.forEach((v, i) => (i ? ctx.lineTo(v[0], v[1]) : ctx.moveTo(v[0], v[1]))); ctx.closePath(); ctx.stroke();
+  }
+  // tail: a slim full-width light bar, chrome TESLA lettering, and a finned black diffuser
+  function realRearTail(rr, brake) {
+    const W = rr.r - rr.l, H = rr.b - rr.t;
+    // the rear face rounds off at the corners
+    const sh = ctx.createLinearGradient(rr.l, 0, rr.r, 0); sh.addColorStop(0, 'rgba(0,0,0,.35)'); sh.addColorStop(0.12, 'rgba(0,0,0,0)'); sh.addColorStop(0.88, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.35)');
+    ctx.fillStyle = sh; ctx.fillRect(rr.l, rr.t, W, H * 0.72);
+    const by = rr.t + H * 0.2, bh = Math.max(1.5, H * (brake ? 0.07 : 0.05));
+    ctx.fillStyle = '#2a0a0e'; rrect(rr.l + W * 0.03, by - bh * 0.6, W * 0.94, bh * 2.2, bh); ctx.fill();
+    ctx.fillStyle = brake ? '#ff5a64' : '#ff2a3a'; rrect(rr.l + W * 0.05, by, W * 0.9, bh, bh / 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,220,220,.8)'; ctx.fillRect(rr.l + W * 0.06, by + bh * 0.25, W * 0.88, Math.max(0.6, bh * 0.25));
+    lampGlow(rr, [0.12, 0.5, 0.88], 0.21, redGlow, brake ? 1.5 : 1.05);
+    if (H > 14) { ctx.fillStyle = 'rgba(232,235,240,.85)'; ctx.font = `600 ${Math.max(5, H * 0.1)}px Michroma, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = Math.max(1, H * 0.025); ctx.strokeStyle = 'rgba(10,10,14,.55)'; ctx.strokeText('T E S L A', rr.l + W / 2, rr.t + H * 0.44); ctx.fillText('T E S L A', rr.l + W / 2, rr.t + H * 0.44); }
+    // diffuser fins and the rear fog light
+    ctx.fillStyle = '#0c0d10'; ctx.fillRect(rr.l + W * 0.02, rr.t + H * 0.72, W * 0.96, H * 0.28);
+    ctx.fillStyle = 'rgba(255,255,255,.07)'; for (let i = 1; i < 9; i++) ctx.fillRect(rr.l + W * (0.08 + i * 0.1), rr.t + H * 0.76, Math.max(1, W * 0.008), H * 0.22);
+    ctx.fillStyle = '#7a1018'; ctx.fillRect(rr.l + W * 0.46, rr.t + H * 0.8, W * 0.08, H * 0.05);
+  }
   // livery on the player's car, painted over the body but under the tail lights
   function drawDesign(x, y, z, m, rr, col) {
     const n = parseInt(col.slice(1), 16), light = ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 140;

@@ -32,6 +32,6 @@ Every in-game element has both versions. When adding something new, add it here 
 | People (drivers, Zuck, Optimus) | flat | `volRect` shading, face highlight |
 | Meta Quest headsets | flat | glossy shell, logo glow |
 | Waymo Way / Optimus Outpost | teal / red theme | lit arch with light cone, glossy signs, billboard wash, shaded graffiti, road light pools |
-| Driver seen through rear glass | light tint | darker tint + sheen |
+| Player Roadster rear (glass, tail) | simple glass + head, chunky light bar | tinted reflective glass, seat backs + faint driver, slim light bar, TESLA badge, finned diffuser |
 
 Menus and full-screen UI (start screen, garage, Cyber Crate opening, game over) are shared by both modes on purpose.
