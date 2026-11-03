@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '76';
+window.BUILD = '77';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -1354,8 +1354,11 @@ html, body { background: #26222c !important; }
   $('cOpen').onclick = () => {
     if (CR.phase === 'run') return;
     if (save.crates < 1) return;
-    save.crates--; persist();
-    crateRun(rollCrate());
+    save.crates--;
+    // the oldest crate's word and car; crates earned before this was tracked use your current car and a random word
+    const q = save.crateQueue || [], info = q.length ? q.shift() : { w: pick(WORDS), paint: save.paint, design: save.design, smoke: save.smoke };
+    persist();
+    crateRun(rollCrate(), info);
     renderCrateBtns();
   };
   $('cEquip').onclick = () => {
@@ -1364,7 +1367,11 @@ html, body { background: #26222c !important; }
     persist(); pl.col = paintCol(); if (pz.cat === 'driver') setHudAvatar();
     $('cEquip').hidden = true; $('cText').textContent = `${pz.p.name} equipped!`; tone(880, 0.15, 'triangle', 0.04, 1320);
   };
-  $('crateCv').addEventListener('pointerdown', () => { if (CR.phase === 'run' && crateT() > 2.6 && crateT() < CR.END) CR.t0 -= (CR.END - crateT()) * 1000; });
+  $('crateCv').addEventListener('pointerdown', () => {
+    if (CR.phase !== 'run') return;
+    if (crateT() < 0) CR.t0 -= -crateT() * 1000; // skip the word animation
+    else if (crateT() > 2.6 && crateT() < CR.END) CR.t0 -= (CR.END - crateT()) * 1000;
+  });
   $('cDone').onclick = () => { CR.phase = 'off'; renderCrateBtns(); if (crateFrom === 'menu') renderMissions('missionsMenu'); show(crateFrom); };
   $('menuCrate').onclick = () => openCrates('menu');
   $('overCrate').onclick = () => openCrates('over');
@@ -1859,7 +1866,9 @@ html, body { background: #26222c !important; }
       hunt.got++; hunt.out = false; hunt.next = traveled + huntGap();
       sparks(o.x, o.y, o.z, 18, '#ffd36e'); buzz(30);
       if (hunt.got >= hunt.word.length) {
-        hunt.done = true; save.crates++; persist();
+        hunt.done = true; save.crates++;
+        (save.crateQueue = save.crateQueue || []).push({ w: hunt.word, paint: save.paint, design: save.design, smoke: save.smoke });
+        persist();
         toast(`${hunt.word}! Cyber Crate earned`); tone(660, 0.18, 'triangle', 0.06, 990); tone(990, 0.45, 'triangle', 0.05, 1980); shake = Math.max(shake, 0.25);
       } else { toast(`Letter ${o.ch} · ${hunt.got}/${hunt.word.length}`); tone(740, 0.22, 'triangle', 0.05, 1480); }
       renderHunt(true);
@@ -3024,7 +3033,8 @@ html, body { background: #26222c !important; }
   const crRgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
   const kwhRar = (n) => (n >= 2500 ? 'legendary' : n >= 1000 ? 'epic' : n >= 500 ? 'rare' : 'common');
   const prizeRar = (pz) => (pz.kwh ? kwhRar(pz.kwh) : pz.cat === 'driver' ? 'legendary' : rarity(pz.p.cost));
-  const crateT = () => (performance.now() - CR.t0) / 1000;
+  // time on the crate's own clock; negative while the word is still charging the Roadster
+  const crateT = () => (performance.now() - CR.t0) / 1000 - (CR.O || 0);
   const avImgs = {};
   const avatarImg = (D) => { if (!avImgs[D.id]) { const im = new Image(); im.src = avatarURL(D); avImgs[D.id] = im; } return avImgs[D.id]; };
   // a filler card with the same shape of odds as a real crate (nothing is granted)
@@ -3039,15 +3049,19 @@ html, body { background: #26222c !important; }
     $('cEquip').hidden = true; $('cOpen').hidden = save.crates < 1; $('cOpen').textContent = 'Open';
     $('cText').textContent = save.crates > 1 ? `${save.crates} crates waiting. Tap Open to charge one up.` : 'Tap Open to charge it up.';
   }
-  function crateRun(prize) {
-    CR.phase = 'run'; CR.t0 = performance.now(); CR.prize = prize; CR.rar = prizeRar(prize); CR.tick = -1; CR.told = false;
+  function crateRun(prize, info) {
+    info = info || { w: pick(WORDS), paint: save.paint, design: save.design, smoke: save.smoke };
+    // word stage timing: letters launch one after another, then the trunk pops and the car lifts off
+    const n = info.w.length, dt = clamp(1.6 / n, 0.14, 0.3), arrive = 0.5 + (n - 1) * dt + 0.5;
+    CR.word = { ...info, n, dt, arrive, pop: arrive + 0.15, hit: -1 }; CR.O = arrive + 0.15 + 1.15;
+    CR.phase = 'run'; CR.t0 = performance.now(); CR.wordDone = false; CR.prize = prize; CR.rar = prizeRar(prize); CR.tick = -1; CR.told = false;
     CR.cards = []; for (let i = 0; i < 48; i++) CR.cards.push(sampleCard());
     CR.win = 40; CR.cards[CR.win] = prize;
     // a near miss now and then: something rarer sitting right next to the winner
     if (CR.rar !== 'legendary' && Math.random() < 0.5) CR.cards[CR.win + (Math.random() < 0.5 ? 1 : -1)] = sampleCard('legendary');
     CR.land = (Math.random() - 0.5) * 0.6;
     CR.sparks = Array.from({ length: 140 }, () => ({ a: Math.random() * 6.283, v: 60 + Math.random() * 260, s: 1 + Math.random() * 2.6, up: Math.random() * 120 }));
-    $('cOpen').hidden = true; $('cEquip').hidden = true; $('cText').textContent = 'Supercharging…';
+    $('cOpen').hidden = true; $('cEquip').hidden = true; $('cText').textContent = `${info.w} · charging the Roadster…`;
     tone(110, 1.6, 'sawtooth', 0.035, 440); buzz(20);
   }
   function crateFinish() {
@@ -3089,6 +3103,8 @@ html, body { background: #26222c !important; }
     g.fillStyle = '#1a1e26'; g.fillRect(L, 34, Rr - L, 10);
     for (let x = Math.floor(L / 70) * 70 + 30; x < Rr; x += 70) { g.fillStyle = '#eaf2ff'; g.fillRect(x, 44, 36, 3); crBloom(g, x + 18, 46, 40, [220, 235, 255], 0.3); }
     for (let i = 0; i < 24; i++) { g.fillStyle = `rgba(255,255,255,${0.025 + (i * 7 % 5) / 120})`; g.fillRect(L + ((i * 97) % 1000) / 1000 * (Rr - L), 370 + (i * 53 % 200), 30 + (i * 11 % 50), 1); }
+    if (CR.phase === 'run' && tt < 0) { drawWordStage(g, tt + CR.O, now, hc); return; }
+    if (CR.phase === 'run' && !CR.wordDone) { CR.wordDone = true; $('cText').textContent = 'Supercharging…'; }
     const charge = CR.phase === 'run' ? clamp(tt / 1.8, 0, 1) : 0, burst = CR.phase !== 'idle' && tt > 1.8, stripOn = CR.phase !== 'idle' && tt > 2.35;
     crBloom(g, 165, 390, 190, hc, 0.12 + 0.35 * charge);
     if (!stripOn) {
@@ -3147,6 +3163,113 @@ html, body { background: #26222c !important; }
       if (CR.phase === 'run') { CR.phase = 'done'; tone(660, 0.2, 'triangle', 0.05, 990); tone(990, 0.5, 'triangle', 0.05, 1980); if (CR.rar === 'legendary') { tone(1320, 0.7, 'triangle', 0.04, 2640); buzz([60, 40, 120]); } else buzz(40); crateFinish(); }
       if (CR.rar === 'legendary' || CR.rar === 'epic') for (let i = 0; i < 40; i++) { const a = i * 2.39996, d = ((now * 60 + i * 23) % 220); g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = crRgba(c, 0.8 * (1 - d / 220)); g.beginPath(); g.arc(165 + Math.cos(a) * d, SY + Math.sin(a) * d * 0.8, 1.8, 0, 7); g.fill(); g.restore(); }
     }
+  }
+  // ---------- word stage: your word's letters stream down the Supercharger cable into the Roadster you drove,
+  // then the trunk pops, the Cyber Crate launches out, and the car lifts off on its jets ----------
+  function crCharger(g) {
+    const sx = 22, sy = 200; crRR(g, sx, sy, 46, 190, 18); const sb = g.createLinearGradient(sx, 0, sx + 46, 0); sb.addColorStop(0, '#cfd4db'); sb.addColorStop(0.4, '#f5f7f9'); sb.addColorStop(1, '#aab1ba'); g.fillStyle = sb; g.fill();
+    crRR(g, sx + 6, sy + 10, 34, 70, 14); g.fillStyle = '#e31937'; g.fill(); g.fillStyle = '#fff'; g.font = '700 26px Arial'; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillText('T', sx + 23, sy + 56);
+    crBloom(g, sx + 23, sy + 46, 40, [255, 60, 80], 0.45);
+  }
+  function crHex(g, x, y, r, ch, state) {
+    // state: 0 waiting, 1 lit (in flight), 2 spent (already in the car)
+    g.save(); g.translate(x, y); g.beginPath();
+    for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; if (i) g.lineTo(Math.cos(a) * r, Math.sin(a) * r); else g.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+    g.closePath();
+    if (state === 1) { const gr = g.createLinearGradient(0, -r, 0, r); gr.addColorStop(0, '#fff1c2'); gr.addColorStop(0.5, '#ffcf5a'); gr.addColorStop(1, '#c88d22'); g.fillStyle = gr; } else g.fillStyle = state === 2 ? 'rgba(255,207,90,.22)' : 'rgba(40,46,58,.9)';
+    g.fill(); g.strokeStyle = state === 1 ? '#a8761f' : 'rgba(255,255,255,.18)'; g.lineWidth = 1.5; g.stroke();
+    g.fillStyle = state === 1 ? '#3a2208' : state === 2 ? 'rgba(255,230,170,.75)' : 'rgba(255,255,255,.4)'; g.font = `400 ${r * 0.95}px Michroma, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, 0, r * 0.06);
+    g.restore(); if (state === 1) crBloom(g, x, y, r * 2.6, [255, 200, 90], 0.5);
+  }
+  // the Roadster from the side, nose to the right, in the paint, design and smoke of the run that earned the crate
+  function crRoadster(g, cx, cy, s, look, lid, charge, jets) {
+    const paint = (PAINTS.find((q) => q.id === look.paint) || PAINTS[0]).col, n = parseInt(paint.slice(1), 16);
+    const light = ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 140, ink = light ? '#16181d' : '#f4f4f2';
+    const sm = SMOKES.find((q) => q.id === look.smoke) || SMOKES[0];
+    g.save(); g.translate(cx, cy); g.scale(s, s);
+    if (jets > 0) {
+      // three thruster jets under the car in its smoke colour (gold stars for Shooting Stars)
+      for (const jx of [-60, 0, 62]) {
+        const len = 120 * jets, rgb = sm.rgb || [120, 110, 230], gr = g.createLinearGradient(0, 22, 0, 22 + len);
+        gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(0.35, `rgba(${rgb.join(',')},.8)`); gr.addColorStop(1, `rgba(${rgb.join(',')},0)`);
+        g.fillStyle = gr; g.beginPath(); g.moveTo(jx - 5, 22); g.lineTo(jx + 5, 22); g.lineTo(jx + 16, 22 + len); g.lineTo(jx - 16, 22 + len); g.fill();
+        if (!sm.rgb) { g.fillStyle = '#ffd36e'; for (let k = 0; k < 4; k++) { const yy = 30 + ((k * 31 + performance.now() / 6) % len); g.fillRect(jx - 2 + Math.sin(k * 7) * 6, yy, 3, 3); } }
+      }
+    } else { g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.ellipse(0, 30, 128, 12, 0, 0, Math.PI * 2); g.fill(); }
+    if (look.design === 'd:glow') { const ug = g.createRadialGradient(0, 26, 4, 0, 26, 120); ug.addColorStop(0, 'rgba(92,225,255,.7)'); ug.addColorStop(1, 'rgba(92,225,255,0)'); g.fillStyle = ug; g.fillRect(-130, 0, 260, 60); }
+    // body: short rear deck, cockpit set back, long sloping hood
+    const body = () => { g.beginPath(); g.moveTo(-118, 16); g.lineTo(-122, -4); g.quadraticCurveTo(-121, -15, -110, -18); g.lineTo(-58, -23); g.quadraticCurveTo(-30, -44, 6, -44); g.quadraticCurveTo(34, -42, 52, -24); g.quadraticCurveTo(96, -16, 116, -8); g.quadraticCurveTo(124, -2, 120, 8); g.lineTo(114, 18); g.closePath(); };
+    body(); const bg = g.createLinearGradient(0, -46, 0, 20); bg.addColorStop(0, shade(paint, 1.35)); bg.addColorStop(0.25, paint); bg.addColorStop(0.75, shade(paint, 0.85)); bg.addColorStop(1, shade(paint, 0.45)); g.fillStyle = bg; g.fill();
+    g.save(); body(); g.clip();
+    if (look.design === 'd:twotone') { g.fillStyle = '#16181d'; g.fillRect(-130, -2, 260, 30); }
+    if (look.design === 'd:stripes') { g.strokeStyle = ink; g.lineWidth = 4; for (const off of [0, 7]) { g.beginPath(); g.moveTo(-110, -16 + off); g.lineTo(-58, -21 + off); g.quadraticCurveTo(-30, -42 + off, 6, -42 + off); g.quadraticCurveTo(34, -40 + off, 52, -22 + off); g.quadraticCurveTo(96, -14 + off, 118, -6 + off); g.stroke(); } }
+    if (look.design === 'd:checker') for (let i = 0; i < 24; i++) for (let j = 0; j < 2; j++) { g.fillStyle = (i + j) % 2 ? '#f4f4f2' : '#16181d'; g.fillRect(-118 + i * 10, 4 + j * 5, 10, 5); }
+    // shoulder highlight and lower body shadow
+    g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(-112, -14, 230, 2);
+    g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(-130, 8, 260, 12);
+    g.restore();
+    if (look.design === 'd:number') { g.fillStyle = '#f4f4f2'; g.beginPath(); g.arc(-6, -4, 11, 0, Math.PI * 2); g.fill(); g.fillStyle = '#c8202e'; g.font = '700 15px "Saira Semi Condensed", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('8', -6, -3); }
+    // glass canopy with a reflection, door seam, side intake
+    g.fillStyle = '#0d1118'; g.beginPath(); g.moveTo(-50, -23); g.quadraticCurveTo(-26, -40, 6, -40); g.quadraticCurveTo(30, -38, 46, -23); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.3)'; g.beginPath(); g.moveTo(-30, -30); g.quadraticCurveTo(-8, -38, 14, -37); g.lineTo(10, -33); g.quadraticCurveTo(-8, -33, -24, -27); g.fill();
+    g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 1; g.beginPath(); g.moveTo(-42, -21); g.lineTo(-38, 12); g.moveTo(30, -21); g.lineTo(32, 12); g.stroke();
+    g.fillStyle = 'rgba(10,12,16,.75)'; g.beginPath(); g.moveTo(-66, -8); g.lineTo(-46, -12); g.lineTo(-46, 6); g.lineTo(-68, 6); g.closePath(); g.fill();
+    // full-width tail light and the slim headlight
+    g.fillStyle = '#ff2a3a'; g.fillRect(-123, -11, 6, 4); crBloom(g, -122, -9, 26, [255, 42, 58], 0.6);
+    g.fillStyle = '#eaf4ff'; g.fillRect(110, -9, 12, 3); crBloom(g, 118, -8, 24, [220, 240, 255], 0.55);
+    // charge port on the rear quarter, glowing as the letters arrive
+    g.fillStyle = '#1a1d22'; g.fillRect(-98, -11, 10, 7); if (charge > 0) crBloom(g, -93, -8, 16 + charge * 30, [92, 225, 255], 0.5 + charge * 0.4);
+    // trunk lid hinged at the cockpit, flipping up when the crate pops
+    if (lid > 0) { g.save(); g.translate(-58, -23); g.rotate(-lid * 1.2); g.fillStyle = shade(paint, 1.15); g.beginPath(); g.moveTo(0, 0); g.lineTo(-52, 5); g.quadraticCurveTo(-63, 8, -64, 14); g.lineTo(-58, 12); g.lineTo(0, 4); g.closePath(); g.fill(); g.restore();
+      g.fillStyle = '#0b0d11'; g.beginPath(); g.moveTo(-110, -18); g.lineTo(-58, -23); g.lineTo(-60, -14); g.lineTo(-112, -10); g.closePath(); g.fill(); }
+    // turbine wheels
+    for (const wx of [-76, 80]) {
+      g.fillStyle = '#07080a'; g.beginPath(); g.arc(wx, 16, 21, 0, Math.PI * 2); g.fill();
+      const rim = g.createRadialGradient(wx - 5, 11, 2, wx, 16, 15); rim.addColorStop(0, '#e2e6ec'); rim.addColorStop(1, '#3a3f47'); g.fillStyle = rim; g.beginPath(); g.arc(wx, 16, 14, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#1a1d22'; g.lineWidth = 1.4; for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5; g.beginPath(); g.moveTo(wx + Math.cos(a) * 4, 16 + Math.sin(a) * 4); g.lineTo(wx + Math.cos(a + 0.35) * 13, 16 + Math.sin(a + 0.35) * 13); g.stroke(); }
+      g.fillStyle = '#e31937'; g.beginPath(); g.arc(wx, 16, 3, 0, Math.PI * 2); g.fill();
+    }
+    g.restore();
+  }
+  function drawWordStage(g, w, now, hc) {
+    const W0 = CR.word, word = W0.w, n = W0.n;
+    const CX = 205, CY = 392, S = 0.78, portX = CX - 93 * S, portY = CY - 8 * S;
+    const launch = (i) => 0.5 + i * W0.dt, arrived = (i) => w >= launch(i) + 0.5;
+    let got = 0; for (let i = 0; i < n; i++) if (arrived(i)) got++;
+    if (got - 1 > W0.hit) { W0.hit = got - 1; tone(660 + got * 60, 0.09, 'triangle', 0.04, 990 + got * 60); buzz(6); }
+    const pop = W0.pop, popK = clamp((w - pop) / 0.35, 0, 1), lift = clamp((w - pop - 0.3) / 0.8, 0, 1);
+    if (w >= pop && !W0.popped) { W0.popped = true; tone(140, 0.25, 'square', 0.05, 520); tone(990, 0.4, 'triangle', 0.04, 1980); buzz([30, 30, 50]); }
+    crCharger(g);
+    // cable: from the charger to the car's port, pulling free as the car lifts off
+    const carX = CX + lift * lift * 260, carY = CY - lift * 140, px = carX - 93 * S, py = carY - 8 * S;
+    const ex = lift > 0 ? 68 + (px - 68) * (1 - lift) : px, ey = lift > 0 ? 300 + (py - 300) * (1 - lift) + lift * 60 : py;
+    g.strokeStyle = '#15181d'; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.moveTo(68, 300); g.bezierCurveTo(78, 380, ex - 40, ey + 40, ex, ey); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.12)'; g.lineWidth = 1.5; g.stroke();
+    crRoadster(g, carX, carY, S, W0, popK, got / n, lift);
+    // the word, waiting above the charger
+    const r = Math.min(13, 150 / n), gap = Math.min(29, 300 / n), x0 = 165 - (n - 1) * gap / 2, rowY = 150;
+    for (let i = 0; i < n; i++) {
+      const tl = w - launch(i);
+      if (tl < 0) crHex(g, x0 + i * gap, rowY, r, word[i], 0);
+      else if (tl < 0.5) {
+        // fly: up off the row, over the charger, down the cable and into the port
+        const q = tl / 0.5, m = 1 - q, ax = x0 + i * gap, ay = rowY, bx = 40, by = 190, fx = m * m * ax + 2 * m * q * bx + q * q * portX, fy = m * m * ay + 2 * m * q * by + q * q * portY;
+        crHex(g, x0 + i * gap, rowY, r, word[i], 2); crHex(g, fx, fy, r * (1 - q * 0.45), word[i], 1);
+      } else crHex(g, x0 + i * gap, rowY, r, word[i], 2);
+    }
+    if (got > 0 && w < pop) crBloom(g, portX, portY, 30 + got * 4, [255, 200, 90], 0.6);
+    // the crate launching out of the trunk and arcing over to where it charges up
+    if (w >= pop) {
+      const q = clamp((w - pop) / 0.75, 0, 1), sx = CX - 85 * S, sy = CY - 25 * S, tx = 174, ty = 363;
+      const x = sx + (tx - sx) * q, y = sy + (ty - sy) * q - Math.sin(q * Math.PI) * 170, sc = 0.35 + 0.65 * q;
+      if (q < 1) { crRays(g, sx, sy, 20, 160 * (1 - q * 0.5), [255, 200, 90], 0.4 * (1 - q), now); }
+      g.save(); g.translate(x, y); g.rotate((1 - q) * -2.4); g.scale(sc, sc); crateBody2(g, 11, 37, hc, 0.4, 0); g.restore();
+    }
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+    g.font = '400 22px Michroma, sans-serif'; g.fillStyle = 'rgba(230,238,246,.92)';
+    g.fillText(w < pop ? (got ? `${got} / ${n}` : word) : 'POP!', 165, 470, 300);
+    g.font = '600 12px "Saira Semi Condensed", sans-serif'; g.fillStyle = 'rgba(255,207,90,1)';
+    g.fillText((w < pop ? (got ? 'CHARGING THE ROADSTER' : 'WORD COMPLETE') : 'CYBER CRATE INCOMING').split('').join(' '), 165, 492);
   }
   function crateBody2(g, cx, cy, c, glowK, o) {
     const steel = (x0, x1, m = 1) => { const gr = g.createLinearGradient(x0, 0, x1, 0); gr.addColorStop(0, `rgb(${120 * m},${128 * m},${138 * m})`); gr.addColorStop(0.3, `rgb(${236 * m},${239 * m},${243 * m})`); gr.addColorStop(0.55, `rgb(${178 * m},${185 * m},${194 * m})`); gr.addColorStop(0.85, `rgb(${222 * m},${226 * m},${231 * m})`); gr.addColorStop(1, `rgb(${110 * m},${118 * m},${128 * m})`); return gr; };
