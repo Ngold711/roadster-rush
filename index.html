@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '82';
+window.BUILD = '83';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -817,14 +817,14 @@ html, body { background: #26222c !important; }
   // ---------- daily missions: 3 goals picked from the date, each paying bonus kWh once ----------
   // goals are tough on purpose: most take a long, clean run (or a full day of play) to finish
   const MISSIONS = [
-    { id: 'twist', text: 'Twist 12 times in one run', goal: 12, reward: 150, run: () => runTwists },
-    { id: 'cells', text: 'Collect 300 kWh in one run', goal: 300, reward: 175, run: () => cells },
-    { id: 'dist', text: 'Drive 6 km in one run', goal: 6, reward: 175, run: () => traveled / 1000 * 4, fmt: (v) => v.toFixed(1) },
-    { id: 'roof', text: 'Ride 6 trailer roofs in one run', goal: 6, reward: 200, run: () => runRoofs },
-    { id: 'walls', text: 'Twist over 5 walls in one run', goal: 5, reward: 225, run: () => runWalls },
-    { id: 'score', text: 'Score 8,000 in one run', goal: 8000, reward: 200, run: () => score, fmt: (v) => Math.floor(v).toLocaleString() },
-    { id: 'pows', text: 'Grab 10 power-ups today', goal: 10, reward: 150, ev: 'pow' },
-    { id: 'runs', text: 'Finish 10 runs today', goal: 10, reward: 125, ev: 'run' },
+    { id: 'twist', text: 'Twist 20 times in one run', goal: 20, reward: 200, run: () => runTwists },
+    { id: 'cells', text: 'Collect 500 kWh in one run', goal: 500, reward: 250, run: () => cells },
+    { id: 'dist', text: 'Drive 10 km in one run', goal: 10, reward: 250, run: () => traveled / 1000 * 4, fmt: (v) => v.toFixed(1) },
+    { id: 'roof', text: 'Ride 10 trailer roofs in one run', goal: 10, reward: 250, run: () => runRoofs },
+    { id: 'walls', text: 'Twist over 8 walls in one run', goal: 8, reward: 300, run: () => runWalls },
+    { id: 'score', text: 'Score 15,000 in one run', goal: 15000, reward: 275, run: () => score, fmt: (v) => Math.floor(v).toLocaleString() },
+    { id: 'pows', text: 'Grab 18 power-ups today', goal: 18, reward: 200, ev: 'pow' },
+    { id: 'runs', text: 'Finish 15 runs today', goal: 15, reward: 175, ev: 'run' },
   ];
   function today() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
   function dailyMissions() {
@@ -837,6 +837,9 @@ html, body { background: #26222c !important; }
     }
     return save.missions.list;
   }
+  setInterval(() => {
+    if (save.missions && save.missions.day !== today()) { dailyMissions(); if (!$('menu').hidden) renderMissions('missionsMenu'); if (!$('over').hidden) renderMissions('missionsOver'); }
+  }, 20000);
   function completeMission(m, def) {
     m.done = true; m.prog = def.goal; save.bank += def.reward; persist();
     toast(`Mission done: +${def.reward} kWh`); tone(990, 0.35, 'triangle', 0.05, 1980); buzz(40);
