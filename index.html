@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '84';
+window.BUILD = '85';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -950,7 +950,7 @@ html, body { background: #26222c !important; }
   let boss = null, nextBoss = 80, zuckArm = 0;
   // launch ramp: the curved ramp from the Roadster reveal shows up about every 2-3½ minutes (first one 1-1½ minutes in). Drive onto it and,
   // still from behind the car, it climbs the curve past vertical, backflips off the top and lights its thrusters
-  const RAMP_R = 7, RAMP_MAX = Math.PI / 2 + 0.38, RIDE_CLIMB = 1.05, RIDE_FLIP = 0.9;
+  const RAMP_R = 12, RAMP_MAX = 0.62, RAMP_LEN = RAMP_R * Math.sin(RAMP_MAX), RIDE_FLIP = 1.2, RIDE_AIR = 5, RIDE_PEAK = 9;
   let nextLaunch = 160, launchLand = false, ride = null;
   let tunnel = null, nextTunnel = 600, underground = false, lastHue = 355;
   // each Loop tunnel glows one neon color, picked fresh (never the same twice in a row)
@@ -1717,7 +1717,7 @@ html, body { background: #26222c !important; }
     }
     if (zone && !zone.told && traveled > zone.s - 2) { zone.told = true; toast(onMars() ? 'Welcome to Optimus Outpost' : 'Welcome to Waymo Way'); tone(523, 0.18, 'triangle', 0.04, 784); tone(784, 0.3, 'triangle', 0.04, 1046); }
     if (zone && traveled > zone.e + 20) { RS.zones++; zone = null; nextZone = t + rnd(150, 240); nextTunnel = Math.max(nextTunnel, traveled + 120); }
-    if (!tunnel && !zone && traveled > nextTunnel) { const s0 = traveled + FAR + 25; let hue; do hue = pick(NEON); while (hue === lastHue); lastHue = hue; tunnel = { s: s0, e: s0 + rnd(170, 260), hue }; }
+    if (!tunnel && !zone && !ride && traveled > nextTunnel) { const s0 = traveled + FAR + 25; let hue; do hue = pick(NEON); while (hue === lastHue); lastHue = hue; tunnel = { s: s0, e: s0 + rnd(170, 260), hue }; }
     if (tunnel && traveled > tunnel.e + 12) { RS.tunnels++; tunnel = null; nextTunnel = traveled + rnd(700, 1100); }
     // extra room after a wall so you can land and get set before the next row
     while (spawnZ < FAR) { spawnRow(spawnZ); spawnZ += 26 + speed * 0.28 + rnd(0, 12) + (lastWall ? speed * 0.75 : 0); }
@@ -1795,7 +1795,7 @@ html, body { background: #26222c !important; }
     const lane = ri(3), z = FAR - 5;
     // clear its lane in front of it and give it room behind, so it can always be reached
     objs = objs.filter((o) => !(o.lane === lane && o.z > z - 45 && o.z < z + 18 && o.k !== 'cell'));
-    objs.push({ k: 'lramp', lane, x: LANES[lane], z, d: 9, w: 2.3, h: 0 });
+    objs.push({ k: 'lramp', lane, x: LANES[lane], z, d: RAMP_LEN, w: 2.3, h: 0 });
     spawnZ = Math.max(spawnZ, z + 20);
     toast(`Launch ramp ahead: ${['left', 'middle', 'right'][lane]} lane!`); tone(440, 0.2, 'triangle', 0.04, 880);
   }
@@ -1805,36 +1805,50 @@ html, body { background: #26222c !important; }
     $('tip').hidden = true; $('wallWarn').hidden = true;
     tone(180, 1.2, 'sawtooth', 0.04, 900); buzz(40);
   }
-  // one step of the ramp ride; returns how far the world moves this frame
+  // one step of the ramp ride; returns how far the world moves this frame.
+  // Up the kicker at full speed, off the lip with a barrel roll, then a free ride: about 5 seconds soaring high over
+  // all the traffic on the thrusters (nothing can hit you up there), and a smooth touchdown back in your lane.
   function rideStep(dt) {
     const r = ride, o = r.o; r.t += dt;
-    let dz;
-    if (r.t < RIDE_CLIMB) {
-      // up the curve: the car's height follows the ramp, and the world only moves as far as the curve still runs forward
-      const q = r.t / RIDE_CLIMB, th = RAMP_MAX * q * (0.55 + 0.45 * q);
-      const target = 1.85 - RAMP_R * Math.sin(Math.min(th, Math.PI / 2));
-      dz = Math.max(0, o.z - target);
-      pl.y = RAMP_R * (1 - Math.cos(th)); r.pitch = th;
-    } else {
-      // off the top: keep rotating back over into a full backflip while rising, as the road speeds back up
-      const q = Math.min(1, (r.t - RIDE_CLIMB) / RIDE_FLIP), e = q * q * (3 - 2 * q);
-      r.pitch = RAMP_MAX + (Math.PI * 2 - RAMP_MAX) * e;
-      pl.y = RAMP_R * (1 - Math.cos(RAMP_MAX)) + Math.sin(q * Math.PI * 0.6) * 2.4;
-      dz = speed * dt * q;
-      if (!r.lit && q > 0.7) { r.lit = true; tone(300, 0.6, 'sawtooth', 0.04, 120); shake = Math.max(shake, 0.25); }
-      if (q >= 1) {
-        ride = null; pl.vy = 0; pl.ground = 0; RS.ramps++;
-        pw.fly = 8; skyCells(); launchLand = true;
-        cells += 50; toast('LIFTOFF! +50 kWh'); tone(660, 0.3, 'triangle', 0.05, 1320);
+    if (!r.air) {
+      const sAlong = 1.85 - o.z;
+      if (sAlong < RAMP_LEN) { const a = Math.asin(clamp(sAlong / RAMP_R, 0, 1)); pl.y = RAMP_R * (1 - Math.cos(a)); r.pitch = a; }
+      else {
+        r.air = true; r.ta = 0; r.y0 = pl.y; r.roll = 0; tone(300, 0.6, 'sawtooth', 0.04, 120); shake = Math.max(shake, 0.25); buzz(40);
+        cells += 50; toast('FREE RIDE! +50 kWh');
+      }
+    }
+    if (r.air) {
+      r.ta += dt; const ta = r.ta;
+      const k = Math.min(1, ta / RIDE_FLIP), e = k * k * (3 - 2 * k);
+      r.roll = pl.rollDir * Math.PI * 2 * e;
+      // climb to the peak, cruise with a gentle bob, then ease back down to the road
+      const up = 1.1, down = 1.3;
+      if (ta < up) { const q = ta / up; pl.y = r.y0 + (RIDE_PEAK - r.y0) * (1 - (1 - q) * (1 - q)); }
+      else if (ta < RIDE_AIR - down) pl.y = RIDE_PEAK + Math.sin((ta - up) * 2.2) * 0.3;
+      else { const q = Math.min(1, (ta - (RIDE_AIR - down)) / down), y1 = RIDE_PEAK + Math.sin((RIDE_AIR - down - up) * 2.2) * 0.3; pl.y = y1 * (1 - q * q * (3 - 2 * q)); }
+      // a thin corkscrew of smoke during the roll, kept light so the car stays in view
+      if (k > 0.08 && k < 0.85) {
+        const cy = pl.y + 0.55;
+        for (const sx of [-0.95, 0.95]) parts.push({
+          x: pl.x + sx * Math.cos(r.roll), y: cy + sx * Math.sin(r.roll), z: rnd(2.6, 3.6),
+          vx: rnd(-0.3, 0.3), vy: rnd(-0.3, 0.3), vz: 0, life: rnd(0.7, 1.0), smoke: true, r: rnd(0.14, 0.24), c: smokeCss(),
+        });
+      }
+      if (!r.lit && k > 0.6) { r.lit = true; tone(660, 0.3, 'triangle', 0.05, 1320); }
+      if (ta >= RIDE_AIR) {
+        // touchdown: a moment of safety so whatever is under you gets knocked aside
+        ride = null; pl.y = 0; pl.vy = 0; pl.roll = 0; RS.ramps++; launchLand = true; invuln = Math.max(invuln, 1.2);
+        pl.grounded = true; pl.ground = 0; return speed * dt;
       }
     }
     pl.grounded = false; pl.ground = 0;
-    return dz;
+    return speed * dt;
   }
   function updBoss(dt) {
     zuckArm = Math.max(0, zuckArm - dt);
     if (!boss) {
-      if (t > nextBoss && !tunnel && pw.fly <= 0 && stumble <= 0) {
+      if (t > nextBoss && !tunnel && !ride && pw.fly <= 0 && stumble <= 0) {
         boss = { t: BOSS_DUR, throwT: 2.2 };
         toast('Zuck is throwing Meta Quests! Dodge them'); tone(330, 0.25, 'sawtooth', 0.04, 220); tone(220, 0.35, 'sawtooth', 0.04, 330); buzz(60);
       }
@@ -2023,7 +2037,7 @@ html, body { background: #26222c !important; }
       const top = o.k === 'ramp' ? clamp((CAR_LEN - o.z) / o.d, 0, 1) * o.h : o.h;
       return pl.y >= top - 0.45;
     };
-    const items = objs.map((o) => ({ z: o.k === 'lramp' ? Math.max(o.z + 9, 0.01) : under(o) ? Math.max(o.z + o.d, 0.01) : o.z, o }));
+    const items = objs.map((o) => ({ z: o.k === 'lramp' ? Math.max(o.z + o.d, 0.01) : under(o) ? Math.max(o.z + o.d, 0.01) : o.z, o }));
     items.push({ z: 0, o: { k: 'player' } });
     if (mode === 'intro' && manPose()) items.push({ z: 1.8, o: { k: 'man' } });
     if (mode === 'dying') {
@@ -2945,48 +2959,63 @@ html, body { background: #26222c !important; }
     try { drawLaunchRampBody(o); } finally { ctx.globalAlpha = pa0; }
   }
   function drawLaunchRampBody(o) {
-    const R = RAMP_R, x = o.x, w = 2.6, mars = onMars(), edge = mars ? '255,138,42' : '255,42,58', N = 26, real = SET.real;
+    const R = RAMP_R, x = o.x, w = 2.6, mars = onMars(), edge = mars ? '255,138,42' : '255,42,58', N = 18, real = SET.real;
+    const conc = mars ? '#c6a28c' : '#b8bdc5', wall = mars ? '#5b3a2e' : '#3a3f48';
     const pts = []; for (let i = 0; i <= N; i++) { const a = i / N * RAMP_MAX; pts.push([R * (1 - Math.cos(a)), o.z + R * Math.sin(a), a]); }
-    // truss tower behind the curve on the outside of the road: two posts with cross bracing
-    const side = x >= 0 ? 1 : -1, tx = x + side * (w / 2 + 0.9), tz0 = o.z + R - 1.4, tz1 = o.z + R + 1.4, th = 2 * R + 1;
-    if (tz0 > ZN + 0.3) {
-      for (const pz of [tz0, tz1]) drawBox(tx, 0, th, pz - 0.12, pz + 0.12, 0.24, '#30343b', '#40444c', '#3a3e46');
-      const br = new Path2D(), fx = tx - side * 0.12;
-      for (let y = 0; y < th; y += 1.4) { const a = P(fx, y, tz0), b = P(fx, y + 1.4, tz1), c = P(fx, y, tz1), d = P(fx, y + 1.4, tz0); br.moveTo(a[0], a[1]); br.lineTo(b[0], b[1]); br.moveTo(c[0], c[1]); br.lineTo(d[0], d[1]); }
-      for (let y = 0; y < th; y += 2.8) { const a = P(fx, y, tz0), b = P(fx, y, tz1); br.moveTo(a[0], a[1]); br.lineTo(b[0], b[1]); }
-      ctx.strokeStyle = 'rgba(160,166,176,.6)'; ctx.lineWidth = Math.max(1, P(fx, 0, tz0)[2] * 0.05); ctx.stroke(br);
-      // arms reaching from the tower to the back of the curve
-      for (let i = 6; i < N; i += 5) { const [py, pz] = pts[i]; if (pz <= ZN + 0.3) continue; const a = P(tx, py, pz), b = P(x + side * w / 2, py, pz); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+    const ok = (z) => z > ZN + 0.2, [hTop, zEnd] = pts[N];
+    // floodlights at the foot washing light up the face
+    if (o.z > ZN + 1 && !SET.low) for (const lx of [-1, 1]) { const g = P(x + lx * (w / 2 + 0.5), 0.3, o.z - 0.6); glow(g[0], g[1], g[2] * 2.4, real ? 0.6 : 0.4); }
+    // the side you can see: a solid steel-framed wedge under the curve
+    const sx = cam.x < x - w / 2 ? x - w / 2 : cam.x > x + w / 2 ? x + w / 2 : null;
+    const prof = pts.filter((q) => ok(q[1]));
+    if (sx !== null && prof.length > 1) {
+      let fill = wall;
+      if (real) { const a = P(sx, hTop, zEnd), b = P(sx, 0, zEnd), g = ctx.createLinearGradient(0, a[1], 0, b[1]); g.addColorStop(0, shade(wall, 1.3)); g.addColorStop(1, shade(wall, 0.65)); fill = g; }
+      poly([[sx, 0, prof[0][1]], ...prof.map((q) => [sx, q[0], q[1]]), [sx, 0, prof[prof.length - 1][1]]], fill);
+      ctx.strokeStyle = mars ? 'rgba(255,190,150,.4)' : 'rgba(175,185,200,.5)'; ctx.lineWidth = Math.max(1, P(sx, 0, Math.max(o.z, ZN + 0.5))[2] * 0.04);
+      ctx.beginPath();
+      for (let i = 4; i <= N; i += 4) {
+        const [py, pz] = pts[i], [qy, qz] = pts[i - 4]; if (!ok(pz)) continue;
+        const a = P(sx, 0, pz), b = P(sx, py, pz); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+        if (ok(qz)) { const c = P(sx, qy, qz); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); }
+      }
+      ctx.stroke();
     }
-    // floodlights at the foot of the ramp washing light up its face
-    if (o.z > ZN + 1 && !SET.low) for (const lx of [-1, 1]) { const g = P(x + lx * (w / 2 + 0.5), 0.3, o.z - 0.6); glow(g[0], g[1], g[2] * 3, real ? 0.7 : 0.45); }
-    // the face, far segments first; concrete gets lighter where it turns to face you, with seams every few metres
-    const segs = []; for (let i = 0; i < N; i++) segs.push(i);
-    segs.sort((p, q) => Math.max(pts[q][1], pts[q + 1][1]) - Math.max(pts[p][1], pts[p + 1][1]));
-    for (const i of segs) {
+    // the face, far segments first; lighter where it tips up toward you
+    for (let i = N - 1; i >= 0; i--) {
       const [y0, z0, a0] = pts[i], [y1, z1] = pts[i + 1];
-      if (Math.min(z0, z1) <= ZN + 0.2) continue;
-      const facing = Math.sin(a0 + RAMP_MAX / N / 2), base = 0.62 + 0.38 * facing;
-      let fill = shade('#b8bdc5', base);
-      if (real) { const a = P(x, y0, z0), b = P(x, y1, z1), g = ctx.createLinearGradient(a[0] - a[2] * w / 2, 0, a[0] + a[2] * w / 2, 0); g.addColorStop(0, shade('#b8bdc5', base * 0.8)); g.addColorStop(0.5, shade('#c9ced5', base * 1.05)); g.addColorStop(1, shade('#b8bdc5', base * 0.78)); fill = g; }
+      if (!ok(Math.min(z0, z1))) continue;
+      const base = 0.72 + 0.5 * Math.sin(a0);
+      let fill = shade(conc, base);
+      if (real) { const a = P(x, y0, z0), g = ctx.createLinearGradient(a[0] - a[2] * w / 2, 0, a[0] + a[2] * w / 2, 0); g.addColorStop(0, shade(conc, base * 0.78)); g.addColorStop(0.5, shade(conc, base * 1.08)); g.addColorStop(1, shade(conc, base * 0.76)); fill = g; }
       poly([[x - w / 2, y0, z0], [x + w / 2, y0, z0], [x + w / 2, y1, z1], [x - w / 2, y1, z1]], fill);
-      if (i % 3 === 0) { const a = P(x - w / 2, y0, z0), b = P(x + w / 2, y0, z0); ctx.strokeStyle = 'rgba(40,44,52,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
     }
-    // neon strips down both edges and the white centre line, each drawn as one smooth line over the whole curve
-    const vis = pts.filter((q) => q[1] > ZN + 0.2);
-    if (vis.length > 1) {
-      const sNear = P(x, vis[0][0], vis[0][1])[2];
-      for (const [ex, kind] of [[-w / 2, 1], [w / 2, 1], [0, 0]]) {
-        ctx.beginPath(); vis.forEach(([py, pz], i) => { const q = P(x + ex, py, pz); if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); });
-        ctx.lineJoin = 'round'; ctx.lineCap = 'butt';
-        if (kind) {
-          ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(${edge},.3)`; ctx.lineWidth = clamp(sNear * 0.22, 3, 16); ctx.stroke(); ctx.restore();
-          ctx.strokeStyle = `rgb(${edge})`; ctx.lineWidth = clamp(sNear * 0.06, 1.5, 5); ctx.stroke();
-        } else { ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = clamp(sNear * 0.025, 1, 2.5); ctx.stroke(); }
+    // yellow-and-black hazard band where the ramp meets the road
+    if (ok(o.z)) { const k = 8, z1 = o.z + 0.45; for (let j = 0; j < k; j++) { const l = x - w / 2 + j * w / k; poly([[l, 0.01, o.z], [l + w / k, 0.01, o.z], [l + w / k, 0.07, z1], [l, 0.07, z1]], j % 2 ? '#16181c' : '#f2c230'); } }
+    // painted arrows pointing up the ramp
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (const i of [3, 8, 13]) {
+      const [ya, za] = pts[i], [yb, zb] = pts[i + 2]; if (!ok(za)) continue;
+      const l = P(x - 0.55, ya, za), m = P(x, yb, zb), rr = P(x + 0.55, ya, za);
+      ctx.strokeStyle = `rgba(${edge},${real ? 0.85 : 0.7})`; ctx.lineWidth = Math.max(1.5, l[2] * 0.12);
+      ctx.beginPath(); ctx.moveTo(l[0], l[1]); ctx.lineTo(m[0], m[1]); ctx.lineTo(rr[0], rr[1]); ctx.stroke();
+    }
+    // neon strips down both edges, each one smooth line over the whole curve
+    if (prof.length > 1) {
+      const sNear = P(x, prof[0][0], prof[0][1])[2];
+      for (const ex of [-w / 2, w / 2]) {
+        ctx.beginPath(); prof.forEach(([py, pz], i) => { const q = P(x + ex, py, pz); if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); });
+        ctx.lineCap = 'butt';
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(${edge},${real ? 0.4 : 0.3})`; ctx.lineWidth = clamp(sNear * 0.2, 3, 14); ctx.stroke(); ctx.restore();
+        ctx.strokeStyle = `rgb(${edge})`; ctx.lineWidth = clamp(sNear * 0.06, 1.5, 5); ctx.stroke();
       }
     }
-    // the lip at the very top, where the car leaves the ramp
-    const [ty, tzz] = pts[N]; if (tzz > ZN + 0.3) { const a = P(x - w / 2, ty, tzz), b = P(x + w / 2, ty + 0.25, tzz); ctx.fillStyle = '#4a4f58'; ctx.fillRect(a[0], a[1] - (b[1] - a[1]), b[0] - a[0], Math.abs(b[1] - a[1]) + 1); }
+    // steel lip at the top with a row of lights, where the car takes off
+    if (ok(zEnd)) {
+      poly([[x - w / 2, hTop, zEnd], [x + w / 2, hTop, zEnd], [x + w / 2, hTop + 0.16, zEnd], [x - w / 2, hTop + 0.16, zEnd]], real ? '#6a717c' : '#4a4f58');
+      if (real) { const a = P(x - w / 2, hTop + 0.16, zEnd), b = P(x + w / 2, hTop + 0.16, zEnd); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(a[0], a[1], b[0] - a[0], Math.max(1, a[2] * 0.03)); }
+      for (let j = 0; j < 5; j++) { const q = P(x - w / 2 + (j + 0.5) * w / 5, hTop + 0.08, zEnd); ctx.fillStyle = `rgb(${edge})`; ctx.fillRect(q[0] - q[2] * 0.08, q[1] - q[2] * 0.04, q[2] * 0.16, q[2] * 0.08); if (real && !SET.low) glow(q[0], q[1], q[2] * 0.5, 0.5); }
+    }
   }
   // ---------- Waymo Way / Optimus Outpost ----------
   const ZTEAL = '0,224,198', ZRED = '227,25,55';
@@ -3674,7 +3703,15 @@ html, body { background: #26222c !important; }
       ctx.strokeStyle = 'rgba(155,225,93,.55)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.ellipse(c[0], c[1], r * 1.1, r * 0.55, 0, 0, Math.PI * 2); ctx.stroke();
     }
-    if (ride) { drawPitchedCar(ride.pitch); ctx.restore(); return; }
+    if (ride) {
+      // the real car the whole way: on the kicker it casts its shadow on the ramp, in the air it rolls over with the thrusters lighting
+      if (ride.air) {
+        if (ride.lit) drawThrust();
+        const c = P(pl.x, pl.y + 0.55, 1.6); ctx.translate(c[0], c[1]); ctx.rotate(ride.roll); ctx.translate(-c[0], -c[1]);
+        drawCar(pl.x, pl.y, 0, pl.col, ROADSTER, false, null);
+      } else drawCar(pl.x, pl.y, 0, pl.col, ROADSTER, false, pl.y);
+      ctx.restore(); return;
+    }
     if (!pl.grounded && (mode === 'play' || mode === 'intro') && pl.rollT <= 0) drawThrust();
     if (pl.rollT > 0) {
       const c = P(pl.x, pl.y + 0.55, 1.6);
@@ -3687,49 +3724,6 @@ html, body { background: #26222c !important; }
     ctx.restore();
   }
 
-  // the car seen from behind while it pitches nose-up and over: the underside (with its thruster ports) and the tail
-  // while climbing, the nose when upside down, then the roof as it comes back round
-  function drawPitchedCar(p) {
-    const c = P(pl.x, pl.y + 0.55, 1.85), u = c[2], sn = Math.sin(p), cs = Math.cos(p), col = pl.col;
-    const w = ROADSTER.w * u, ph = 3.7 * Math.abs(sn) * u * 0.62, eh = 1.05 * Math.abs(cs) * u, x0 = c[0] - w / 2, top = c[1] - ph / 2, bot = c[1] + ph / 2;
-    if (ph > 1) {
-      if (sn > 0) {
-        rrect(x0, top, w, ph, Math.min(ph, w) * 0.18); ctx.fillStyle = '#23262c'; ctx.fill();
-        ctx.fillStyle = '#2f333a'; ctx.fillRect(x0 + w * 0.1, top + ph * 0.08, w * 0.8, ph * 0.84);
-        ctx.fillStyle = '#0b0c0f';
-        for (const fx of [0.02, 0.86]) for (const fy of [0.1, 0.72]) ctx.fillRect(x0 + w * fx, top + ph * fy, w * 0.12, ph * 0.18);
-        // three thruster ports glowing blue
-        for (const fy of [0.28, 0.5, 0.72]) {
-          const px = c[0], py = top + ph * fy, pr = Math.max(2, Math.min(w * 0.09, ph * 0.08));
-          glow(px, py, pr * 4, 0.7);
-          ctx.fillStyle = '#9fd0ff'; ctx.beginPath(); ctx.ellipse(px, py, pr, pr * Math.max(0.3, Math.abs(sn)), 0, 0, Math.PI * 2); ctx.fill();
-        }
-      } else {
-        // roof seen from above: long hood, dark glass canopy, short rear deck with the light bar
-        rrect(x0, top, w, ph, Math.min(ph, w) * 0.22); ctx.fillStyle = col; ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(x0 + w * 0.47, top + ph * 0.05, w * 0.06, ph * 0.9);
-        ctx.fillStyle = '#12161e'; ctx.beginPath();
-        ctx.moveTo(x0 + w * 0.3, top + ph * 0.3); ctx.lineTo(x0 + w * 0.7, top + ph * 0.3); ctx.lineTo(x0 + w * 0.8, top + ph * 0.62); ctx.lineTo(x0 + w * 0.2, top + ph * 0.62); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#ff2a3a'; ctx.fillRect(x0 + w * 0.04, top + ph * 0.93, w * 0.92, Math.max(1, ph * 0.035));
-      }
-    }
-    if (eh > 1) {
-      if (cs > 0) {
-        // tail: light bar and the dark rear glass
-        const y0 = sn >= 0 ? bot : top - eh;
-        ctx.fillStyle = shade(col, 0.85); ctx.fillRect(x0, y0, w, eh);
-        ctx.fillStyle = '#12161e'; ctx.fillRect(x0 + w * 0.15, y0 + (sn >= 0 ? eh * 0.6 : 0), w * 0.7, eh * 0.4);
-        ctx.fillStyle = '#ff2a3a'; ctx.fillRect(x0, y0 + eh * (sn >= 0 ? 0.25 : 0.6), w, Math.max(1, eh * 0.12));
-      } else {
-        // nose, upside down: headlight strip
-        const y0 = sn >= 0 ? top - eh : bot;
-        ctx.fillStyle = shade(col, 0.95); ctx.fillRect(x0, y0, w, eh);
-        ctx.fillStyle = '#f4f8ff'; ctx.fillRect(x0 + w * 0.05, y0 + eh * 0.55, w * 0.9, Math.max(1, eh * 0.1));
-        ctx.fillStyle = '#16181d'; ctx.fillRect(x0 + w * 0.25, y0 + eh * 0.15, w * 0.5, eh * 0.18);
-      }
-    }
-    if (SET.real && ph > 1) { const sg = ctx.createLinearGradient(x0, 0, x0 + w, 0); sg.addColorStop(0, 'rgba(0,0,0,.25)'); sg.addColorStop(0.35, 'rgba(255,255,255,.18)'); sg.addColorStop(0.6, 'rgba(255,255,255,0)'); sg.addColorStop(1, 'rgba(0,0,0,.3)'); rrect(x0, top, w, ph, Math.min(ph, w) * 0.2); ctx.fillStyle = sg; ctx.fill(); }
-  }
   // white exhaust columns that pour down to the ground and trail back, like the launch photos
   function drawThrust() {
     const fly = pw.fly > 0, gy = pl.ground;

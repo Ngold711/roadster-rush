@@ -25,7 +25,7 @@ Every in-game element has both versions. When adding something new, add it here 
 | Campaign billboards | `drawBillboard` | `drawBillboardReal` (steel, catwalk, floodlights) |
 | Wanted signs / wall posters | flat | light vignette / wall shading |
 | Tunnels (Loop, lava tube) | neon rings | + glow halos, light on road |
-| Launch ramp + flip | flat | concrete gradient, floodlights, car sheen |
+| Launch kicker ramp + free ride (barrel roll, 5 s over traffic) | flat concrete, neon edges, hazard band, arrows, braced sides, lit lip | concrete gradient, shaded sides, lip sheen + glowing lip lights, floodlights, car sheen; Mars: red-tan concrete, orange neon, rust sides |
 | Barriers, walls, ramps | flat | gloss, soft shadows, lamp glow |
 | Cells, power-ups, rings, letters | flat | glow + glassy highlights |
 | Drones, sky rocket | flat | gloss, beacon / exhaust glow |
