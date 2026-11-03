@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '81';
+window.BUILD = '82';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -3559,10 +3559,9 @@ html, body { background: #26222c !important; }
       const D = driverOf(), hd = at(-0.33, 0.7), hr = hd[2] * 0.13;
       ctx.globalAlpha = 0.5; ctx.fillStyle = D.hairStyle === 'shaq' ? D.skin : D.hair; ctx.beginPath(); ctx.ellipse(hd[0], hd[1], hr * 0.85, hr, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
     }
-    // reflections: a soft sky band, a sharp diagonal glint, and a few warm street lights
+    // reflections: a soft sky band and a sharp diagonal glint
     const sky = ctx.createLinearGradient(0, top, 0, top + Hd * 0.45); sky.addColorStop(0, 'rgba(170,190,220,.28)'); sky.addColorStop(1, 'rgba(170,190,220,0)'); ctx.fillStyle = sky; ctx.fillRect(L, top, Wd, Hd * 0.45);
     ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.beginPath(); ctx.moveTo(L + Wd * 0.58, top); ctx.lineTo(L + Wd * 0.7, top); ctx.lineTo(L + Wd * 0.46, bot); ctx.lineTo(L + Wd * 0.38, bot); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(255,210,150,.35)'; for (let i = 0; i < 6; i++) { const fx = ((i * 37 + Math.floor(traveled / 9) * 13) % 100) / 100; ctx.fillRect(L + Wd * fx, top + Hd * (0.2 + (i % 3) * 0.08), Math.max(1, Wd * 0.012), Math.max(1, Hd * 0.04)); }
     ctx.restore();
     ctx.strokeStyle = 'rgba(4,6,10,.9)'; ctx.lineWidth = Math.max(1, Wd * 0.012); ctx.beginPath(); q.forEach((v, i) => (i ? ctx.lineTo(v[0], v[1]) : ctx.moveTo(v[0], v[1]))); ctx.closePath(); ctx.stroke();
   }
