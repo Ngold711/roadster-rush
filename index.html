@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '73';
+window.BUILD = '74';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -3266,13 +3266,19 @@ html, body { background: #26222c !important; }
       }
       for (const sx of [-1, 1]) drawBox(x + sx * (m.w / 2 - 0.08), y + bodyTop - 0.12, y + bodyTop + 0.06, z + 0.3, z + 0.6, 0.16, '#1b1d22', '#2a2d33', '#141519');
     }
-    if (roadster && mode !== 'intro' && !(mode === 'dying' && deathT > 0.6) && z + 1.9 > ZN) {
-      const hd = P(x - 0.3, y + cabTop - 0.14, z + 1.9), hr = hd[2] * 0.15;
-      ctx.fillStyle = driverOf().hair; ctx.beginPath(); ctx.ellipse(hd[0], hd[1], hr * 0.9, hr * 0.8, 0, 0, Math.PI * 2); ctx.fill();
-    }
     if (z + slope > ZN) {
       const zs = z + slope, zc = z + cab0, edge = shade(col, roadster ? 1.1 : 1.0);
       poly([[x - w / 2 + 0.14, y + bodyTop, zs], [x + w / 2 - 0.14, y + bodyTop, zs], [x + cabW / 2, y + cabTop, zc], [x - cabW / 2, y + cabTop, zc]], '#1a1f2a');
+      if (roadster && mode !== 'intro' && !(mode === 'dying' && deathT > 0.6)) {
+        // the driver's head seen through the rear glass, clipped to the glass so nothing pokes out of the roof
+        const q = [[x - w / 2 + 0.14, y + bodyTop, zs], [x + w / 2 - 0.14, y + bodyTop, zs], [x + cabW / 2, y + cabTop, zc], [x - cabW / 2, y + cabTop, zc]].map((v) => P(v[0], v[1], v[2]));
+        const D = driverOf(), hd = P(x - 0.28, y + bodyTop + (cabTop - bodyTop) * 0.55, zs + (zc - zs) * 0.55), hr = hd[2] * 0.15;
+        ctx.save(); ctx.beginPath(); q.forEach((v, i) => (i ? ctx.lineTo(v[0], v[1]) : ctx.moveTo(v[0], v[1]))); ctx.closePath(); ctx.clip();
+        ctx.fillStyle = D.jacket; ctx.fillRect(hd[0] - hr * 1.4, hd[1] + hr * 0.7, hr * 2.8, hr * 2);
+        ctx.fillStyle = D.hairStyle === 'shaq' ? D.skin : D.hair; ctx.beginPath(); ctx.ellipse(hd[0], hd[1], hr * 0.85, hr * 0.95, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = SET.real ? 'rgba(18,22,32,.4)' : 'rgba(18,22,32,.25)'; ctx.fillRect(q[3][0] - 2, q[3][1] - 2, q[1][0] - q[3][0] + 4, q[1][1] - q[3][1] + 4);
+        ctx.restore();
+      }
       if (SET.real) {
         // a band of reflected street light across the rear glass
         const at = (u, sx) => [x + sx * ((w / 2 - 0.14) * (1 - u) + (cabW / 2) * u), y + bodyTop + (cabTop - bodyTop) * u, zs + (zc - zs) * u];
