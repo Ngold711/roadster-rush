@@ -29,7 +29,8 @@ Every in-game element has both versions. When adding something new, add it here 
 | Barriers, walls, ramps | flat | gloss, soft shadows, lamp glow |
 | Cells, power-ups, rings, letters | flat | glow + glassy highlights |
 | Drones, sky rocket | flat | gloss, beacon / exhaust glow |
-| People (drivers, Zuck, Optimus) | flat | `volRect` shading, face highlight |
+| Drivers (Elon, Sam, Trump, LeBron, Shaq, McGregor) in intro + arrest | cartoon `drawMan` + `drawHead` | rounded side-lit clothing + detailed `drawRealHead` (per-driver hair, eyes, beards, moods); Mars: bubble helmet. Garage preview stays cartoon |
+| Other people (traffic drivers, Optimus) | flat | `volRect` shading, face highlight |
 | Zuck (window lean-out, headset attack, arrest) | original cartoon cop everywhere (cap, badge, simple face; `drawCop`, `drawCopHeadClassic`) | detailed Zuck everywhere (`drawZuckHead` + `drawCopReal` full body: shaded tee, badge, jeans, sneakers; siren rim light in the window); Mars: glass bubble helmet |
 | Meta Quest headsets | flat | glossy shell, logo glow |
 | Waymo Way / Optimus Outpost | teal / red theme | lit arch with light cone, glossy signs, billboard wash, shaded graffiti, road light pools |
