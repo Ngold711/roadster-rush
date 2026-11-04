@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '92';
+window.BUILD = '93';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -1379,7 +1379,8 @@ html, body { background: #26222c !important; }
   function rollCrate() {
     const pool = [];
     for (const cat of ['paint', 'design', 'smoke', 'driver']) for (const p of SHOP[cat]) if (p.cost > 0 && !save.owned.includes(p.id)) pool.push({ cat, p, w: (cat === 'driver' ? 0.6 : 1) / p.cost });
-    if (pool.length && Math.random() < 0.4) {
+    // always something you don't own yet; kWh only once you own everything
+    if (pool.length) {
       let r = Math.random() * pool.reduce((a, q) => a + q.w, 0), it = pool[0];
       for (const q of pool) { r -= q.w; if (r <= 0) { it = q; break; } }
       save.owned.push(it.p.id); persist();
@@ -3223,11 +3224,13 @@ html, body { background: #26222c !important; }
   const crateT = () => (performance.now() - CR.t0) / 1000 - (CR.O || 0);
   const avImgs = {};
   const avatarImg = (D) => { if (!avImgs[D.id]) { const im = new Image(); im.src = avatarURL(D); avImgs[D.id] = im; } return avImgs[D.id]; };
-  // a filler card with the same shape of odds as a real crate (nothing is granted)
+  // a filler card for the strip (nothing is granted). It only shows things this crate could have given you:
+  // items you didn't own before the spin, or kWh amounts once you own everything
   function sampleCard(rarOnly) {
-    const items = []; for (const cat of ['paint', 'design', 'smoke', 'driver']) for (const p of SHOP[cat]) if (p.cost > 0) items.push({ cat, p, w: (cat === 'driver' ? 0.6 : 1) / p.cost });
-    if (rarOnly) { const pool = items.filter((q) => prizeRar(q) === rarOnly); if (pool.length) { const q = pick(pool); return { cat: q.cat, p: q.p }; } }
-    if (Math.random() < 0.4) { let r = Math.random() * items.reduce((a, q) => a + q.w, 0); for (const q of items) { r -= q.w; if (r <= 0) return { cat: q.cat, p: q.p }; } }
+    const won = CR.prize && CR.prize.p ? CR.prize.p.id : null, items = [];
+    for (const cat of ['paint', 'design', 'smoke', 'driver']) for (const p of SHOP[cat]) if (p.cost > 0 && (!save.owned.includes(p.id) || p.id === won)) items.push({ cat, p, w: (cat === 'driver' ? 0.6 : 1) / p.cost });
+    if (rarOnly) { const pool = items.filter((q) => prizeRar(q) === rarOnly); if (pool.length) { const q = pick(pool); return { cat: q.cat, p: q.p }; } return null; }
+    if (items.length) { let r = Math.random() * items.reduce((a, q) => a + q.w, 0); for (const q of items) { r -= q.w; if (r <= 0) return { cat: q.cat, p: q.p }; } return { cat: items[0].cat, p: items[0].p }; }
     const r = Math.random(); return { kwh: r < 0.4 ? 150 : r < 0.7 ? 250 : r < 0.9 ? 500 : r < 0.98 ? 1000 : 2500 };
   }
   function crateIdle() {
@@ -3244,7 +3247,7 @@ html, body { background: #26222c !important; }
     CR.cards = []; for (let i = 0; i < 48; i++) CR.cards.push(sampleCard());
     CR.win = 40; CR.cards[CR.win] = prize;
     // a near miss now and then: something rarer sitting right next to the winner
-    if (CR.rar !== 'legendary' && Math.random() < 0.5) CR.cards[CR.win + (Math.random() < 0.5 ? 1 : -1)] = sampleCard('legendary');
+    if (CR.rar !== 'legendary' && Math.random() < 0.5) { const nm = sampleCard('legendary'); if (nm) CR.cards[CR.win + (Math.random() < 0.5 ? 1 : -1)] = nm; }
     CR.land = (Math.random() - 0.5) * 0.6;
     CR.sparks = Array.from({ length: 140 }, () => ({ a: Math.random() * 6.283, v: 60 + Math.random() * 260, s: 1 + Math.random() * 2.6, up: Math.random() * 120 }));
     $('cOpen').hidden = true; $('cEquip').hidden = true; $('cText').textContent = `${info.w} · charging the Roadster…`;
