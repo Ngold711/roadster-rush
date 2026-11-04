@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '88';
+window.BUILD = '89';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -4009,20 +4009,26 @@ html, body { background: #26222c !important; }
   function drawChaser() {
     drawCyber(chaserX, chaserY, chaserZ, '#b4b8c0', true);
     // after a minor hit, as the truck pulls up beside you, Zuck leans out of the window on your side and yells at you
-    if (!boss && stumble > 0 && mode === 'play') drawZuckWindow();
+    if (!boss && mode === 'play') drawZuckWindow(); else zLean = 0;
     // during an attack Zuck stands in the bed facing you, winding up with a headset
     if (boss && chaserZ > ZN + 0.5) drawCop(chaserX + 0.1, chaserZ + 0.9, { throwing: zuckArm > 0 ? zuckArm / 0.5 : 0, hold: true }, chaserY + 1.28);
   }
 
+  let zLean = 0;
   function drawZuckWindow() {
-    const k = clamp((chaserZ + 2.5) / 2.6, 0, 1); if (k <= 0.02) return;
     const dir = pl.x >= chaserX ? 1 : -1, beltY = chaserY + 1.28, hz = chaserZ + 2.9;
-    if (hz - 0.7 <= ZN + 0.3) return;
-    const sideX = chaserX + dir * 1.075, inX = chaserX + dir * 0.78, e = k * k * (3 - 2 * k), real = SET.real, mars = onMars();
+    const sideX = chaserX + dir * 1.075, inX = chaserX + dir * 0.78;
+    // he only leans out while the truck is level on the road beside you and you can actually see that side of it;
+    // otherwise he ducks back in (eased, so he never pops)
+    const blocked = objs.some((o) => o.d && !o.sky && !o.smash && o.h > 1 && o.k !== 'cell' && Math.abs(o.x - chaserX) < 1.6 && o.z < hz && o.z + o.d > ZN);
+    const want = !blocked && stumble > 0.4 && chaserY < 0.05 && Math.abs(chaserVy) < 0.1 && dir * (cam.x - sideX) > 0.08 && hz - 0.8 > ZN + 0.3 ? clamp((chaserZ + 1.2) / 1.4, 0, 1) : 0;
+    zLean += (want - zLean) * 0.14;
+    const k = zLean; if (k <= 0.03 || hz - 0.8 <= ZN + 0.3) return;
+    const e = k * k * (3 - 2 * k), real = SET.real, mars = onMars();
     // the open driver's window cut into the slanted cab side
     const wy = (f) => beltY + 0.06 + f * 0.62, wx = (f) => sideX + (inX - sideX) * f * 0.8;
     poly([[wx(0), wy(0), hz - 0.75], [wx(0), wy(0), hz + 0.55], [wx(1), wy(1), hz + 0.35], [wx(1), wy(1), hz - 0.55]], real ? '#0b0e13' : '#151a22');
-    const hx = sideX + dir * (0.02 + 0.2 * e), hy = beltY + 0.68;
+    const hx = sideX + dir * (-0.12 + 0.2 * e), hy = beltY + 0.36 + 0.3 * e;
     const [sx, sy, u] = P(hx, hy, hz), sill = P(sideX, beltY + 0.06, hz), r = 0.34 * u;
     if (r < 3) return;
     const on = Math.floor(T * 8) % 2;
