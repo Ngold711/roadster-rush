@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '91';
+window.BUILD = '92';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -3930,7 +3930,7 @@ html, body { background: #26222c !important; }
       if (D.num) { ctx.fillStyle = D.labelCol; ctx.font = `700 ${0.2 * u}px Michroma, "Arial Black", sans-serif`; ctx.fillText(D.num, fx, fy - (1.15 + bob) * u); }
       if (D.co) { ctx.fillStyle = D.coCol; tieTxt(D.co, fy - (1.0 + bob) * u, D.tie ? 0.09 : 0.072); }
     }
-    R(-0.07, 1.42 + bob, 0.14, 0.1, SKIN);
+    if (!REAL) R(-0.07, 1.42 + bob, 0.14, 0.1, SKIN);
     if (D.tie) {
       // white collar points and the tie knot sit over the neck
       ctx.fillStyle = TEE; ctx.beginPath(); ctx.moveTo(fx - 0.11 * u, fy - (1.53 + bob) * u); ctx.lineTo(fx, fy - (1.43 + bob) * u); ctx.lineTo(fx - 0.02 * u, fy - (1.5 + bob) * u); ctx.closePath(); ctx.fill();
@@ -3962,7 +3962,7 @@ html, body { background: #26222c !important; }
       }
     }
     const mood = pose.cuffed ? D.caughtMood : D.mood;
-    if (REAL) drawRealHead(ctx, fx, fy - (1.74 + bob) * u, 0.2 * u, D, mood, { helmet: onMars() });
+    if (REAL) drawRealHead(ctx, fx, fy - (1.71 + bob) * u, 0.215 * u * Math.sqrt(wk), D, mood, { helmet: onMars() });
     else drawHead(ctx, fx, fy, u, D, 1.72 + bob, mood);
   }
   // Realistic driver heads (screen space: head centre cx,cy, radius r). One drawer for every driver: shaded skin, textured hair
