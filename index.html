@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '89';
+window.BUILD = '90';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -1616,6 +1616,7 @@ html, body { background: #26222c !important; }
   // officer: a Zuckerberg-style cartoon in his grey tee (META across the chest), jeans, police cap and badge
   function drawCop(x, z, pose, y = 0) {
     if (z <= ZN) return;
+    if (SET.real) { drawCopReal(x, z, pose, y); return; }
     const [fx, fy, u] = P(x, y, z);
     const SKIN = '#f0cdb5', TEE = '#8d929c', JEANS = '#2c3a55', HAIR = '#7a5a3c', NAVY = '#1d2a4a';
     const R = (dx, dy, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(fx + dx * u, fy - (dy + h) * u, w * u, h * u); if (SET.real) volRect(ctx, fx + dx * u, fy - (dy + h) * u, w * u, h * u); };
@@ -1652,6 +1653,70 @@ html, body { background: #26222c !important; }
     R(-0.17, 1.76, 0.34, 0.12, NAVY); R(-0.2, 1.74, 0.4, 0.04, '#0d0e11'); R(-0.03, 1.8, 0.06, 0.05, '#e8c25a');
     ctx.fillStyle = '#4a5a6a'; ctx.beginPath(); ctx.arc(fx - 0.05 * u, fy - 1.64 * u, 0.018 * u, 0, Math.PI * 2); ctx.arc(fx + 0.05 * u, fy - 1.64 * u, 0.018 * u, 0, Math.PI * 2); ctx.fill();
     R(-0.045, 1.55, 0.09, 0.014, '#9a5a4e');
+  }
+
+  // Realistic officer: the same Zuck as the window close-up (shaded face, curls, grey tee), now full body: shaded tee with ZUCK / META
+  // and a gold badge, belted jeans with seams, white sneakers, shaded arms. On Mars he wears the glass bubble helmet.
+  function drawCopReal(x, z, pose, y = 0) {
+    const [fx, fy, u] = P(x, y, z), mars = onMars();
+    const SK = '#e2b093', SKD = '#c48a6c';
+    const sw = pose.walk ? Math.sin(pose.walk) * 0.07 : 0;
+    if (!y) { const g = ctx.createRadialGradient(fx, fy, 0, fx, fy, 0.42 * u); g.addColorStop(0, 'rgba(8,4,12,.55)'); g.addColorStop(1, 'rgba(8,4,12,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(fx, fy, 0.42 * u, 0.1 * u, 0, 0, Math.PI * 2); ctx.fill(); }
+    const X = (dx) => fx + dx * u, Y = (dy) => fy - dy * u;
+    const hg = (x0, x1, c0, c1, c2) => { const g = ctx.createLinearGradient(X(x0), 0, X(x1), 0); g.addColorStop(0, c0); g.addColorStop(0.45, c1); g.addColorStop(1, c2); return g; };
+    // legs: jeans with a lit centre and a seam, white sneakers
+    for (const [lx, s] of [[-0.18 + sw, 1], [0.03 - sw, -1]]) {
+      rrect(X(lx), Y(0.88), 0.15 * u, 0.84 * u, 0.03 * u); ctx.fillStyle = hg(lx, lx + 0.15, '#1d2840', '#3a4d70', '#1a2338'); ctx.fill();
+      ctx.strokeStyle = 'rgba(200,170,110,.35)'; ctx.lineWidth = Math.max(1, u * 0.008); ctx.beginPath(); ctx.moveTo(X(lx + 0.075), Y(0.86)); ctx.lineTo(X(lx + 0.075), Y(0.1)); ctx.stroke();
+      rrect(X(lx - 0.03), Y(0.09), 0.21 * u, 0.09 * u, 0.035 * u); ctx.fillStyle = hg(lx - 0.03, lx + 0.18, '#d9dadd', '#ffffff', '#c9cbd0'); ctx.fill();
+      ctx.fillStyle = '#9a9ca2'; ctx.fillRect(X(lx - 0.03), Y(0.015), 0.21 * u, 0.015 * u);
+    }
+    // tee: rounded torso with folds and shading
+    rrect(X(-0.27), Y(1.46), 0.54 * u, 0.66 * u, 0.08 * u); ctx.fillStyle = hg(-0.27, 0.27, '#6c717b', '#a3a8b1', '#646973'); ctx.fill();
+    ctx.strokeStyle = 'rgba(40,44,52,.25)'; ctx.lineWidth = Math.max(1, u * 0.01);
+    for (const [a, b] of [[-0.15, 1.0], [0.12, 0.95]]) { ctx.beginPath(); ctx.moveTo(X(a), Y(b)); ctx.quadraticCurveTo(X(a + 0.05), Y(b - 0.08), X(a + 0.02), Y(b - 0.14)); ctx.stroke(); }
+    // belt
+    ctx.fillStyle = '#17181c'; ctx.fillRect(X(-0.27), Y(0.86), 0.54 * u, 0.06 * u); ctx.fillStyle = '#c9a24a'; ctx.fillRect(X(-0.04), Y(0.86), 0.08 * u, 0.06 * u);
+    // gold police badge with a glint
+    ctx.fillStyle = '#e8c25a'; ctx.beginPath(); ctx.moveTo(X(-0.2), Y(1.27)); ctx.lineTo(X(-0.13), Y(1.27)); ctx.lineTo(X(-0.13), Y(1.2)); ctx.quadraticCurveTo(X(-0.165), Y(1.15), X(-0.2), Y(1.2)); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillRect(X(-0.19), Y(1.26), 0.02 * u, 0.02 * u);
+    if (u > 40) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#f4f5f7'; ctx.font = `700 ${0.11 * u}px "Saira Semi Condensed", sans-serif`; ctx.fillText('ZUCK', fx, Y(1.335) + 0.01 * u);
+      ctx.fillStyle = '#2f86ff'; ctx.font = `700 ${0.072 * u}px "Saira Semi Condensed", sans-serif`; ctx.fillText('M E T A', fx, Y(1.0));
+    }
+    const arm = (sx, top, len, side) => {
+      // sleeve then a shaded forearm and hand
+      rrect(X(sx), Y(top), 0.12 * u, 0.21 * u, 0.04 * u); ctx.fillStyle = hg(sx, sx + 0.12, '#666b75', '#9ba0a9', '#5f646e'); ctx.fill();
+      const fa = mars ? ['#cfd4dc', '#f1f3f6', '#c4c9d2'] : [SKD, SK, SKD];
+      rrect(X(sx + 0.01), Y(top - 0.17), 0.1 * u, len * u, 0.045 * u); ctx.fillStyle = hg(sx + 0.01, sx + 0.11, fa[0], fa[1], fa[2]); ctx.fill();
+    };
+    arm(-0.37, 1.43 - sw, 0.4, -1);
+    const k = pose.throwing || 0;
+    if (!pose.hold) arm(0.25, 1.43 + sw, 0.4, 1);
+    drawZuckHead(ctx, fx, Y(1.66), 0.19 * u, { real: true, look: 0, yell: pose.hold ? 0.7 + 0.3 * Math.sin(T * 9) : 0, helmet: mars, noShoulders: true });
+    if (pose.hold) {
+      // right arm up over his head with the next headset, swinging forward as he throws
+      const ay = 1.5 + 0.35 * (1 - k);
+      rrect(X(0.25), Y(1.46), 0.12 * u, 0.22 * u, 0.04 * u); ctx.fillStyle = hg(0.25, 0.37, '#666b75', '#9ba0a9', '#5f646e'); ctx.fill();
+      rrect(X(0.265), Y(ay + 0.02), 0.095 * u, (ay - 1.28) * u, 0.045 * u); ctx.fillStyle = hg(0.265, 0.36, mars ? '#cfd4dc' : SKD, mars ? '#f1f3f6' : SK, mars ? '#c4c9d2' : SKD); ctx.fill();
+      if (k < 0.6) drawQuestAt(fx + 0.32 * u, fy - (ay + 0.15) * u, u * 0.28, -0.25);
+    }
+  }
+  // Classic window close-up: the original cartoon officer (cap, badge, simple face) leaning out, in screen space
+  function drawCopHeadClassic(c, cx, cy, r, o) {
+    const q = r / 0.17, SKIN = '#f0cdb5', TEE = '#8d929c', HAIR = '#7a5a3c', NAVY = '#1d2a4a', yell = o.yell || 0;
+    const R = (dx, dy, w, h, col) => { c.fillStyle = col; c.fillRect(cx + dx * q, cy - (dy + h) * q, w * q, h * q); };
+    // shoulders, neck, head and ears (same proportions as the full-size officer, head centre at 0)
+    R(-0.26, -0.5, 0.52, 0.32, TEE); R(-0.26, -0.22, 0.52, 0.05, '#1a1c22'); R(-0.23, -0.47, 0.07, 0.08, '#e8c25a');
+    R(-0.06, -0.22, 0.12, 0.08, SKIN);
+    c.fillStyle = SKIN; c.beginPath(); c.ellipse(cx, cy, 0.14 * q, 0.17 * q, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx - 0.14 * q, cy, 0.03 * q, 0, Math.PI * 2); c.arc(cx + 0.14 * q, cy, 0.03 * q, 0, Math.PI * 2); c.fill();
+    R(-0.15, 0.06, 0.3, 0.07, HAIR); R(-0.15, -0.04, 0.03, 0.12, HAIR); R(0.12, -0.04, 0.03, 0.12, HAIR);
+    R(-0.17, 0.12, 0.34, 0.12, NAVY); R(-0.2, 0.1, 0.4, 0.04, '#0d0e11'); R(-0.03, 0.16, 0.06, 0.05, '#e8c25a');
+    c.fillStyle = '#4a5a6a'; c.beginPath(); c.arc(cx - 0.05 * q, cy, 0.018 * q, 0, Math.PI * 2); c.arc(cx + 0.05 * q, cy, 0.018 * q, 0, Math.PI * 2); c.fill();
+    if (yell > 0.05) { c.fillStyle = '#5a1e1e'; c.beginPath(); c.ellipse(cx, cy + 0.085 * q, 0.035 * q, (0.01 + 0.025 * yell) * q, 0, 0, Math.PI * 2); c.fill(); }
+    else R(-0.045, -0.09, 0.09, 0.014, '#9a5a4e');
   }
 
   function drawBusted() {
@@ -4035,16 +4100,10 @@ html, body { background: #26222c !important; }
     ctx.save();
     // only the part above the sill shows, so he's leaning out through the window
     ctx.beginPath(); ctx.rect(sx - r * 3, sy - r * 3, r * 6, sill[1] - (sy - r * 3)); ctx.clip();
-    drawZuckHead(ctx, sx, sy, r, { real, look: dir * 0.5, yell: 0.55 + 0.45 * Math.sin(T * 10), helmet: mars, rim: real ? (on ? 'rgba(255,50,70,.55)' : 'rgba(70,130,255,.55)') : null });
+    if (!real) drawCopHeadClassic(ctx, sx, sy, r * 0.75, { yell: 0.55 + 0.45 * Math.sin(T * 10) });
+    else drawZuckHead(ctx, sx, sy, r, { real, look: dir * 0.5, yell: 0.55 + 0.45 * Math.sin(T * 10), helmet: mars, rim: real ? (on ? 'rgba(255,50,70,.55)' : 'rgba(70,130,255,.55)') : null });
+
     ctx.restore();
-    // his forearm on the sill, fist out toward you
-    const a0 = P(sideX - dir * 0.05, beltY + 0.1, hz - 0.35), a1 = P(sideX + dir * (0.25 + 0.2 * e), beltY + 0.14, hz - 0.45), aw = 0.12 * u;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = real ? '#80858f' : '#8d929c'; ctx.lineWidth = aw * 1.25; ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a0[0] + (a1[0] - a0[0]) * 0.35, a0[1] + (a1[1] - a0[1]) * 0.35); ctx.stroke();
-    ctx.strokeStyle = mars ? (real ? '#d7dbe2' : '#dfe3ea') : (real ? '#dca98c' : '#eec3a7'); ctx.lineWidth = aw;
-    ctx.beginPath(); ctx.moveTo(a0[0] + (a1[0] - a0[0]) * 0.3, a0[1] + (a1[1] - a0[1]) * 0.3); ctx.lineTo(a1[0], a1[1]); ctx.stroke();
-    if (real) { ctx.strokeStyle = 'rgba(255,240,228,.35)'; ctx.lineWidth = aw * 0.3; ctx.beginPath(); ctx.moveTo(a0[0] + (a1[0] - a0[0]) * 0.35, a0[1] + (a1[1] - a0[1]) * 0.35 - aw * 0.22); ctx.lineTo(a1[0], a1[1] - aw * 0.22); ctx.stroke(); }
-    ctx.fillStyle = mars ? (real ? '#e9ecf1' : '#dfe3ea') : (real ? '#e4b497' : '#eec3a7'); ctx.beginPath(); ctx.arc(a1[0], a1[1], aw * 0.75, 0, Math.PI * 2); ctx.fill();
   }
   // Zuck leaning out of the cop truck's window, turned to look back at you (screen space: head centre cx,cy, head radius r).
   // o.look: -1..1 which way the face turns; o.yell: 0..1 mouth open; o.real: shaded Realistic; o.helmet: Mars bubble helmet.
@@ -4053,10 +4112,12 @@ html, body { background: #26222c !important; }
     const SK = '#eec3a7', SKD = '#d49b7d', SKL = '#f9ddcb', HR = '#6a4a31', HRD = '#46301f', HRL = '#8c6646', TEE = '#8d929c';
     const fx = look * r * 0.12;
     c.save(); c.translate(cx, cy); c.lineCap = 'round'; c.lineJoin = 'round';
-    // grey tee shoulders and crew neck
+    // grey tee shoulders and crew neck (skipped when a full body is drawn underneath)
+    if (!o.noShoulders) {
     const sh = new Path2D(); sh.moveTo(-r * 1.25, r * 1.6); sh.quadraticCurveTo(-r * 1.2, r * 0.95, -r * 0.45, r * 0.88); sh.lineTo(r * 0.45, r * 0.88); sh.quadraticCurveTo(r * 1.2, r * 0.95, r * 1.25, r * 1.6); sh.closePath();
     if (real) { const g = c.createLinearGradient(-r * 1.2, 0, r * 1.2, 0); g.addColorStop(0, '#6c717b'); g.addColorStop(0.4, '#a0a5ae'); g.addColorStop(1, '#666b75'); c.fillStyle = g; } else c.fillStyle = TEE;
     c.fill(sh);
+    }
     // neck
     c.fillStyle = real ? SKD : SK; c.beginPath(); c.moveTo(-r * 0.3, r * 0.5); c.lineTo(r * 0.3, r * 0.5); c.lineTo(r * 0.33, r * 0.95); c.quadraticCurveTo(0, r * 1.08, -r * 0.33, r * 0.95); c.closePath(); c.fill();
     c.strokeStyle = real ? '#5d626b' : '#6f747d'; c.lineWidth = r * 0.07; c.beginPath(); c.moveTo(-r * 0.4, r * 0.9); c.quadraticCurveTo(0, r * 1.12, r * 0.4, r * 0.9); c.stroke();
