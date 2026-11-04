@@ -30,6 +30,7 @@ Every in-game element has both versions. When adding something new, add it here 
 | Cells, power-ups, rings, letters | flat | glow + glassy highlights |
 | Drones, sky rocket | flat | gloss, beacon / exhaust glow |
 | People (drivers, Zuck, Optimus) | flat | `volRect` shading, face highlight |
+| Zuck leaning out of the cop truck window (after a minor hit) | flat cartoon face, simple curls, grey tee | shaded skin, textured curls, detailed eyes, red/blue siren rim light; Mars: glass bubble helmet |
 | Meta Quest headsets | flat | glossy shell, logo glow |
 | Waymo Way / Optimus Outpost | teal / red theme | lit arch with light cone, glossy signs, billboard wash, shaded graffiti, road light pools |
 | Player Roadster rear (glass, tail) | simple glass + head, chunky light bar | tinted reflective glass, seat backs + faint driver, slim light bar, TESLA badge, finned diffuser |

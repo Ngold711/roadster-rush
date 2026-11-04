@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '87';
+window.BUILD = '88';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -4008,8 +4008,144 @@ html, body { background: #26222c !important; }
   }
   function drawChaser() {
     drawCyber(chaserX, chaserY, chaserZ, '#b4b8c0', true);
+    // after a minor hit, as the truck pulls up beside you, Zuck leans out of the window on your side and yells at you
+    if (!boss && stumble > 0 && mode === 'play') drawZuckWindow();
     // during an attack Zuck stands in the bed facing you, winding up with a headset
     if (boss && chaserZ > ZN + 0.5) drawCop(chaserX + 0.1, chaserZ + 0.9, { throwing: zuckArm > 0 ? zuckArm / 0.5 : 0, hold: true }, chaserY + 1.28);
+  }
+
+  function drawZuckWindow() {
+    const k = clamp((chaserZ + 2.5) / 2.6, 0, 1); if (k <= 0.02) return;
+    const dir = pl.x >= chaserX ? 1 : -1, beltY = chaserY + 1.28, hz = chaserZ + 2.9;
+    if (hz - 0.7 <= ZN + 0.3) return;
+    const sideX = chaserX + dir * 1.075, inX = chaserX + dir * 0.78, e = k * k * (3 - 2 * k), real = SET.real, mars = onMars();
+    // the open driver's window cut into the slanted cab side
+    const wy = (f) => beltY + 0.06 + f * 0.62, wx = (f) => sideX + (inX - sideX) * f * 0.8;
+    poly([[wx(0), wy(0), hz - 0.75], [wx(0), wy(0), hz + 0.55], [wx(1), wy(1), hz + 0.35], [wx(1), wy(1), hz - 0.55]], real ? '#0b0e13' : '#151a22');
+    const hx = sideX + dir * (0.02 + 0.2 * e), hy = beltY + 0.68;
+    const [sx, sy, u] = P(hx, hy, hz), sill = P(sideX, beltY + 0.06, hz), r = 0.34 * u;
+    if (r < 3) return;
+    const on = Math.floor(T * 8) % 2;
+    ctx.save();
+    // only the part above the sill shows, so he's leaning out through the window
+    ctx.beginPath(); ctx.rect(sx - r * 3, sy - r * 3, r * 6, sill[1] - (sy - r * 3)); ctx.clip();
+    drawZuckHead(ctx, sx, sy, r, { real, look: dir * 0.5, yell: 0.55 + 0.45 * Math.sin(T * 10), helmet: mars, rim: real ? (on ? 'rgba(255,50,70,.55)' : 'rgba(70,130,255,.55)') : null });
+    ctx.restore();
+    // his forearm on the sill, fist out toward you
+    const a0 = P(sideX - dir * 0.05, beltY + 0.1, hz - 0.35), a1 = P(sideX + dir * (0.25 + 0.2 * e), beltY + 0.14, hz - 0.45), aw = 0.12 * u;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = real ? '#80858f' : '#8d929c'; ctx.lineWidth = aw * 1.25; ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a0[0] + (a1[0] - a0[0]) * 0.35, a0[1] + (a1[1] - a0[1]) * 0.35); ctx.stroke();
+    ctx.strokeStyle = mars ? (real ? '#d7dbe2' : '#dfe3ea') : (real ? '#dca98c' : '#eec3a7'); ctx.lineWidth = aw;
+    ctx.beginPath(); ctx.moveTo(a0[0] + (a1[0] - a0[0]) * 0.3, a0[1] + (a1[1] - a0[1]) * 0.3); ctx.lineTo(a1[0], a1[1]); ctx.stroke();
+    if (real) { ctx.strokeStyle = 'rgba(255,240,228,.35)'; ctx.lineWidth = aw * 0.3; ctx.beginPath(); ctx.moveTo(a0[0] + (a1[0] - a0[0]) * 0.35, a0[1] + (a1[1] - a0[1]) * 0.35 - aw * 0.22); ctx.lineTo(a1[0], a1[1] - aw * 0.22); ctx.stroke(); }
+    ctx.fillStyle = mars ? (real ? '#e9ecf1' : '#dfe3ea') : (real ? '#e4b497' : '#eec3a7'); ctx.beginPath(); ctx.arc(a1[0], a1[1], aw * 0.75, 0, Math.PI * 2); ctx.fill();
+  }
+  // Zuck leaning out of the cop truck's window, turned to look back at you (screen space: head centre cx,cy, head radius r).
+  // o.look: -1..1 which way the face turns; o.yell: 0..1 mouth open; o.real: shaded Realistic; o.helmet: Mars bubble helmet.
+  function drawZuckHead(c, cx, cy, r, o) {
+    const real = o.real, look = o.look || 0, yell = o.yell || 0, H = (i) => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+    const SK = '#eec3a7', SKD = '#d49b7d', SKL = '#f9ddcb', HR = '#6a4a31', HRD = '#46301f', HRL = '#8c6646', TEE = '#8d929c';
+    const fx = look * r * 0.12;
+    c.save(); c.translate(cx, cy); c.lineCap = 'round'; c.lineJoin = 'round';
+    // grey tee shoulders and crew neck
+    const sh = new Path2D(); sh.moveTo(-r * 1.25, r * 1.6); sh.quadraticCurveTo(-r * 1.2, r * 0.95, -r * 0.45, r * 0.88); sh.lineTo(r * 0.45, r * 0.88); sh.quadraticCurveTo(r * 1.2, r * 0.95, r * 1.25, r * 1.6); sh.closePath();
+    if (real) { const g = c.createLinearGradient(-r * 1.2, 0, r * 1.2, 0); g.addColorStop(0, '#6c717b'); g.addColorStop(0.4, '#a0a5ae'); g.addColorStop(1, '#666b75'); c.fillStyle = g; } else c.fillStyle = TEE;
+    c.fill(sh);
+    // neck
+    c.fillStyle = real ? SKD : SK; c.beginPath(); c.moveTo(-r * 0.3, r * 0.5); c.lineTo(r * 0.3, r * 0.5); c.lineTo(r * 0.33, r * 0.95); c.quadraticCurveTo(0, r * 1.08, -r * 0.33, r * 0.95); c.closePath(); c.fill();
+    c.strokeStyle = real ? '#5d626b' : '#6f747d'; c.lineWidth = r * 0.07; c.beginPath(); c.moveTo(-r * 0.4, r * 0.9); c.quadraticCurveTo(0, r * 1.12, r * 0.4, r * 0.9); c.stroke();
+    if (real) { const g = c.createLinearGradient(0, r * 0.5, 0, r * 0.85); g.addColorStop(0, 'rgba(90,40,30,.5)'); g.addColorStop(1, 'rgba(90,40,30,0)'); c.fillStyle = g; c.fillRect(-r * 0.33, r * 0.5, r * 0.66, r * 0.35); }
+    // ears, sticking out a little
+    for (const s of [-1, 1]) {
+      c.fillStyle = SK; c.beginPath(); c.ellipse(s * r * 0.77 + fx * 0.3, -r * 0.02, r * 0.15, r * 0.23, s * 0.25, 0, Math.PI * 2); c.fill();
+      c.fillStyle = real ? 'rgba(160,80,60,.45)' : SKD; c.beginPath(); c.ellipse(s * r * 0.8 + fx * 0.3, 0, r * 0.065, r * 0.13, s * 0.25, 0, Math.PI * 2); c.fill();
+    }
+    // face: long, wide forehead, narrowing to a firm chin
+    const face = new Path2D();
+    face.moveTo(-r * 0.74, -r * 0.3);
+    face.bezierCurveTo(-r * 0.76, -r * 1.0, r * 0.76, -r * 1.0, r * 0.74, -r * 0.3);
+    face.bezierCurveTo(r * 0.74, r * 0.25, r * 0.5, r * 0.78, r * 0.12, r * 0.86);
+    face.quadraticCurveTo(0, r * 0.89, -r * 0.12, r * 0.86);
+    face.bezierCurveTo(-r * 0.5, r * 0.78, -r * 0.74, r * 0.25, -r * 0.74, -r * 0.3);
+    if (real) { const g = c.createRadialGradient(-r * 0.2 + fx, -r * 0.25, r * 0.08, 0, 0, r * 1.0); g.addColorStop(0, SKL); g.addColorStop(0.55, SK); g.addColorStop(1, SKD); c.fillStyle = g; } else c.fillStyle = SK;
+    c.fill(face);
+    if (real) {
+      c.save(); c.clip(face);
+      for (const s of [-1, 1]) { const g = c.createRadialGradient(s * r * 0.42 + fx, r * 0.2, 0, s * r * 0.42 + fx, r * 0.2, r * 0.24); g.addColorStop(0, 'rgba(225,120,105,.22)'); g.addColorStop(1, 'rgba(225,120,105,0)'); c.fillStyle = g; c.fillRect(-r, -r, r * 2, r * 2); }
+      let g = c.createLinearGradient(-r * 0.75, 0, r * 0.75, 0); g.addColorStop(0, 'rgba(120,60,45,.28)'); g.addColorStop(0.3, 'rgba(120,60,45,0)'); g.addColorStop(0.75, 'rgba(120,60,45,0)'); g.addColorStop(1, 'rgba(120,60,45,.3)'); c.fillStyle = g; c.fillRect(-r, -r, r * 2, r * 2);
+      g = c.createLinearGradient(0, r * 0.5, 0, r * 0.9); g.addColorStop(0, 'rgba(120,60,45,0)'); g.addColorStop(1, 'rgba(120,60,45,.3)'); c.fillStyle = g; c.fillRect(-r, r * 0.5, r * 2, r * 0.45);
+      g = c.createLinearGradient(0, -r * 0.6, 0, -r * 0.38); g.addColorStop(0, 'rgba(80,45,30,.5)'); g.addColorStop(1, 'rgba(80,45,30,0)'); c.fillStyle = g; c.fillRect(-r, -r * 0.62, r * 2, r * 0.26);
+      c.restore();
+    }
+    // Realistic: the police lights catch the edge of his face
+    if (o.rim) { c.save(); c.beginPath(); c.rect(look > 0 ? -r * 1.2 : 0, -r * 1.2, r * 1.2, r * 2.4); c.clip(); c.strokeStyle = o.rim; c.lineWidth = r * 0.07; c.stroke(face); c.restore(); }
+    // hair: short, tight curls cropped close, a straight fringe low across the forehead
+    const hair = new Path2D();
+    hair.moveTo(-r * 0.76, -r * 0.12);
+    hair.bezierCurveTo(-r * 0.86, -r * 0.8, -r * 0.5, -r * 1.04, 0, -r * 1.03);
+    hair.bezierCurveTo(r * 0.5, -r * 1.04, r * 0.86, -r * 0.8, r * 0.76, -r * 0.12);
+    hair.lineTo(r * 0.68, -r * 0.2); hair.quadraticCurveTo(r * 0.64, -r * 0.48, r * 0.5, -r * 0.52);
+    hair.lineTo(-r * 0.5 + fx, -r * 0.54); hair.quadraticCurveTo(-r * 0.64, -r * 0.48, -r * 0.68, -r * 0.2); hair.closePath();
+    c.fillStyle = HR; c.fill(hair);
+    const nB = real ? 26 : 14, br = r * (real ? 0.075 : 0.1);
+    for (let i = 0; i <= nB; i++) { const a = Math.PI * (1.1 + 0.8 * i / nB), ex = Math.cos(a) * r * 0.8, ey = -r * 0.2 + Math.sin(a) * r * 0.83; c.fillStyle = i % 2 ? HR : HRD; c.beginPath(); c.arc(ex, ey, br, 0, Math.PI * 2); c.fill(); }
+    // little curls along the fringe
+    for (let i = 0; i < (real ? 11 : 6); i++) { const k = i / ((real ? 11 : 6) - 1), px = (-0.5 + k) * r + fx * (1 - k), py = -r * 0.53; c.fillStyle = i % 2 ? HRD : HR; c.beginPath(); c.arc(px, py, r * (real ? 0.06 : 0.075), 0, Math.PI); c.fill(); }
+    if (real) {
+      c.save(); c.clip(hair);
+      for (let i = 0; i < 110; i++) { const px = (H(i) * 2 - 1) * r * 0.82, py = -r * 1.05 + H(i + 99) * r * 0.55, cr = r * (0.03 + H(i + 7) * 0.025); c.strokeStyle = H(i + 3) > 0.55 ? HRL : HRD; c.lineWidth = r * 0.022; c.beginPath(); c.arc(px, py, cr, H(i + 5) * 6, H(i + 5) * 6 + 4.4); c.stroke(); }
+      const g = c.createRadialGradient(-r * 0.3, -r * 0.92, 0, -r * 0.3, -r * 0.92, r * 0.6); g.addColorStop(0, 'rgba(255,230,200,.22)'); g.addColorStop(1, 'rgba(255,230,200,0)'); c.fillStyle = g; c.fillRect(-r, -r * 1.2, r * 2, r);
+      c.restore();
+    } else {
+      c.strokeStyle = HRD; c.lineWidth = r * 0.035;
+      for (const [px, py] of [[-0.42, -0.78], [-0.08, -0.88], [0.27, -0.82], [0.5, -0.66], [-0.6, -0.55], [0.08, -0.68], [-0.25, -0.65]]) { c.beginPath(); c.arc(px * r, py * r, r * 0.055, 0.5, 4.6); c.stroke(); }
+    }
+    // eyebrows: straight and level, lifting when he yells
+    const by = -r * (0.31 + yell * 0.05);
+    c.strokeStyle = real ? '#5c3e29' : HRD; c.lineWidth = r * 0.065;
+    for (const s of [-1, 1]) { c.beginPath(); c.moveTo(s * r * 0.13 + fx, by + r * 0.02); c.quadraticCurveTo(s * r * 0.3 + fx, by - r * 0.03, s * r * 0.47 + fx, by + r * 0.01); c.stroke(); }
+    // eyes: almond-shaped, light blue-grey, a steady stare
+    for (const s of [-1, 1]) {
+      const ex = s * r * 0.3 + fx, ey = -r * 0.15, ew = r * 0.13, eh = r * (0.058 + yell * 0.025), ix = ex + look * r * 0.035;
+      const eye = new Path2D(); eye.moveTo(ex - ew, ey); eye.quadraticCurveTo(ex, ey - eh * 2, ex + ew, ey); eye.quadraticCurveTo(ex, ey + eh * 1.6, ex - ew, ey); eye.closePath();
+      c.fillStyle = '#f7f5f0'; c.fill(eye);
+      c.save(); c.clip(eye);
+      c.fillStyle = real ? '#6b8fae' : '#5a82a6'; c.beginPath(); c.arc(ix, ey - eh * 0.1, r * 0.058, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#15171a'; c.beginPath(); c.arc(ix, ey - eh * 0.1, r * 0.027, 0, Math.PI * 2); c.fill();
+      if (real) { c.fillStyle = 'rgba(60,30,20,.25)'; c.fillRect(ex - ew, ey - eh * 2, ew * 2, eh * 0.9); }
+      c.restore();
+      c.fillStyle = '#fff'; c.beginPath(); c.arc(ix - r * 0.02, ey - eh * 0.45, r * 0.014, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = real ? 'rgba(60,32,22,.9)' : '#5e3b2c'; c.lineWidth = r * 0.03; c.beginPath(); c.moveTo(ex - ew, ey); c.quadraticCurveTo(ex, ey - eh * 2, ex + ew, ey); c.stroke();
+      if (real) { c.strokeStyle = 'rgba(140,80,60,.35)'; c.lineWidth = r * 0.018; c.beginPath(); c.moveTo(ex - ew * 0.8, ey + eh * 1.4); c.quadraticCurveTo(ex, ey + eh * 2.3, ex + ew * 0.8, ey + eh * 1.4); c.stroke(); }
+    }
+    // nose: straight and narrow
+    const nx = fx * 1.3;
+    c.strokeStyle = real ? 'rgba(150,85,65,.5)' : SKD; c.lineWidth = r * 0.035;
+    c.beginPath(); c.moveTo(nx + r * 0.05, -r * 0.1); c.quadraticCurveTo(nx + r * 0.08, r * 0.12, nx + r * 0.06, r * 0.2); c.stroke();
+    c.beginPath(); c.moveTo(nx - r * 0.08, r * 0.2); c.quadraticCurveTo(nx, r * 0.26, nx + r * 0.08, r * 0.2); c.stroke();
+    if (real) { c.fillStyle = 'rgba(120,60,45,.35)'; for (const s of [-1, 1]) { c.beginPath(); c.ellipse(nx + s * r * 0.045, r * 0.215, r * 0.022, r * 0.012, 0, 0, Math.PI * 2); c.fill(); } }
+    // mouth: his tight closed-lip half smile, or open shouting
+    const my = r * 0.46;
+    if (yell > 0.05) {
+      const oh = r * 0.04 + r * 0.11 * yell;
+      c.fillStyle = '#4e1a1a'; c.beginPath(); c.ellipse(fx, my, r * 0.17, oh, 0, 0, Math.PI * 2); c.fill();
+      c.save(); c.beginPath(); c.ellipse(fx, my, r * 0.17, oh, 0, 0, Math.PI * 2); c.clip(); c.fillStyle = '#f2efe9'; c.fillRect(fx - r * 0.17, my - oh, r * 0.34, r * 0.045); c.restore();
+      c.strokeStyle = real ? '#b56d66' : '#a35e58'; c.lineWidth = r * 0.035; c.beginPath(); c.ellipse(fx, my, r * 0.17, oh, 0, 0, Math.PI * 2); c.stroke();
+    } else {
+      c.fillStyle = real ? '#c07a70' : '#b06a62';
+      c.beginPath(); c.moveTo(fx - r * 0.19, my); c.quadraticCurveTo(fx - r * 0.05, my - r * 0.04, fx, my - r * 0.02); c.quadraticCurveTo(fx + r * 0.05, my - r * 0.04, fx + r * 0.2, my - r * 0.015);
+      c.quadraticCurveTo(fx + r * 0.02, my + r * 0.08, fx - r * 0.19, my); c.fill();
+      c.strokeStyle = real ? '#8a4a44' : '#7e4440'; c.lineWidth = r * 0.022; c.beginPath(); c.moveTo(fx - r * 0.19, my); c.quadraticCurveTo(fx, my + r * 0.012, fx + r * 0.2, my - r * 0.015); c.stroke();
+      if (real) { c.fillStyle = 'rgba(255,235,225,.3)'; c.beginPath(); c.ellipse(fx, my + r * 0.04, r * 0.07, r * 0.015, 0, 0, Math.PI * 2); c.fill(); }
+    }
+    if (o.helmet) {
+      c.fillStyle = 'rgba(190,220,255,.12)'; c.beginPath(); c.arc(0, -r * 0.08, r * 1.3, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = 'rgba(230,240,255,.8)'; c.lineWidth = Math.max(1, r * 0.05); c.stroke();
+      c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = r * 0.07; c.beginPath(); c.arc(0, -r * 0.08, r * 1.14, Math.PI * 1.15, Math.PI * 1.45); c.stroke();
+      c.fillStyle = real ? '#c9ced6' : '#b8bec8'; c.fillRect(-r * 0.8, r * 1.0, r * 1.6, r * 0.2);
+      if (real) { c.fillStyle = 'rgba(255,255,255,.4)'; c.fillRect(-r * 0.8, r * 1.0, r * 1.6, r * 0.05); }
+    }
+    c.restore();
   }
 
   // Semi tractor: tall white cab with a raked roof fairing and wraparound side glass
