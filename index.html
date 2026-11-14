@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '93';
+window.BUILD = '94';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -1709,7 +1709,7 @@ html, body { background: #26222c !important; }
     const q = r / 0.17, SKIN = '#f0cdb5', TEE = '#8d929c', HAIR = '#7a5a3c', NAVY = '#1d2a4a', yell = o.yell || 0;
     const R = (dx, dy, w, h, col) => { c.fillStyle = col; c.fillRect(cx + dx * q, cy - (dy + h) * q, w * q, h * q); };
     // shoulders, neck, head and ears (same proportions as the full-size officer, head centre at 0)
-    R(-0.26, -0.5, 0.52, 0.32, TEE); R(-0.26, -0.22, 0.52, 0.05, '#1a1c22'); R(-0.23, -0.47, 0.07, 0.08, '#e8c25a');
+    if (!o.noBody) { R(-0.26, -0.5, 0.52, 0.32, TEE); R(-0.26, -0.22, 0.52, 0.05, '#1a1c22'); R(-0.23, -0.47, 0.07, 0.08, '#e8c25a'); }
     R(-0.06, -0.22, 0.12, 0.08, SKIN);
     c.fillStyle = SKIN; c.beginPath(); c.ellipse(cx, cy, 0.14 * q, 0.17 * q, 0, 0, Math.PI * 2); c.fill();
     c.beginPath(); c.arc(cx - 0.14 * q, cy, 0.03 * q, 0, Math.PI * 2); c.arc(cx + 0.14 * q, cy, 0.03 * q, 0, Math.PI * 2); c.fill();
@@ -4247,17 +4247,50 @@ html, body { background: #26222c !important; }
     // the open driver's window cut into the slanted cab side
     const wy = (f) => beltY + 0.06 + f * 0.62, wx = (f) => sideX + (inX - sideX) * f * 0.8;
     poly([[wx(0), wy(0), hz - 0.75], [wx(0), wy(0), hz + 0.55], [wx(1), wy(1), hz + 0.35], [wx(1), wy(1), hz - 0.55]], real ? '#0b0e13' : '#151a22');
-    const hx = sideX + dir * (-0.12 + 0.2 * e), hy = beltY + 0.36 + 0.3 * e;
+    const hx = sideX + dir * (-0.12 + 0.2 * e), hy = beltY + 0.4 + 0.5 * e;
     const [sx, sy, u] = P(hx, hy, hz), sill = P(sideX, beltY + 0.06, hz), r = 0.34 * u;
     if (r < 3) return;
     const on = Math.floor(T * 8) % 2;
     ctx.save();
     // only the part above the sill shows, so he's leaning out through the window
     ctx.beginPath(); ctx.rect(sx - r * 3, sy - r * 3, r * 6, sill[1] - (sy - r * 3)); ctx.clip();
-    if (!real) drawCopHeadClassic(ctx, sx, sy, r * 0.75, { yell: 0.55 + 0.45 * Math.sin(T * 10) });
-    else drawZuckHead(ctx, sx, sy, r, { real, look: dir * 0.5, yell: 0.55 + 0.45 * Math.sin(T * 10), helmet: mars, rim: real ? (on ? 'rgba(255,50,70,.55)' : 'rgba(70,130,255,.55)') : null });
+    // his upper body comes out with him: shoulders, chest and arms, hands gripping the window ledge
+    drawZuckTorso(ctx, sx, sy, r, sill[1], real, mars);
+    if (!real) drawCopHeadClassic(ctx, sx, sy, r * 0.75, { yell: 0.55 + 0.45 * Math.sin(T * 10), noBody: true });
+    else drawZuckHead(ctx, sx, sy, r, { real, look: dir * 0.5, yell: 0.55 + 0.45 * Math.sin(T * 10), helmet: mars, noShoulders: true, rim: real ? (on ? 'rgba(255,50,70,.55)' : 'rgba(70,130,255,.55)') : null });
 
     ctx.restore();
+    // the door's window ledge across his waist ties him to the truck
+    const lw = r * 2.9, lh = Math.max(2, r * 0.16);
+    rrect(sx - lw / 2, sill[1] - lh * 0.5, lw, lh, lh * 0.4);
+    if (real) { const g = ctx.createLinearGradient(0, sill[1] - lh * 0.5, 0, sill[1] + lh * 0.5); g.addColorStop(0, '#e6e9ee'); g.addColorStop(1, '#8e939c'); ctx.fillStyle = g; } else ctx.fillStyle = '#c3c7cf';
+    ctx.fill();
+    // hands curled over the ledge
+    const hc = mars ? (real ? '#e9ecf1' : '#dfe3ea') : (real ? '#e2b093' : '#eec3a7');
+    for (const s2 of [-1, 1]) { ctx.fillStyle = hc; rrect(sx + s2 * r * 1.02 - r * 0.2, sill[1] - lh * 0.9, r * 0.4, lh * 1.3, lh * 0.5); ctx.fill(); if (real) { ctx.fillStyle = 'rgba(120,60,45,.35)'; for (let q = 1; q < 4; q++) ctx.fillRect(sx + s2 * r * 1.02 - r * 0.2 + q * r * 0.1, sill[1] - lh * 0.9, Math.max(1, r * 0.012), lh * 0.9); } }
+  }
+  // his torso in the window: grey tee (Realistic: shaded, ZUCK across the chest, gold badge; Classic: flat with the badge)
+  function drawZuckTorso(c, sx, sy, r, sillY, real, mars) {
+    const top = sy + r * 0.82, bot = sillY + r * 0.2, sw = r * 1.2, bw = r * 0.95;
+    const t = new Path2D();
+    t.moveTo(-sw, top + r * 0.35); t.quadraticCurveTo(-sw, top, -r * 0.4, top - r * 0.02); t.lineTo(r * 0.4, top - r * 0.02); t.quadraticCurveTo(sw, top, sw, top + r * 0.35);
+    t.lineTo(bw, bot); t.lineTo(-bw, bot); t.closePath();
+    c.save(); c.translate(sx, 0);
+    if (real) { const g = c.createLinearGradient(-sw, 0, sw, 0); g.addColorStop(0, '#5f646e'); g.addColorStop(0.42, '#a3a8b1'); g.addColorStop(1, '#5a5f69'); c.fillStyle = g; } else c.fillStyle = '#8d929c';
+    c.fill(t);
+    // arms hanging down the sides to the ledge: sleeves, then forearms
+    const fa = mars ? (real ? '#dfe3ea' : '#dfe3ea') : (real ? '#d6a487' : '#eec3a7');
+    for (const s2 of [-1, 1]) {
+      const ax = s2 * r * 1.02;
+      c.fillStyle = real ? '#7c818b' : '#7f848e'; rrect(ax - r * 0.2, top + r * 0.12, r * 0.4, r * 0.5, r * 0.15); c.fill();
+      c.fillStyle = fa; rrect(ax - r * 0.15, top + r * 0.55, r * 0.3, Math.max(1, bot - top - r * 0.55), r * 0.12); c.fill();
+      if (real) { c.fillStyle = 'rgba(255,240,228,.25)'; c.fillRect(ax - r * 0.1, top + r * 0.6, r * 0.06, Math.max(1, bot - top - r * 0.7)); }
+    }
+    // crew neck, badge and lettering
+    c.strokeStyle = real ? '#5d626b' : '#1a1c22'; c.lineWidth = r * 0.07; c.beginPath(); c.moveTo(-r * 0.38, top + r * 0.02); c.quadraticCurveTo(0, top + r * 0.26, r * 0.38, top + r * 0.02); c.stroke();
+    c.fillStyle = '#e8c25a'; c.beginPath(); c.moveTo(-r * 0.62, top + r * 0.35); c.lineTo(-r * 0.42, top + r * 0.35); c.lineTo(-r * 0.42, top + r * 0.52); c.quadraticCurveTo(-r * 0.52, top + r * 0.64, -r * 0.62, top + r * 0.52); c.closePath(); c.fill();
+    if (real && r > 10) { c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#f4f5f7'; c.font = `700 ${r * 0.34}px "Saira Semi Condensed", sans-serif`; c.fillText('ZUCK', r * 0.12, top + r * 0.62, r * 1.1); }
+    c.restore();
   }
   // Zuck leaning out of the cop truck's window, turned to look back at you (screen space: head centre cx,cy, head radius r).
   // o.look: -1..1 which way the face turns; o.yell: 0..1 mouth open; o.real: shaded Realistic; o.helmet: Mars bubble helmet.
