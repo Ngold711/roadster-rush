@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '102';
+window.BUILD = '103';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -801,7 +801,7 @@ html, body { background: #26222c !important; }
     // Victor Wembanyama ("Wemby"), 7'4": Spurs black #1 with silver trim, black arm sleeve on his right arm, cropped hair and a thin chin beard.
     // The tallest and skinniest driver: about a quarter taller than Elon
     { id: 'v:wemby', mood: 'grin', caughtMood: 'shock', name: 'Victor Wembanyama', cost: 110000, skin: '#bb8762', tee: '#141416', jacket: '#141416', arms: '#bb8762', legs: '#bb8762', shorts: '#141416', shoes: '#1b1b1f', hair: '#16100c', hairStyle: 'wemby',
-      label: 'SPURS', labelCol: '#f4f4f2', num: '1', co: '', coCol: '#c4ced4', piping: '#f4f4f2', wide: 0.9, tall: 1.26, headK: 0.84, headLift: 0.07, sleeve: true, longFace: true },
+      label: 'SPURS', labelCol: '#f4f4f2', num: '1', co: '', coCol: '#c4ced4', trim: '#e9ecef', wide: 0.9, tall: 1.26, headK: 0.84, headLift: 0.07, sleeve: true, longFace: true },
   ];
   const rarity = (cost) => (cost >= 30000 ? 'legendary' : cost >= 12000 ? 'epic' : cost >= 5000 ? 'rare' : 'common');
   const SHOP = { paint: PAINTS, design: DESIGNS, smoke: SMOKES, map: MAPS, driver: DRIVERS };
@@ -3996,7 +3996,7 @@ html, body { background: #26222c !important; }
       if (D.co) { ctx.fillStyle = D.coCol; tieTxt(D.co, fy - (1.0 + bob) * u, D.tie ? 0.09 : 0.072); }
     }
     // a slim neck rising out of the V-neck for the long-necked; everyone else keeps the square neck
-    if (!REAL) { if (D.longFace) R(-0.05, 1.6 + bob, 0.1, 0.06, SKIN); else R(-0.07, 1.42 + bob, 0.14, 0.1, SKIN); }
+    if (!REAL) { if (D.longFace) R(-0.05, 1.5 + bob, 0.1, 0.16, SKIN); else R(-0.07, 1.42 + bob, 0.14, 0.1, SKIN); }
     if (D.tie) {
       // white collar points and the tie knot sit over the neck
       ctx.fillStyle = TEE; ctx.beginPath(); ctx.moveTo(fx - 0.11 * u, fy - (1.53 + bob) * u); ctx.lineTo(fx, fy - (1.43 + bob) * u); ctx.lineTo(fx - 0.02 * u, fy - (1.5 + bob) * u); ctx.closePath(); ctx.fill();
