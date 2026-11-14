@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '101';
+window.BUILD = '102';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -4025,14 +4025,6 @@ html, body { background: #26222c !important; }
       if (D.tattoo) {
         // inked arms: sleeve patches from shoulder to wrist
         for (const [ax, s2] of [[-0.42, -sw], [0.3, sw]]) { RW(ax + 0.01, 1.36 + bob + s2, 0.1, 0.12, '#2c3a42'); RW(ax + 0.02, 1.2 + bob + s2, 0.06, 0.1, '#2c3a42'); RW(ax + 0.015, 1.0 + bob + s2, 0.08, 0.12, '#2c3a42'); }
-      }
-    }
-    if (D.piping && !pose.thumbs && !pose.cuffed) {
-      // rounded shoulders joining each arm to the body (tank top, so they're bare)
-      for (const s2 of [-1, 1]) {
-        const sx = fx + s2 * 0.345 * wk * u, sy = fy - (1.45 + bob + (pose.hop || pose.up ? 0.05 : 0)) * u, rx = 0.085 * wk * u, ry = 0.09 * u;
-        if (REAL) { const g = ctx.createRadialGradient(sx - s2 * rx * 0.3, sy - ry * 0.4, 0, sx, sy, rx * 1.3); g.addColorStop(0, shade(D.skin, 1.12)); g.addColorStop(1, shade(D.skin, 0.72)); ctx.fillStyle = g; } else ctx.fillStyle = D.skin;
-        ctx.beginPath(); ctx.ellipse(sx, sy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
       }
     }
     if (D.sleeve) {
