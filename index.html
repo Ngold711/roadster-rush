@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '99';
+window.BUILD = '100';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -3969,9 +3969,16 @@ html, body { background: #26222c !important; }
       // Spurs jersey: thin white piping round the V-neck and both armholes, white stripe down the shorts
       ctx.strokeStyle = D.piping; ctx.lineWidth = Math.max(1, 0.016 * u); ctx.lineJoin = 'round';
       const Px = (dx) => fx + dx * wk * u, Py = (dy) => fy - (dy + bob) * u;
-      ctx.fillStyle = D.skin; ctx.beginPath(); ctx.moveTo(Px(-0.12), Py(1.545)); ctx.lineTo(Px(0), Py(1.4)); ctx.lineTo(Px(0.12), Py(1.545)); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(Px(-0.12), Py(1.53)); ctx.lineTo(Px(0), Py(1.4)); ctx.lineTo(Px(0.12), Py(1.53)); ctx.stroke();
-      for (const s2 of [-1, 1]) { ctx.beginPath(); ctx.moveTo(Px(s2 * 0.16), Py(1.5)); ctx.quadraticCurveTo(Px(s2 * 0.2), Py(1.3), Px(s2 * 0.29), Py(1.22)); ctx.stroke(); }
+      // tank top: bare shoulders sloping up into the neck, jersey straps over them, skin inside the V
+      const skF = (x0, x1) => { if (!REAL) return D.skin; const g = ctx.createLinearGradient(Px(x0), 0, Px(x1), 0); g.addColorStop(0, shade(D.skin, 0.7)); g.addColorStop(0.45, shade(D.skin, 1.1)); g.addColorStop(1, shade(D.skin, 0.68)); return g; };
+      ctx.fillStyle = skF(-0.3, 0.3); ctx.beginPath(); ctx.moveTo(Px(-0.06), Py(1.7)); ctx.quadraticCurveTo(Px(-0.12), Py(1.6), Px(-0.27), Py(1.55)); ctx.quadraticCurveTo(Px(-0.31), Py(1.52), Px(-0.3), Py(1.44));
+      ctx.lineTo(Px(0.3), Py(1.44)); ctx.quadraticCurveTo(Px(0.31), Py(1.52), Px(0.27), Py(1.55)); ctx.quadraticCurveTo(Px(0.12), Py(1.6), Px(0.06), Py(1.7)); ctx.closePath(); ctx.fill();
+      const blk = D.tee;
+      for (const s2 of [-1, 1]) { ctx.fillStyle = blk; ctx.beginPath(); ctx.moveTo(Px(s2 * 0.1), Py(1.585)); ctx.lineTo(Px(s2 * 0.19), Py(1.57)); ctx.lineTo(Px(s2 * 0.25), Py(1.38)); ctx.lineTo(Px(s2 * 0.0), Py(1.38)); ctx.closePath(); ctx.fill(); }
+      ctx.fillStyle = D.skin; ctx.beginPath(); ctx.moveTo(Px(-0.1), Py(1.585)); ctx.lineTo(Px(0), Py(1.4)); ctx.lineTo(Px(0.1), Py(1.585)); ctx.closePath(); ctx.fill();
+      if (REAL) { ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.moveTo(Px(-0.1), Py(1.585)); ctx.lineTo(Px(0), Py(1.4)); ctx.lineTo(Px(0.1), Py(1.585)); ctx.lineTo(Px(0.05), Py(1.585)); ctx.lineTo(Px(0), Py(1.5)); ctx.lineTo(Px(-0.05), Py(1.585)); ctx.closePath(); ctx.fill(); }
+      ctx.beginPath(); ctx.moveTo(Px(-0.1), Py(1.585)); ctx.lineTo(Px(0), Py(1.4)); ctx.lineTo(Px(0.1), Py(1.585)); ctx.stroke();
+      for (const s2 of [-1, 1]) { ctx.beginPath(); ctx.moveTo(Px(s2 * 0.19), Py(1.57)); ctx.quadraticCurveTo(Px(s2 * 0.22), Py(1.32), Px(s2 * 0.29), Py(1.22)); ctx.stroke(); }
       if (D.shorts) for (const s2 of [-1, 1]) RW(s2 > 0 ? 0.18 : -0.21, 0.5, 0.03, 0.42, D.piping);
     }
     if (D.tie) { R(-0.035, 0.98 + bob, 0.07, 0.5, D.tie); R(-0.05, 1.43 + bob, 0.1, 0.07, D.tie); }
@@ -3989,7 +3996,7 @@ html, body { background: #26222c !important; }
       if (D.co) { ctx.fillStyle = D.coCol; tieTxt(D.co, fy - (1.0 + bob) * u, D.tie ? 0.09 : 0.072); }
     }
     // a slim neck rising out of the V-neck for the long-necked; everyone else keeps the square neck
-    if (!REAL) { if (D.longFace) R(-0.045, 1.5 + bob, 0.09, 0.12, SKIN); else R(-0.07, 1.42 + bob, 0.14, 0.1, SKIN); }
+    if (!REAL) { if (D.longFace) R(-0.05, 1.6 + bob, 0.1, 0.06, SKIN); else R(-0.07, 1.42 + bob, 0.14, 0.1, SKIN); }
     if (D.tie) {
       // white collar points and the tie knot sit over the neck
       ctx.fillStyle = TEE; ctx.beginPath(); ctx.moveTo(fx - 0.11 * u, fy - (1.53 + bob) * u); ctx.lineTo(fx, fy - (1.43 + bob) * u); ctx.lineTo(fx - 0.02 * u, fy - (1.5 + bob) * u); ctx.closePath(); ctx.fill();
