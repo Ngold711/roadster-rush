@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '94';
+window.BUILD = '95';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -4247,27 +4247,19 @@ html, body { background: #26222c !important; }
     // the open driver's window cut into the slanted cab side
     const wy = (f) => beltY + 0.06 + f * 0.62, wx = (f) => sideX + (inX - sideX) * f * 0.8;
     poly([[wx(0), wy(0), hz - 0.75], [wx(0), wy(0), hz + 0.55], [wx(1), wy(1), hz + 0.35], [wx(1), wy(1), hz - 0.55]], real ? '#0b0e13' : '#151a22');
-    const hx = sideX + dir * (-0.12 + 0.2 * e), hy = beltY + 0.4 + 0.5 * e;
-    const [sx, sy, u] = P(hx, hy, hz), sill = P(sideX, beltY + 0.06, hz), r = 0.34 * u;
+    // he leans out from the window: waist on the sill at the truck's side, body tipping out toward you, head held up
+    const [ax, ay, u] = P(sideX - dir * 0.04, beltY + 0.06, hz), r = 0.34 * u;
     if (r < 3) return;
-    const on = Math.floor(T * 8) % 2;
+    const on = Math.floor(T * 8) % 2, tilt = dir * 0.38 * e, L = r * (0.55 + 0.75 * e), headY = -(L + r * 0.82);
     ctx.save();
-    // only the part above the sill shows, so he's leaning out through the window
-    ctx.beginPath(); ctx.rect(sx - r * 3, sy - r * 3, r * 6, sill[1] - (sy - r * 3)); ctx.clip();
-    // his upper body comes out with him: shoulders, chest and arms, hands gripping the window ledge
-    drawZuckTorso(ctx, sx, sy, r, sill[1], real, mars);
-    if (!real) drawCopHeadClassic(ctx, sx, sy, r * 0.75, { yell: 0.55 + 0.45 * Math.sin(T * 10), noBody: true });
-    else drawZuckHead(ctx, sx, sy, r, { real, look: dir * 0.5, yell: 0.55 + 0.45 * Math.sin(T * 10), helmet: mars, noShoulders: true, rim: real ? (on ? 'rgba(255,50,70,.55)' : 'rgba(70,130,255,.55)') : null });
-
+    ctx.translate(ax, ay); ctx.rotate(tilt);
+    // only what's out of the window shows
+    ctx.beginPath(); ctx.rect(-r * 3, -r * 5, r * 6, r * 5); ctx.clip();
+    drawZuckTorso(ctx, 0, headY, r, 0, real, mars);
+    ctx.translate(0, headY + r * 0.7); ctx.rotate(-tilt * 0.75); ctx.translate(0, -r * 0.7);
+    if (!real) drawCopHeadClassic(ctx, 0, 0, r * 0.8, { yell: 0.55 + 0.45 * Math.sin(T * 10), noBody: true });
+    else drawZuckHead(ctx, 0, 0, r, { real, look: dir * 0.5, yell: 0.55 + 0.45 * Math.sin(T * 10), helmet: mars, noShoulders: true, rim: real ? (on ? 'rgba(255,50,70,.55)' : 'rgba(70,130,255,.55)') : null });
     ctx.restore();
-    // the door's window ledge across his waist ties him to the truck
-    const lw = r * 2.9, lh = Math.max(2, r * 0.16);
-    rrect(sx - lw / 2, sill[1] - lh * 0.5, lw, lh, lh * 0.4);
-    if (real) { const g = ctx.createLinearGradient(0, sill[1] - lh * 0.5, 0, sill[1] + lh * 0.5); g.addColorStop(0, '#e6e9ee'); g.addColorStop(1, '#8e939c'); ctx.fillStyle = g; } else ctx.fillStyle = '#c3c7cf';
-    ctx.fill();
-    // hands curled over the ledge
-    const hc = mars ? (real ? '#e9ecf1' : '#dfe3ea') : (real ? '#e2b093' : '#eec3a7');
-    for (const s2 of [-1, 1]) { ctx.fillStyle = hc; rrect(sx + s2 * r * 1.02 - r * 0.2, sill[1] - lh * 0.9, r * 0.4, lh * 1.3, lh * 0.5); ctx.fill(); if (real) { ctx.fillStyle = 'rgba(120,60,45,.35)'; for (let q = 1; q < 4; q++) ctx.fillRect(sx + s2 * r * 1.02 - r * 0.2 + q * r * 0.1, sill[1] - lh * 0.9, Math.max(1, r * 0.012), lh * 0.9); } }
   }
   // his torso in the window: grey tee (Realistic: shaded, ZUCK across the chest, gold badge; Classic: flat with the badge)
   function drawZuckTorso(c, sx, sy, r, sillY, real, mars) {
