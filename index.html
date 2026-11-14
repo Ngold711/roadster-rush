@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '97';
+window.BUILD = '98';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -238,6 +238,8 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 6px; border: 1px soli
 .seg button { padding: 7px 14px; border: 0; background: transparent; color: var(--muted); font: 600 13px var(--body); letter-spacing: .04em; cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--red); color: #fff; }
 .seg button:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+.ggfx { margin: 4px 0 8px; }
+#shopGrid.real .paint i { box-shadow: inset -5px -7px 10px rgba(0,0,0,.45), inset 4px 5px 8px rgba(255,255,255,.35), 0 2px 6px rgba(0,0,0,.4); }
 .headrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .btn.backtop { justify-self: auto; padding: 9px 14px; font-size: 12px; letter-spacing: .06em; flex: none; }
 /* the Garage header (title, Back, balance) stays pinned while the shop scrolls underneath */
@@ -376,6 +378,7 @@ html, body { background: #26222c !important; }
           </div>
           <button class="btn ghost backtop" id="garageBackTop" type="button">← Back</button>
         </div>
+        <div class="gfxrow ggfx"><span class="label">Graphics</span><div class="seg" role="group" aria-label="Graphics style"><button type="button" id="gGfxClassic">Classic</button><button type="button" id="gGfxReal">Realistic</button></div></div>
         <div class="bank"><span class="batt" aria-hidden="true"></span><b id="gBank">0</b>kWh to spend</div>
         <canvas class="preview" id="preview" aria-label="Preview of your roadster"></canvas>
         <div class="buybar"><span id="pvName">Tap anything to try it on</span><button class="btn" id="pvBtn" type="button" hidden>Buy</button></div>
@@ -795,6 +798,10 @@ html, body { background: #26222c !important; }
     // full swept-back silver hair, thin half-rim glasses, a calm closed smile
     { id: 'v:jensen', mood: 'smile', caughtMood: 'shock', name: 'Jensen Huang', cost: 100000, skin: '#d6a57e', tee: '#111214', jacket: '#16161a', legs: '#1b1e25', shoes: '#0d0e11', hair: '#c4c3bf', hairStyle: 'jensen',
       label: 'JENSEN', labelCol: '#f4f4f2', co: 'N V I D I A', coCol: '#76b900', leather: true, glasses: true },
+    // Victor Wembanyama ("Wemby"), 7'4": Spurs black #1 with silver trim, black arm sleeve on his right arm, cropped hair and a thin chin beard.
+    // The tallest and skinniest driver: about a quarter taller than Elon
+    { id: 'v:wemby', mood: 'grin', caughtMood: 'shock', name: 'Victor Wembanyama', cost: 110000, skin: '#bb8762', tee: '#141416', jacket: '#141416', arms: '#bb8762', legs: '#bb8762', shorts: '#141416', shoes: '#1b1b1f', hair: '#16100c', hairStyle: 'wemby',
+      label: 'SPURS', labelCol: '#f4f4f2', num: '1', co: '', coCol: '#c4ced4', piping: '#f4f4f2', wide: 0.9, tall: 1.26, headK: 0.84, headLift: 0.07, sleeve: true, longFace: true },
   ];
   const rarity = (cost) => (cost >= 30000 ? 'legendary' : cost >= 12000 ? 'epic' : cost >= 5000 ? 'rare' : 'common');
   const SHOP = { paint: PAINTS, design: DESIGNS, smoke: SMOKES, map: MAPS, driver: DRIVERS };
@@ -1251,6 +1258,7 @@ html, body { background: #26222c !important; }
     if (selTab) selTab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     const stats = gTab === 'stats';
     $('shop').hidden = stats; $('gStats').hidden = !stats;
+    $('shopGrid').classList.toggle('real', !!SET.real);
     if (!stats) {
       const cat = gTab;
       $('shopGrid').innerHTML = SHOP[cat].map((p) => {
@@ -1304,7 +1312,8 @@ html, body { background: #26222c !important; }
       ctx = pctx; W = pw; H = ph; zoom = 1; hyOff = 0; T = performance.now() / 1000;
       F = Math.min(pw * 2.0, ph * 3.4); cam.x = 0; cam.y = 3.0;
       HY = ph * 0.5 - 1.25 * (F / 7);
-      if (pvState.map === 'm:mars') marsPostcard(pctx, pw, ph); else nycPostcard(pctx, pw, ph);
+      if (SET.real) realPostcard(pctx, pw, ph, pvState.map === 'm:mars', keep);
+      else if (pvState.map === 'm:mars') marsPostcard(pctx, pw, ph); else nycPostcard(pctx, pw, ph);
       save.design = pvState.design; save.smoke = pvState.smoke;
       const y = 1.05 + Math.sin(T * 2) * 0.08;
       pl = Object.assign({}, keep.pl, { x: 0, y, ground: y - 0.35, grounded: false, rollT: 0, lean: 0, col: (PAINTS.find((q) => q.id === pvState.paint) || PAINTS[0]).col });
@@ -1362,11 +1371,14 @@ html, body { background: #26222c !important; }
   function setWeather(w) { weather = w; $('weather').className = 'weather is-' + w; }
   function rollWeather() { const r = Math.random(); setWeather(onMars() ? (r < 0.6 ? 'clear' : 'dust') : r < 0.45 ? 'clear' : r < 0.8 ? 'rain' : 'snow'); weatherT = 40 + Math.random() * 45; }
   rollWeather();
-  function showGfx() { $('gfxClassic').setAttribute('aria-pressed', String(!SET.real)); $('gfxReal').setAttribute('aria-pressed', String(SET.real)); $('fx').hidden = !SET.real; }
+  function showGfx() { for (const [c, r] of [['gfxClassic', 'gfxReal'], ['gGfxClassic', 'gGfxReal']]) { $(c).setAttribute('aria-pressed', String(!SET.real)); $(r).setAttribute('aria-pressed', String(SET.real)); } $('fx').hidden = !SET.real; }
   // switching style re-bakes the sky (the realistic one adds a moon and clouds)
-  function setGfx(real) { SET.real = real; persist(); bg = null; showGfx(); }
+  // the garage follows the style too: realistic or cartoon driver portraits, figure and backdrop
+  function setGfx(real) { SET.real = real; persist(); bg = null; showGfx(); setHudAvatar(); if (!$('garage').hidden) renderGarage(); }
   $('gfxClassic').onclick = () => setGfx(false);
   $('gfxReal').onclick = () => setGfx(true);
+  $('gGfxClassic').onclick = () => setGfx(false);
+  $('gGfxReal').onclick = () => setGfx(true);
   showGfx();
   // map picker on the start screen, once Mars is owned
   function showMap() {
@@ -2434,6 +2446,26 @@ html, body { background: #26222c !important; }
     }
     g.drawImage(nycCard.c, 0, 0, w, h);
   }
+  // Realistic garage backdrop: the same realistic Manhattan skyline / Mars base as the game, baked at the preview's size
+  let realCard = null;
+  function realPostcard(g, w, h, mars, main) {
+    // baked at full-screen size (the skyline is designed for it), then the band around the horizon is cropped into the preview
+    const key = `${mars}|${main.W}|${main.H}`;
+    if (!realCard || realCard.key !== key) {
+      const sv = { W, H, HY }, dpr = Math.min(2, window.devicePixelRatio || 1);
+      W = main.W; H = main.H; HY = main.HY;
+      const c = document.createElement('canvas'); c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+      const q = c.getContext('2d'); q.scale(dpr, dpr);
+      const keepTower = marsTower;
+      try { if (mars) bakeMars(q, true); else bakeManhattan(q); } finally { marsTower = keepTower; }
+      const gr = q.createLinearGradient(0, HY, 0, H); gr.addColorStop(0, mars ? '#5a2a1a' : '#2a2530'); gr.addColorStop(1, mars ? '#24100a' : '#100d14');
+      q.fillStyle = gr; q.fillRect(0, HY, W, H - HY);
+      realCard = { key, c, dpr, W: main.W, HY: main.HY };
+      ({ W, H, HY } = sv);
+    }
+    const rc = realCard, srcW = rc.W, srcH = srcW * h / w, srcY = rc.HY - 0.66 * srcH;
+    g.drawImage(rc.c, 0, srcY * rc.dpr, srcW * rc.dpr, srcH * rc.dpr, 0, 0, w, h);
+  }
   // little Mars scene behind the car in the garage preview
   function marsPostcard(g, w, h) {
     const sk = g.createLinearGradient(0, 0, 0, h);
@@ -3227,7 +3259,7 @@ html, body { background: #26222c !important; }
   // time on the crate's own clock; negative while the word is still charging the Roadster
   const crateT = () => (performance.now() - CR.t0) / 1000 - (CR.O || 0);
   const avImgs = {};
-  const avatarImg = (D) => { if (!avImgs[D.id]) { const im = new Image(); im.src = avatarURL(D); avImgs[D.id] = im; } return avImgs[D.id]; };
+  const avatarImg = (D) => { const k = D.id + (SET.real ? '|r' : ''); if (!avImgs[k]) { const im = new Image(); im.src = avatarURL(D); avImgs[k] = im; } return avImgs[k]; };
   // a filler card for the strip (nothing is granted). It only shows things this crate could have given you:
   // items you didn't own before the spin, or kWh amounts once you own everything
   function sampleCard(rarOnly) {
@@ -3871,8 +3903,8 @@ html, body { background: #26222c !important; }
     if (z <= ZN) return;
     const D = driverOf(), [fx, fy, u0] = P(x, y, z), u = u0 * (D.tall || 1), wk = D.wide || 1;
     const SKIN = D.skin, TEE = D.tee, JEANS = D.legs, JACKET = D.arms || D.jacket;
-    // Realistic (in the game, not the shared garage preview): rounded, side-lit clothing and the detailed head; Classic stays flat
-    const REAL = SET.real && !pvDriver;
+    // Realistic: rounded, side-lit clothing and the detailed head (in the game and the garage); Classic stays flat
+    const REAL = SET.real;
     const R = (dx, dy, w, h, c) => {
       const X0 = fx + dx * u, Y0 = fy - (dy + h) * u, W0 = w * u, H0 = h * u;
       if (REAL && /^#[0-9a-f]{6}$/i.test(c) && W0 > 3 && H0 > 3) {
@@ -3933,6 +3965,14 @@ html, body { background: #26222c !important; }
       if (u > 40) { ctx.fillStyle = '#fff3c4'; ctx.font = `900 ${0.05 * u}px "Arial Black", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('UFC', fx, fy - (0.98 + bob) * u); }
     }
     if (D.trim) { RW(-0.3, 1.5 + bob, 0.6, 0.04, D.trim); RW(-0.3, 0.88 + bob, 0.04, 0.66, D.trim); RW(0.26, 0.88 + bob, 0.04, 0.66, D.trim); }
+    if (D.piping) {
+      // Spurs jersey: thin white piping round the V-neck and both armholes, white stripe down the shorts
+      ctx.strokeStyle = D.piping; ctx.lineWidth = Math.max(1, 0.016 * u); ctx.lineJoin = 'round';
+      const Px = (dx) => fx + dx * wk * u, Py = (dy) => fy - (dy + bob) * u;
+      ctx.beginPath(); ctx.moveTo(Px(-0.12), Py(1.53)); ctx.lineTo(Px(0), Py(1.4)); ctx.lineTo(Px(0.12), Py(1.53)); ctx.stroke();
+      for (const s2 of [-1, 1]) { ctx.beginPath(); ctx.moveTo(Px(s2 * 0.15), Py(1.54)); ctx.quadraticCurveTo(Px(s2 * 0.2), Py(1.3), Px(s2 * 0.29), Py(1.22)); ctx.stroke(); }
+      if (D.shorts) for (const s2 of [-1, 1]) RW(s2 > 0 ? 0.18 : -0.21, 0.5, 0.03, 0.42, D.piping);
+    }
     if (D.tie) { R(-0.035, 0.98 + bob, 0.07, 0.5, D.tie); R(-0.05, 1.43 + bob, 0.1, 0.07, D.tie); }
     if (u > 40) {
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -3978,8 +4018,16 @@ html, body { background: #26222c !important; }
         for (const [ax, s2] of [[-0.42, -sw], [0.3, sw]]) { RW(ax + 0.01, 1.36 + bob + s2, 0.1, 0.12, '#2c3a42'); RW(ax + 0.02, 1.2 + bob + s2, 0.06, 0.1, '#2c3a42'); RW(ax + 0.015, 1.0 + bob + s2, 0.08, 0.12, '#2c3a42'); }
       }
     }
+    if (D.sleeve) {
+      // black compression sleeve on his right arm
+      const SL = '#111214';
+      if (pose.thumbs) RW(0.3, 1.08 + bob, 0.12, 0.3, SL);
+      else if (pose.cuffed) RW(0.28, 0.98 + bob, 0.12, 0.34, SL);
+      else if (pose.hop || pose.up) RW(0.32, 1.3, 0.12, 0.26, SL);
+      else RW(0.3, 0.92 + bob + sw, 0.12, 0.42, SL);
+    }
     const mood = pose.cuffed ? D.caughtMood : D.mood;
-    if (REAL) drawRealHead(ctx, fx, fy - (1.71 + bob) * u, 0.215 * u * Math.sqrt(wk), D, mood, { helmet: onMars() });
+    if (REAL) drawRealHead(ctx, fx, fy - (1.71 + (D.headLift || 0) + bob) * u, 0.215 * u * Math.sqrt(wk) * (D.headK || 1), D, mood, { helmet: onMars() });
     else drawHead(ctx, fx, fy, u, D, 1.72 + bob, mood);
   }
   // Realistic driver heads (screen space: head centre cx,cy, radius r). One drawer for every driver: shaded skin, textured hair
@@ -3991,21 +4039,24 @@ html, body { background: #26222c !important; }
     lebron: { jaw: 0.72, iris: '#3b2416', brow: '#140c08', bw: 0.075, eh: 0.05 },
     shaq: { jaw: 0.78, iris: '#2e1c12', brow: '#140c08', bw: 0.08, eh: 0.05 },
     conor: { jaw: 0.68, iris: '#5a7fa8', brow: '#4a2a18', bw: 0.075, eh: 0.045 },
+    wemby: { jaw: 0.74, cheek: 0.84, chin: 0.9, iris: '#2e1c12', brow: '#2a1a12', bw: 0.04, eh: 0.05 },
     jensen: { jaw: 0.84, cheek: 0.9, chin: 0.8, iris: '#2e2218', brow: '#2c2926', bw: 0.06, eh: 0.026 },
   };
   const rrectOn = (c, x, y, w, h, rad) => { c.beginPath(); c.moveTo(x + rad, y); c.arcTo(x + w, y, x + w, y + h, rad); c.arcTo(x + w, y + h, x, y + h, rad); c.arcTo(x, y + h, x, y, rad); c.arcTo(x, y, x + w, y, rad); c.closePath(); };
   function drawRealHead(c, cx, cy, r, D, mood, o = {}) {
     const st = D.hairStyle || 'elon', F = REAL_FACE[st] || REAL_FACE.elon, look = o.look || 0, fx = look * r * 0.1;
     const H = (i) => { const s = Math.sin(i * 91.7 + 17.3) * 43758.5453; return s - Math.floor(s); };
-    const SK = D.skin, SKL = shade(SK, 1.1), SKD = shade(SK, 0.8), dark = st === 'lebron' || st === 'shaq';
+    const SK = D.skin, SKL = shade(SK, 1.1), SKD = shade(SK, 0.8), dark = st === 'lebron' || st === 'shaq' || st === 'wemby';
     const HR = D.hair, HRL = shade(HR, st === 'trump' ? 1.15 : 1.7), HRD = shade(HR, 0.6);
     c.save(); c.translate(cx, cy); c.lineCap = 'round'; c.lineJoin = 'round';
+    // Wemby: a long, narrow face
+    if (D.longFace) c.scale(0.86, 1.1);
     // neck
     c.fillStyle = SKD; c.beginPath(); c.moveTo(-r * 0.36, r * 0.5); c.lineTo(r * 0.36, r * 0.5); c.lineTo(r * 0.38, r * 1.05); c.lineTo(-r * 0.38, r * 1.05); c.closePath(); c.fill();
     let g = c.createLinearGradient(0, r * 0.5, 0, r * 0.9); g.addColorStop(0, 'rgba(40,18,12,.5)'); g.addColorStop(1, 'rgba(40,18,12,0)'); c.fillStyle = g; c.fillRect(-r * 0.38, r * 0.5, r * 0.76, r * 0.4);
     // ears
     for (const s of [-1, 1]) {
-      c.fillStyle = SK; c.beginPath(); c.ellipse(s * r * 0.8 + fx * 0.3, 0, r * 0.13, r * 0.21, s * 0.15, 0, Math.PI * 2); c.fill();
+      const ek = st === 'wemby' ? 1.35 : 1; c.fillStyle = SK; c.beginPath(); c.ellipse(s * r * (0.8 + 0.06 * (ek - 1)) + fx * 0.3, 0, r * 0.13 * ek, r * 0.21 * ek, s * 0.25, 0, Math.PI * 2); c.fill();
       c.fillStyle = 'rgba(90,40,30,.35)'; c.beginPath(); c.ellipse(s * r * 0.82 + fx * 0.3, r * 0.02, r * 0.06, r * 0.12, s * 0.15, 0, Math.PI * 2); c.fill();
     }
     // face: jaw width varies per person
@@ -4037,6 +4088,13 @@ html, body { background: #26222c !important; }
     if (D.beard) beard(D.beard, true);
     else if (st === 'lebron') beard('#2a1b12', true);
     else if (st === 'shaq') beard('#22160e', false);
+    else if (st === 'wemby') {
+      // thin chin-strap along the jaw, a small goatee and a thin moustache
+      c.strokeStyle = 'rgba(28,18,12,.4)'; c.lineWidth = r * 0.035;
+      c.beginPath(); c.moveTo(-r * 0.62, r * 0.42); c.quadraticCurveTo(-r * 0.4, r * 0.88, 0, r * 0.94); c.quadraticCurveTo(r * 0.4, r * 0.88, r * 0.62, r * 0.42); c.stroke();
+      c.fillStyle = '#1c120c'; c.beginPath(); c.ellipse(0, r * 0.82, r * 0.12, r * 0.11, 0, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#1c120c'; c.lineWidth = r * 0.04; c.beginPath(); c.moveTo(-r * 0.2, r * 0.42); c.quadraticCurveTo(0, r * 0.36, r * 0.2, r * 0.42); c.stroke();
+    }
     if (o.rim) { c.beginPath(); c.rect(look > 0 ? -r * 1.2 : 0, -r * 1.2, r * 1.2, r * 2.4); c.clip(); c.strokeStyle = o.rim; c.lineWidth = r * 0.07; c.stroke(face); }
     c.restore();
     // hair
@@ -4084,6 +4142,16 @@ html, body { background: #26222c !important; }
       // white headband
       const hb = c.createLinearGradient(0, -r * 0.72, 0, -r * 0.54); hb.addColorStop(0, '#ffffff'); hb.addColorStop(1, '#c9ccd2'); c.fillStyle = hb;
       c.beginPath(); c.moveTo(-r * 0.82, -r * 0.5); c.quadraticCurveTo(0, -r * 0.86, r * 0.82, -r * 0.5); c.lineTo(r * 0.82, -r * 0.34); c.quadraticCurveTo(0, -r * 0.7, -r * 0.82, -r * 0.34); c.closePath(); c.fill();
+    } else if (st === 'wemby') {
+      // very short close crop hugging the skull: high hairline, the corners receding at the temples
+      const p = new Path2D(); p.moveTo(-r * 0.8, -r * 0.3); p.bezierCurveTo(-r * 0.84, -r * 0.86, -r * 0.5, -r * 1.06, 0, -r * 1.06); p.bezierCurveTo(r * 0.5, -r * 1.06, r * 0.84, -r * 0.86, r * 0.8, -r * 0.3);
+      p.lineTo(r * 0.74, -r * 0.48); p.quadraticCurveTo(r * 0.66, -r * 0.62, r * 0.5, -r * 0.7); p.quadraticCurveTo(r * 0.38, -r * 0.74, r * 0.3, -r * 0.7);
+      p.quadraticCurveTo(0, -r * 0.8, -r * 0.3, -r * 0.7); p.quadraticCurveTo(-r * 0.38, -r * 0.74, -r * 0.5, -r * 0.7); p.quadraticCurveTo(-r * 0.66, -r * 0.62, -r * 0.74, -r * 0.48); p.closePath();
+      c.fillStyle = '#1e1612'; c.fill(p); c.save(); c.clip(p);
+      for (let i = 0; i < 200; i++) { c.fillStyle = H(i) > 0.5 ? 'rgba(110,90,75,.35)' : 'rgba(0,0,0,.35)'; c.fillRect((H(i + 1) * 2 - 1) * r * 0.85, -r * (0.6 + H(i + 2) * 0.48), r * 0.022, r * 0.022); }
+      // a soft line of skin showing through at the hairline
+      const hl = c.createLinearGradient(0, -r * 0.82, 0, -r * 0.68); hl.addColorStop(0, 'rgba(0,0,0,0)'); hl.addColorStop(1, shade(SK, 0.7)); c.fillStyle = hl; c.fillRect(-r, -r * 0.82, r * 2, r * 0.14);
+      c.restore();
     } else if (st === 'shaq') {
       // shaved head with a highlight
       c.save(); c.clip(face); g = c.createRadialGradient(-r * 0.25, -r * 0.72, 0, -r * 0.25, -r * 0.72, r * 0.35); g.addColorStop(0, 'rgba(255,255,255,.3)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(-r, -r * 1.2, r * 2, r * 0.9); c.restore();
@@ -4142,9 +4210,11 @@ html, body { background: #26222c !important; }
     if (mood === 'shock') openMouth(r * 0.12, r * 0.12, false);
     else if (mood === 'laugh') openMouth(r * 0.24, r * 0.13, true);
     else if (mood === 'grin') {
+      if (st === 'wemby') { c.save(); c.translate(fx, my); c.scale(1.35, 1.25); c.translate(-fx, -my); }
       c.fillStyle = '#4a1818'; c.beginPath(); c.moveTo(fx - r * 0.26, my - r * 0.03); c.quadraticCurveTo(fx, my + r * 0.16, fx + r * 0.26, my - r * 0.03); c.closePath(); c.fill();
       c.save(); c.clip(); c.fillStyle = '#f4f1ea'; c.fillRect(fx - r * 0.3, my - r * 0.05, r * 0.6, r * 0.07); c.restore();
       c.strokeStyle = lip; c.lineWidth = r * 0.035; c.beginPath(); c.moveTo(fx - r * 0.26, my - r * 0.03); c.quadraticCurveTo(fx, my + r * 0.16, fx + r * 0.26, my - r * 0.03); c.stroke();
+      if (st === 'wemby') c.restore();
     } else if (mood === 'pout') {
       c.fillStyle = lip; c.beginPath(); c.ellipse(fx, my, r * 0.11, r * 0.06, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = line; c.beginPath(); c.moveTo(fx - r * 0.08, my); c.lineTo(fx + r * 0.08, my); c.stroke();
     } else {
@@ -4169,6 +4239,7 @@ html, body { background: #26222c !important; }
     const Y = (v) => fy - v * u, X = (v) => fx + v * u, SKIN = D.skin;
     const R = (dx, dy, w, h, c) => { g.fillStyle = c; g.fillRect(fx + dx * u, fy - (dy + h) * u, w * u, h * u); };
     const C = (dx, dy, r, c) => { g.fillStyle = c; g.beginPath(); g.arc(fx + dx * u, fy - dy * u, r * u, 0, Math.PI * 2); g.fill(); };
+    if (D.longFace) { g.save(); g.translate(fx, Y(hy)); g.scale(0.84, 1.12); g.translate(-fx, -Y(hy)); }
     C(-0.155, hy, 0.032, SKIN); C(0.155, hy, 0.032, SKIN);
     g.fillStyle = SKIN; g.beginPath(); g.ellipse(fx, Y(hy), 0.155 * u, 0.19 * u, 0, 0, Math.PI * 2); g.fill();
     if (SET.real && g === ctx) { const sh = g.createRadialGradient(fx - 0.06 * u, Y(hy + 0.06), 0.02 * u, fx, Y(hy), 0.2 * u); sh.addColorStop(0, 'rgba(255,255,255,.18)'); sh.addColorStop(0.6, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.25)'); g.fillStyle = sh; g.fill(); }
@@ -4184,6 +4255,13 @@ html, body { background: #26222c !important; }
       g.quadraticCurveTo(X(-0.1), Y(hy + 0.16), X(-0.14), Y(hy + 0.1));
       g.closePath(); g.fill();
       g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.ellipse(X(0.02), Y(hy + 0.22), 0.11 * u, 0.025 * u, -0.15, 0, Math.PI * 2); g.fill();
+    } else if (D.hairStyle === 'wemby') {
+      // very short close crop with a high hairline and receding temples; thin goatee and chin strap
+      g.moveTo(X(-0.15), Y(hy + 0.06)); g.quadraticCurveTo(X(-0.16), Y(hy + 0.19), X(0), Y(hy + 0.195)); g.quadraticCurveTo(X(0.16), Y(hy + 0.19), X(0.15), Y(hy + 0.06));
+      g.lineTo(X(0.12), Y(hy + 0.11)); g.lineTo(X(0.08), Y(hy + 0.125)); g.quadraticCurveTo(X(0), Y(hy + 0.14), X(-0.08), Y(hy + 0.125)); g.lineTo(X(-0.12), Y(hy + 0.11)); g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(22,16,12,.45)'; g.lineWidth = Math.max(1, 0.008 * u); g.beginPath(); g.moveTo(X(-0.13), Y(hy - 0.06)); g.quadraticCurveTo(X(-0.08), Y(hy - 0.18), X(0), Y(hy - 0.19)); g.quadraticCurveTo(X(0.08), Y(hy - 0.18), X(0.13), Y(hy - 0.06)); g.stroke();
+      g.fillStyle = D.hair; g.beginPath(); g.ellipse(fx, Y(hy - 0.165), 0.03 * u, 0.025 * u, 0, 0, Math.PI * 2); g.fill();
+      R(-0.045, hy - 0.08, 0.09, 0.01, D.hair);
     } else if (D.hairStyle === 'lebron') {
       // close-cropped hair under a white headband, full beard
       g.ellipse(fx, Y(hy + 0.06), 0.158 * u, 0.15 * u, 0, Math.PI, 2 * Math.PI); g.fill();
@@ -4227,9 +4305,9 @@ html, body { background: #26222c !important; }
       R(-0.155, hy - 0.08, 0.035, 0.1, D.beard); R(0.12, hy - 0.08, 0.035, 0.1, D.beard);
       R(-0.07, hy - 0.085, 0.14, 0.025, D.beard);
     }
-    const dark = D.hairStyle === 'lebron' || D.hairStyle === 'shaq', brow = D.hairStyle === 'trump' ? '#d9b25a' : D.hairStyle === 'jensen' ? '#2e2a26' : dark ? '#140c08' : '#3a2618';
+    const dark = D.hairStyle === 'lebron' || D.hairStyle === 'shaq' || D.hairStyle === 'wemby', brow = D.hairStyle === 'trump' ? '#d9b25a' : D.hairStyle === 'jensen' ? '#2e2a26' : dark ? '#140c08' : '#3a2618';
     R(-0.095, hy + 0.035, 0.07, 0.017, brow); R(0.025, hy + 0.035, 0.07, 0.017, brow);
-    if (dark) { C(-0.055, hy, 0.026, '#f4efe8'); C(0.055, hy, 0.026, '#f4efe8'); }
+    if (dark && !D.longFace) { C(-0.055, hy, 0.026, '#f4efe8'); C(0.055, hy, 0.026, '#f4efe8'); }
     if (D.hairStyle === 'jensen') { g.strokeStyle = '#2a1a10'; g.lineWidth = Math.max(1, 0.012 * u); for (const sx of [-0.058, 0.058]) { g.beginPath(); g.arc(X(sx), Y(hy - 0.012), 0.022 * u, Math.PI * 1.15, Math.PI * 1.85); g.stroke(); } }
     else { C(-0.055, hy, 0.017, D.hairStyle === 'sam' ? '#3a5a78' : '#2a1a10'); C(0.055, hy, 0.017, D.hairStyle === 'sam' ? '#3a5a78' : '#2a1a10'); }
     R(-0.012, hy - 0.065, 0.024, 0.055, 'rgba(0,0,0,.12)');
@@ -4252,6 +4330,7 @@ html, body { background: #26222c !important; }
     else if (mood === 'flat') { g.beginPath(); g.moveTo(X(-0.05), Y(hy - 0.11)); g.lineTo(X(0.05), Y(hy - 0.11)); g.stroke(); }
     else if (mood === 'frown') { g.beginPath(); g.moveTo(X(-0.05), Y(hy - 0.12)); g.quadraticCurveTo(X(0), Y(hy - 0.085), X(0.05), Y(hy - 0.12)); g.stroke(); }
     else { g.beginPath(); g.moveTo(X(-0.05), Y(hy - 0.105)); g.quadraticCurveTo(X(0.01), Y(hy - 0.13), X(0.068), Y(hy - 0.085)); g.stroke(); }
+    if (D.longFace) g.restore();
   }
   // OpenAI mark: six interlocking rounded links around a hexagon
   function openaiLogo(cx, cy, r, col, lw) {
@@ -4262,6 +4341,20 @@ html, body { background: #26222c !important; }
   // round driver portrait (HUD and garage tile), cached per driver
   const avatars = {};
   function avatarURL(D) {
+    if (SET.real) {
+      // Realistic portrait: shaded shoulders and the detailed head
+      const key = D.id + '|real'; if (avatars[key]) return avatars[key];
+      const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+      const bgG = g.createLinearGradient(0, 0, 0, 128); bgG.addColorStop(0, '#2c2038'); bgG.addColorStop(1, '#17111f'); g.fillStyle = bgG; g.fillRect(0, 0, 128, 128);
+      const sh = g.createLinearGradient(8, 0, 120, 0), jc = /^#[0-9a-f]{6}$/i.test(D.jacket) ? D.jacket : '#2b2e36';
+      sh.addColorStop(0, shade(jc, 0.6)); sh.addColorStop(0.45, shade(jc, 1.2)); sh.addColorStop(1, shade(jc, 0.55));
+      g.fillStyle = sh; g.beginPath(); g.moveTo(4, 128); g.quadraticCurveTo(8, 100, 40, 96); g.lineTo(88, 96); g.quadraticCurveTo(120, 100, 124, 128); g.closePath(); g.fill();
+      if (D.tee !== D.jacket) { g.fillStyle = D.tee; g.beginPath(); g.moveTo(48, 96); g.lineTo(80, 96); g.lineTo(74, 128); g.lineTo(54, 128); g.closePath(); g.fill(); }
+      if (D.tie) { g.fillStyle = D.tie; g.fillRect(60, 98, 8, 30); }
+      if (D.trim) { g.fillStyle = D.trim; g.fillRect(40, 96, 48, 4); }
+      drawRealHead(g, 64, 62, 34, D, D.mood);
+      return (avatars[key] = c.toDataURL());
+    }
     if (avatars[D.id]) return avatars[D.id];
     const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
     g.fillStyle = '#2a1d36'; g.fillRect(0, 0, 128, 128);
