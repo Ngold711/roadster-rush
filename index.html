@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '95';
+window.BUILD = '96';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -4235,31 +4235,36 @@ html, body { background: #26222c !important; }
 
   let zLean = 0;
   function drawZuckWindow() {
-    const dir = pl.x >= chaserX ? 1 : -1, beltY = chaserY + 1.28, hz = chaserZ + 2.9;
-    const sideX = chaserX + dir * 1.075, inX = chaserX + dir * 0.78;
-    // he only leans out while the truck is level on the road beside you and you can actually see that side of it;
-    // otherwise he ducks back in (eased, so he never pops)
-    const blocked = objs.some((o) => o.d && !o.sky && !o.smash && o.h > 1 && o.k !== 'cell' && Math.abs(o.x - chaserX) < 1.6 && o.z < hz && o.z + o.d > ZN);
-    const want = !blocked && stumble > 0.4 && chaserY < 0.05 && Math.abs(chaserVy) < 0.1 && dir * (cam.x - sideX) > 0.08 && hz - 0.8 > ZN + 0.3 ? clamp((chaserZ + 1.2) / 1.4, 0, 1) : 0;
+    // after a minor hit he pops up through a roof hatch on the cab and yells back at you.
+    // He only comes up while the truck is level on the road beside you and nothing hides it; eased, so he never pops
+    const beltY = chaserY + 1.28, zH = chaserZ + 2.3, f = 0.7, yS = beltY + 0.77 * f, half = 1.075 + (0.78 - 1.075) * f;
+    const blocked = objs.some((o) => o.d && !o.sky && !o.smash && o.h > 1 && o.k !== 'cell' && Math.abs(o.x - chaserX) < 1.6 && o.z < zH && o.z + o.d > ZN);
+    const want = !blocked && stumble > 0.4 && chaserY < 0.05 && Math.abs(chaserVy) < 0.1 && zH - 0.5 > ZN + 0.3 ? clamp((chaserZ + 1.2) / 1.4, 0, 1) : 0;
     zLean += (want - zLean) * 0.14;
-    const k = zLean; if (k <= 0.03 || hz - 0.8 <= ZN + 0.3) return;
-    const e = k * k * (3 - 2 * k), real = SET.real, mars = onMars();
-    // the open driver's window cut into the slanted cab side
-    const wy = (f) => beltY + 0.06 + f * 0.62, wx = (f) => sideX + (inX - sideX) * f * 0.8;
-    poly([[wx(0), wy(0), hz - 0.75], [wx(0), wy(0), hz + 0.55], [wx(1), wy(1), hz + 0.35], [wx(1), wy(1), hz - 0.55]], real ? '#0b0e13' : '#151a22');
-    // he leans out from the window: waist on the sill at the truck's side, body tipping out toward you, head held up
-    const [ax, ay, u] = P(sideX - dir * 0.04, beltY + 0.06, hz), r = 0.34 * u;
+    const k = zLean; if (k <= 0.03 || zH - 0.5 <= ZN + 0.3) return;
+    const e = k * k * (3 - 2 * k), real = SET.real, mars = onMars(), x = chaserX;
+    const yAt = (zz) => beltY + 0.77 * clamp((zz - chaserZ) / 3.3, 0, 1);
+    // the open hatch: a dark opening in the roof, its lid flipped up behind him
+    const hw = Math.min(0.42, half - 0.25), z0 = zH - 0.32, z1 = zH + 0.32;
+    poly([[x - hw, yAt(z0) + 0.01, z0], [x + hw, yAt(z0) + 0.01, z0], [x + hw, yAt(z1) + 0.01, z1], [x - hw, yAt(z1) + 0.01, z1]], real ? '#07090c' : '#11151c');
+    const lid = real ? '#9aa0aa' : '#a7acb5';
+    poly([[x - hw, yAt(z1), z1], [x + hw, yAt(z1), z1], [x + hw, yAt(z1) + 0.55 * e, z1 + 0.12], [x - hw, yAt(z1) + 0.55 * e, z1 + 0.12]], lid);
+    const [ax, ay, u] = P(x, yAt(zH), zH), r = 0.3 * u;
     if (r < 3) return;
-    const on = Math.floor(T * 8) % 2, tilt = dir * 0.38 * e, L = r * (0.55 + 0.75 * e), headY = -(L + r * 0.82);
+    const on = Math.floor(T * 8) % 2, L = r * (0.15 + 1.05 * e), headY = ay - (L + r * 0.82);
     ctx.save();
-    ctx.translate(ax, ay); ctx.rotate(tilt);
-    // only what's out of the window shows
-    ctx.beginPath(); ctx.rect(-r * 3, -r * 5, r * 6, r * 5); ctx.clip();
-    drawZuckTorso(ctx, 0, headY, r, 0, real, mars);
-    ctx.translate(0, headY + r * 0.7); ctx.rotate(-tilt * 0.75); ctx.translate(0, -r * 0.7);
-    if (!real) drawCopHeadClassic(ctx, 0, 0, r * 0.8, { yell: 0.55 + 0.45 * Math.sin(T * 10), noBody: true });
-    else drawZuckHead(ctx, 0, 0, r, { real, look: dir * 0.5, yell: 0.55 + 0.45 * Math.sin(T * 10), helmet: mars, noShoulders: true, rim: real ? (on ? 'rgba(255,50,70,.55)' : 'rgba(70,130,255,.55)') : null });
+    // only what's above the hatch shows
+    ctx.beginPath(); ctx.rect(ax - r * 3, ay - r * 6, r * 6, r * 6); ctx.clip();
+    drawZuckTorso(ctx, ax, headY, r, ay, real, mars);
+    if (!real) drawCopHeadClassic(ctx, ax, headY, r * 0.8, { yell: 0.55 + 0.45 * Math.sin(T * 10), noBody: true });
+    else drawZuckHead(ctx, ax, headY, r, { real, look: 0, yell: 0.55 + 0.45 * Math.sin(T * 10), helmet: mars, noShoulders: true, rim: on ? 'rgba(255,50,70,.55)' : 'rgba(70,130,255,.55)' });
     ctx.restore();
+    // near rim of the hatch across his waist, and his hands braced on the roof either side
+    const n0 = P(x - hw, yAt(z0) + 0.04, z0), n1 = P(x + hw, yAt(z0) + 0.04, z0);
+    ctx.strokeStyle = real ? '#c7ccd4' : '#b9bec7'; ctx.lineWidth = Math.max(2, r * 0.12); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(n0[0], n0[1]); ctx.lineTo(n1[0], n1[1]); ctx.stroke();
+    const hc = mars ? (real ? '#e9ecf1' : '#dfe3ea') : (real ? '#e2b093' : '#eec3a7');
+    for (const s2 of [-1, 1]) { const hp = P(x + s2 * (hw + 0.08), yAt(zH) + 0.04, zH); ctx.fillStyle = hc; ctx.beginPath(); ctx.ellipse(hp[0], hp[1], r * 0.2, r * 0.12, 0, 0, Math.PI * 2); ctx.fill(); }
   }
   // his torso in the window: grey tee (Realistic: shaded, ZUCK across the chest, gold badge; Classic: flat with the badge)
   function drawZuckTorso(c, sx, sy, r, sillY, real, mars) {
