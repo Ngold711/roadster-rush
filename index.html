@@ -14,7 +14,7 @@
 <style>*,*::before,*::after{box-sizing:border-box}:root{background:#140c1d}body{margin:0;font:14px system-ui,sans-serif;overscroll-behavior:none}[hidden]{display:none!important}</style>
 <script>
 // auto-update: compare this page's build with version.txt; if a newer build is live, reload into it (only from the start screen, never mid-run)
-window.BUILD = '96';
+window.BUILD = '97';
 (function () {
   function check() {
     const menu = document.getElementById('menu');
@@ -791,6 +791,10 @@ html, body { background: #26222c !important; }
     // inked arms, green UFC shorts with McGREGOR on the waistband, gold title belt, slicked hair and a ginger beard
     { id: 'v:conor', mood: 'smirk', caughtMood: 'laugh', name: 'Conor McGregor', cost: 90000, skin: '#f0c4a4', tee: '#f0c4a4', jacket: '#f0c4a4', arms: '#f0c4a4', legs: '#f0c4a4', shoes: '#e4b494', hair: '#6e3f22', beard: '#b4592c', hairStyle: 'conor',
       label: '', co: '', fighter: true, belt: true, tattoo: true, wide: 1.06 },
+    // Jensen Huang: black leather jacket (wide pointed collar, silver zips) over a black tee, JENSEN across the chest and NVIDIA in green,
+    // full swept-back silver hair, thin half-rim glasses, a calm closed smile
+    { id: 'v:jensen', mood: 'smile', caughtMood: 'shock', name: 'Jensen Huang', cost: 100000, skin: '#d6a57e', tee: '#111214', jacket: '#16161a', legs: '#1b1e25', shoes: '#0d0e11', hair: '#c4c3bf', hairStyle: 'jensen',
+      label: 'JENSEN', labelCol: '#f4f4f2', co: 'N V I D I A', coCol: '#76b900', leather: true, glasses: true },
   ];
   const rarity = (cost) => (cost >= 30000 ? 'legendary' : cost >= 12000 ? 'epic' : cost >= 5000 ? 'rare' : 'common');
   const SHOP = { paint: PAINTS, design: DESIGNS, smoke: SMOKES, map: MAPS, driver: DRIVERS };
@@ -3888,6 +3892,16 @@ html, body { background: #26222c !important; }
     RW(-0.22 + sw, 0, 0.21, 0.08, D.shoes); RW(0.02 - sw, 0, 0.21, 0.08, D.shoes);
     RW(-0.3, 0.88 + bob, 0.6, 0.66, D.jacket);
     RW(-0.18, 0.9 + bob, 0.36, 0.64, TEE);
+    if (D.leather) {
+      // leather jacket: shine down each front panel, a zip edge and wide collar
+      const sheen = REAL ? 'rgba(255,255,255,.22)' : '#3a3a42';
+      RW(-0.27, 1.0 + bob, 0.03, 0.48, sheen); RW(0.22, 1.0 + bob, 0.03, 0.48, sheen);
+      RW(-0.19, 0.9 + bob, 0.012, 0.64, '#8a8d94'); RW(0.178, 0.9 + bob, 0.012, 0.64, '#8a8d94');
+      // wide pointed collar folded over the shoulders
+      ctx.fillStyle = REAL ? '#24242a' : '#2a2a30';
+      for (const s2 of [-1, 1]) { ctx.beginPath(); ctx.moveTo(fx + s2 * 0.08 * wk * u, fy - (1.56 + bob) * u); ctx.lineTo(fx + s2 * 0.26 * wk * u, fy - (1.54 + bob) * u); ctx.lineTo(fx + s2 * 0.13 * wk * u, fy - (1.36 + bob) * u); ctx.closePath(); ctx.fill(); }
+      if (REAL) { ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = Math.max(1, 0.008 * u); for (const s2 of [-1, 1]) { ctx.beginPath(); ctx.moveTo(fx + s2 * 0.1 * wk * u, fy - (1.55 + bob) * u); ctx.lineTo(fx + s2 * 0.24 * wk * u, fy - (1.535 + bob) * u); ctx.stroke(); } }
+    }
     if (D.fighter) {
       const ink = '#2c3a42', I = (dx, dy, w, h) => RW(dx, dy + bob, w, h, ink);
       // green UFC fight shorts with white and orange side panels, McGREGOR on the waistband, UFC on the leg
@@ -3977,7 +3991,9 @@ html, body { background: #26222c !important; }
     lebron: { jaw: 0.72, iris: '#3b2416', brow: '#140c08', bw: 0.075, eh: 0.05 },
     shaq: { jaw: 0.78, iris: '#2e1c12', brow: '#140c08', bw: 0.08, eh: 0.05 },
     conor: { jaw: 0.68, iris: '#5a7fa8', brow: '#4a2a18', bw: 0.075, eh: 0.045 },
+    jensen: { jaw: 0.84, cheek: 0.9, chin: 0.8, iris: '#2e2218', brow: '#2c2926', bw: 0.06, eh: 0.026 },
   };
+  const rrectOn = (c, x, y, w, h, rad) => { c.beginPath(); c.moveTo(x + rad, y); c.arcTo(x + w, y, x + w, y + h, rad); c.arcTo(x + w, y + h, x, y + h, rad); c.arcTo(x, y + h, x, y, rad); c.arcTo(x, y, x + w, y, rad); c.closePath(); };
   function drawRealHead(c, cx, cy, r, D, mood, o = {}) {
     const st = D.hairStyle || 'elon', F = REAL_FACE[st] || REAL_FACE.elon, look = o.look || 0, fx = look * r * 0.1;
     const H = (i) => { const s = Math.sin(i * 91.7 + 17.3) * 43758.5453; return s - Math.floor(s); };
@@ -3996,9 +4012,10 @@ html, body { background: #26222c !important; }
     const J = F.jaw, face = new Path2D();
     face.moveTo(-r * 0.78, -r * 0.3);
     face.bezierCurveTo(-r * 0.78, -r * 1.02, r * 0.78, -r * 1.02, r * 0.78, -r * 0.3);
-    face.bezierCurveTo(r * 0.8, r * 0.2, r * J, r * 0.62, r * J * 0.42, r * 0.85);
-    face.quadraticCurveTo(0, r * 0.95, -r * J * 0.42, r * 0.85);
-    face.bezierCurveTo(-r * J, r * 0.62, -r * 0.8, r * 0.2, -r * 0.78, -r * 0.3);
+    const CK = F.cheek || 0.8, CH = F.chin || 0.85;
+    face.bezierCurveTo(r * CK, r * 0.2, r * J, r * 0.62, r * J * 0.42, r * CH);
+    face.quadraticCurveTo(0, r * (CH + 0.1), -r * J * 0.42, r * CH);
+    face.bezierCurveTo(-r * J, r * 0.62, -r * CK, r * 0.2, -r * 0.78, -r * 0.3);
     g = c.createRadialGradient(-r * 0.2 + fx, -r * 0.3, r * 0.08, 0, 0, r * 1.05); g.addColorStop(0, SKL); g.addColorStop(0.55, SK); g.addColorStop(1, SKD); c.fillStyle = g; c.fill(face);
     c.save(); c.clip(face);
     g = c.createLinearGradient(-r * 0.8, 0, r * 0.8, 0); g.addColorStop(0, 'rgba(60,25,15,.3)'); g.addColorStop(0.3, 'rgba(60,25,15,0)'); g.addColorStop(0.72, 'rgba(60,25,15,0)'); g.addColorStop(1, 'rgba(60,25,15,.32)'); c.fillStyle = g; c.fillRect(-r, -r, r * 2, r * 2);
@@ -4030,6 +4047,27 @@ html, body { background: #26222c !important; }
       p.lineTo(r * 0.72, -r * 0.3); p.quadraticCurveTo(r * 0.66, -r * 0.62, r * 0.42, -r * 0.66); p.quadraticCurveTo(r * 0.1 + fx, -r * 0.6, -r * 0.2 + fx, -r * 0.7); p.quadraticCurveTo(-r * 0.55, -r * 0.62, -r * 0.68, -r * 0.4); p.lineTo(-r * 0.72, -r * 0.3); p.closePath();
       hairFill(p); strands(p, 46, 1, r * 0.45);
       c.strokeStyle = 'rgba(20,12,8,.7)'; c.lineWidth = r * 0.025; c.beginPath(); c.moveTo(-r * 0.42, -r * 0.66); c.quadraticCurveTo(-r * 0.5, -r * 0.9, -r * 0.42, -r * 1.1); c.stroke();
+    } else if (st === 'jensen') {
+      // full silver hair lifted off a high forehead in a rounded wave that sweeps up and back; short, darker sides
+      const p = new Path2D();
+      p.moveTo(-r * 0.84, -r * 0.05); p.quadraticCurveTo(-r * 1.0, -r * 0.4, -r * 0.98, -r * 0.78);
+      p.bezierCurveTo(-r * 1.02, -r * 1.22, -r * 0.62, -r * 1.52, -r * 0.15, -r * 1.52);
+      p.bezierCurveTo(r * 0.42, -r * 1.54, r * 1.0, -r * 1.3, r * 0.99, -r * 0.78);
+      p.quadraticCurveTo(r * 1.0, -r * 0.4, r * 0.84, -r * 0.05); p.lineTo(r * 0.76, -r * 0.38);
+      p.quadraticCurveTo(r * 0.68, -r * 0.72, r * 0.3, -r * 0.82); p.bezierCurveTo(r * 0.05, -r * 0.88, -r * 0.3, -r * 0.88, -r * 0.56, -r * 0.76); p.quadraticCurveTo(-r * 0.72, -r * 0.6, -r * 0.76, -r * 0.36); p.closePath();
+      const hg = c.createLinearGradient(0, -r * 1.5, 0, -r * 0.4); hg.addColorStop(0, '#e2e2df'); hg.addColorStop(0.45, '#c3c2be'); hg.addColorStop(1, '#858481'); c.fillStyle = hg; c.fill(p);
+      c.save(); c.clip(p);
+      // the sides and back are a much darker charcoal grey than the silver top
+      for (const s2 of [-1, 1]) { const sg = c.createLinearGradient(s2 * r * 0.92, 0, s2 * r * 0.45, 0); sg.addColorStop(0, 'rgba(62,62,64,.85)'); sg.addColorStop(0.5, 'rgba(80,80,82,.45)'); sg.addColorStop(1, 'rgba(60,60,62,0)'); c.fillStyle = sg; c.fillRect(-r, -r * 1.15, r * 2, r * 1.1); }
+      // soft strands lifting from the hairline and sweeping diagonally up and back
+      for (let i = 0; i < 90; i++) { const x0 = -r * 0.7 + H(i + 300) * r * 1.3, y0 = -r * (0.78 + H(i + 340) * 0.35); c.strokeStyle = H(i + 360) > 0.5 ? 'rgba(255,255,255,.4)' : 'rgba(115,115,120,.35)'; c.lineWidth = r * (0.01 + H(i + 380) * 0.014);
+        c.beginPath(); c.moveTo(x0, y0); c.bezierCurveTo(x0 + r * 0.06, y0 - r * 0.25, x0 + r * 0.22, y0 - r * 0.42, x0 + r * 0.45, y0 - r * 0.48); c.stroke(); }
+      // broad soft waves through the silver
+      c.lineCap = 'round';
+      for (const [x0, y0, dx, dy] of [[-0.75, -0.95, 0.9, -0.42], [-0.6, -1.2, 0.95, -0.25], [-0.35, -0.85, 1.0, -0.5]]) { c.strokeStyle = 'rgba(120,120,126,.28)'; c.lineWidth = r * 0.07; c.beginPath(); c.moveTo(r * x0, r * y0); c.quadraticCurveTo(r * (x0 + dx * 0.4), r * (y0 + dy - 0.1), r * (x0 + dx), r * (y0 + dy * 0.6)); c.stroke(); }
+      const tg = c.createRadialGradient(-r * 0.15, -r * 1.25, 0, -r * 0.15, -r * 1.25, r * 0.5); tg.addColorStop(0, 'rgba(255,255,255,.25)'); tg.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = tg; c.fillRect(-r, -r * 1.5, r * 2, r);
+      const fg = c.createLinearGradient(0, -r * 0.95, 0, -r * 0.8); fg.addColorStop(0, 'rgba(60,60,64,0)'); fg.addColorStop(1, 'rgba(60,60,64,.3)'); c.fillStyle = fg; c.fillRect(-r, -r * 0.95, r * 2, r * 0.15);
+      c.restore();
     } else if (st === 'sam') {
       const p = new Path2D(); p.moveTo(-r * 0.8, -r * 0.1); p.bezierCurveTo(-r * 0.88, -r * 0.85, -r * 0.5, -r * 1.12, 0, -r * 1.1); p.bezierCurveTo(r * 0.5, -r * 1.12, r * 0.88, -r * 0.85, r * 0.8, -r * 0.1);
       p.lineTo(r * 0.72, -r * 0.3); p.quadraticCurveTo(r * 0.68, -r * 0.55, r * 0.45, -r * 0.55); p.quadraticCurveTo(0, -r * 0.48, -r * 0.45, -r * 0.58); p.quadraticCurveTo(-r * 0.68, -r * 0.55, -r * 0.72, -r * 0.3); p.closePath();
@@ -4073,8 +4111,26 @@ html, body { background: #26222c !important; }
       c.strokeStyle = 'rgba(30,16,10,.95)'; c.lineWidth = r * 0.032; c.beginPath(); c.moveTo(ex - ew, ey); c.quadraticCurveTo(ex, ey - eh * 2, ex + ew, ey); c.stroke();
       c.strokeStyle = 'rgba(80,40,30,.3)'; c.lineWidth = r * 0.02; c.beginPath(); c.moveTo(ex - ew * 0.8, ey + eh * 1.4); c.quadraticCurveTo(ex, ey + eh * 2.3, ex + ew * 0.8, ey + eh * 1.4); c.stroke();
     }
+    // thin half-rim glasses: a dark top bar over each lens, faint lens edges and a glint
+    if (D.glasses) {
+      for (const s of [-1, 1]) {
+        const ex = s * r * 0.3 + fx, ey = -r * 0.15;
+        c.fillStyle = 'rgba(200,215,230,.1)'; rrectOn(c, ex - r * 0.22, ey - r * 0.11, r * 0.44, r * 0.25, r * 0.05); c.fill();
+        c.strokeStyle = '#26262c'; c.lineWidth = r * 0.024; c.stroke();
+        c.strokeStyle = '#26262c'; c.lineWidth = r * 0.04; c.beginPath(); c.moveTo(ex - r * 0.22, ey - r * 0.1); c.lineTo(ex + r * 0.22, ey - r * 0.1); c.stroke();
+        c.strokeStyle = 'rgba(255,255,255,.45)'; c.lineWidth = r * 0.015; c.beginPath(); c.moveTo(ex - r * 0.1, ey + r * 0.06); c.lineTo(ex - r * 0.03, ey - r * 0.02); c.stroke();
+        c.strokeStyle = '#26262c'; c.lineWidth = r * 0.025; c.beginPath(); c.moveTo(s * r * 0.52 + fx, ey - r * 0.09); c.lineTo(s * r * 0.78, ey - r * 0.05); c.stroke();
+      }
+      c.strokeStyle = '#26262c'; c.lineWidth = r * 0.03; c.beginPath(); c.moveTo(fx - r * 0.08, -r * 0.24); c.quadraticCurveTo(fx, -r * 0.27, fx + r * 0.08, -r * 0.24); c.stroke();
+    }
+    // Jensen: smile lines from the nose down to the corners of the mouth, and lifted cheeks
+    if (st === 'jensen') {
+      c.strokeStyle = 'rgba(120,65,45,.38)'; c.lineWidth = r * 0.022;
+      for (const s of [-1, 1]) { c.beginPath(); c.moveTo(s * r * 0.17 + fx, r * 0.2); c.quadraticCurveTo(s * r * 0.3 + fx, r * 0.38, s * r * 0.25 + fx, r * 0.58); c.stroke(); }
+      for (const s of [-1, 1]) { const cg = c.createRadialGradient(s * r * 0.4 + fx, r * 0.08, 0, s * r * 0.4 + fx, r * 0.08, r * 0.2); cg.addColorStop(0, 'rgba(255,225,200,.22)'); cg.addColorStop(1, 'rgba(255,225,200,0)'); c.fillStyle = cg; c.fillRect(-r, -r * 0.2, r * 2, r * 0.5); }
+    }
     // nose
-    const nx = fx * 1.3, nw = dark ? 0.15 : 0.11;
+    const nx = fx * 1.3, nw = dark || st === 'jensen' ? 0.15 : 0.11;
     c.strokeStyle = 'rgba(70,35,25,.5)'; c.lineWidth = r * 0.04;
     c.beginPath(); c.moveTo(nx + r * 0.05, -r * 0.1); c.quadraticCurveTo(nx + r * 0.1, r * 0.16, nx + r * 0.07, r * 0.24); c.stroke();
     c.beginPath(); c.moveTo(nx - r * nw, r * 0.24); c.quadraticCurveTo(nx, r * 0.31, nx + r * nw, r * 0.24); c.stroke();
@@ -4093,9 +4149,11 @@ html, body { background: #26222c !important; }
       c.fillStyle = lip; c.beginPath(); c.ellipse(fx, my, r * 0.11, r * 0.06, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = line; c.beginPath(); c.moveTo(fx - r * 0.08, my); c.lineTo(fx + r * 0.08, my); c.stroke();
     } else {
       // closed mouths: smirk lifts one corner, smile both, frown turns down, flat stays level
+      if (st === 'jensen') { c.save(); c.translate(fx, my); c.scale(0.78, 0.7); c.translate(-fx, -my); }
       const lc = mood === 'smile' ? -0.05 : mood === 'frown' ? 0.06 : 0, rc = mood === 'smirk' ? -0.07 : mood === 'smile' ? -0.05 : mood === 'frown' ? 0.06 : 0;
       c.fillStyle = lip; c.beginPath(); c.moveTo(fx - r * 0.2, my + r * lc); c.quadraticCurveTo(fx, my + r * (mood === 'smile' ? 0.06 : -0.02), fx + r * 0.21, my + r * rc); c.quadraticCurveTo(fx, my + r * 0.09, fx - r * 0.2, my + r * lc); c.fill();
       c.beginPath(); c.moveTo(fx - r * 0.2, my + r * lc); c.quadraticCurveTo(fx, my + r * (mood === 'smile' ? 0.05 : 0), fx + r * 0.21, my + r * rc); c.stroke();
+      if (st === 'jensen') c.restore();
     }
     if (o.helmet) {
       c.fillStyle = 'rgba(190,220,255,.12)'; c.beginPath(); c.arc(0, -r * 0.12, r * 1.36, 0, Math.PI * 2); c.fill();
@@ -4141,6 +4199,13 @@ html, body { background: #26222c !important; }
       g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(X(-0.04), Y(hy + 0.13), 0.07 * u, 0.035 * u, -0.3, 0, Math.PI * 2); g.fill();
       g.fillStyle = D.hair; g.beginPath(); g.ellipse(fx, Y(hy - 0.15), 0.06 * u, 0.05 * u, 0, 0, Math.PI * 2); g.fill();
       R(-0.07, hy - 0.09, 0.14, 0.02, D.hair);
+    } else if (D.hairStyle === 'jensen') {
+      // full silver hair in a rounded wave up off a high forehead, short darker sides
+      g.moveTo(X(-0.165), Y(hy + 0.0)); g.quadraticCurveTo(X(-0.195), Y(hy + 0.08), X(-0.19), Y(hy + 0.14)); g.quadraticCurveTo(X(-0.2), Y(hy + 0.31), X(0.0), Y(hy + 0.32)); g.quadraticCurveTo(X(0.2), Y(hy + 0.32), X(0.19), Y(hy + 0.14)); g.quadraticCurveTo(X(0.195), Y(hy + 0.08), X(0.168), Y(hy + 0.0));
+      g.lineTo(X(0.13), Y(hy + 0.1)); g.quadraticCurveTo(X(0.06), Y(hy + 0.165), X(-0.05), Y(hy + 0.16)); g.quadraticCurveTo(X(-0.12), Y(hy + 0.14), X(-0.135), Y(hy + 0.08)); g.closePath(); g.fill();
+      R(-0.172, hy - 0.01, 0.04, 0.13, '#5f5e5b'); R(0.132, hy - 0.01, 0.04, 0.13, '#5f5e5b');
+      g.strokeStyle = '#a3a29e'; g.lineWidth = Math.max(1, 0.01 * u);
+      for (const sx of [-0.1, -0.03, 0.04]) { g.beginPath(); g.moveTo(X(sx), Y(hy + 0.17)); g.quadraticCurveTo(X(sx + 0.03), Y(hy + 0.25), X(sx + 0.1), Y(hy + 0.28)); g.stroke(); }
     } else if (D.hairStyle === 'sam') {
       // short, neat brown hair with a soft straight fringe
       g.ellipse(fx, Y(hy + 0.07), 0.168 * u, 0.16 * u, 0, Math.PI, 2 * Math.PI); g.fill();
@@ -4162,11 +4227,18 @@ html, body { background: #26222c !important; }
       R(-0.155, hy - 0.08, 0.035, 0.1, D.beard); R(0.12, hy - 0.08, 0.035, 0.1, D.beard);
       R(-0.07, hy - 0.085, 0.14, 0.025, D.beard);
     }
-    const dark = D.hairStyle === 'lebron' || D.hairStyle === 'shaq', brow = D.hairStyle === 'trump' ? '#d9b25a' : dark ? '#140c08' : '#3a2618';
+    const dark = D.hairStyle === 'lebron' || D.hairStyle === 'shaq', brow = D.hairStyle === 'trump' ? '#d9b25a' : D.hairStyle === 'jensen' ? '#2e2a26' : dark ? '#140c08' : '#3a2618';
     R(-0.095, hy + 0.035, 0.07, 0.017, brow); R(0.025, hy + 0.035, 0.07, 0.017, brow);
     if (dark) { C(-0.055, hy, 0.026, '#f4efe8'); C(0.055, hy, 0.026, '#f4efe8'); }
-    C(-0.055, hy, 0.017, D.hairStyle === 'sam' ? '#3a5a78' : '#2a1a10'); C(0.055, hy, 0.017, D.hairStyle === 'sam' ? '#3a5a78' : '#2a1a10');
+    if (D.hairStyle === 'jensen') { g.strokeStyle = '#2a1a10'; g.lineWidth = Math.max(1, 0.012 * u); for (const sx of [-0.058, 0.058]) { g.beginPath(); g.arc(X(sx), Y(hy - 0.012), 0.022 * u, Math.PI * 1.15, Math.PI * 1.85); g.stroke(); } }
+    else { C(-0.055, hy, 0.017, D.hairStyle === 'sam' ? '#3a5a78' : '#2a1a10'); C(0.055, hy, 0.017, D.hairStyle === 'sam' ? '#3a5a78' : '#2a1a10'); }
     R(-0.012, hy - 0.065, 0.024, 0.055, 'rgba(0,0,0,.12)');
+    if (D.glasses) {
+      // thin half-rim glasses: dark top bars and a bridge
+      g.strokeStyle = '#26262b'; g.lineWidth = Math.max(1, 0.012 * u);
+      for (const sx of [-1, 1]) { g.strokeRect(X(sx * 0.06 - 0.05), Y(hy + 0.028), 0.1 * u, 0.056 * u); g.fillStyle = '#26262b'; g.fillRect(X(sx * 0.06 - 0.05), Y(hy + 0.034), 0.1 * u, Math.max(1, 0.015 * u)); }
+      g.beginPath(); g.moveTo(X(-0.015), Y(hy + 0.02)); g.lineTo(X(0.015), Y(hy + 0.02)); g.stroke();
+    }
     // mouth: each driver has their own look, and a different reaction when they're cuffed
     const lip = dark ? '#e9d6c8' : '#7a3b2e', inside = '#3a1612';
     g.lineWidth = Math.max(1, u * 0.016); g.lineCap = 'round'; g.strokeStyle = lip;
